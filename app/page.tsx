@@ -1,6 +1,6 @@
  "use client";
 
-import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
+import { useEffect, useMemo, useState, type FormEvent } from "react";
 import {
   CalendarDays,
   Car,
@@ -10,7 +10,6 @@ import {
   CreditCard,
   Home,
   MessageCircle,
-  Pencil,
   Plus,
   Receipt,
   Send,
@@ -19,10 +18,15 @@ import {
   Tag,
   Trash2,
   X,
+  Sun,
+  Moon,
+  Monitor,
+  Pencil,
 } from "lucide-react";
 
 type Person = "Bruna" | "Matheus" | "Casal";
 type Tab = "home" | "chat" | "stats" | "future";
+type Theme = "light" | "dark" | "system";
 
 type Expense = {
   id: number;
@@ -44,7 +48,6 @@ type Installment = {
   paidInstallments: number;
   nextDue: string;
   status: "em_dia" | "vence_breve";
-  settled?: boolean;
 };
 
 type ChatMessage = {
@@ -87,19 +90,7 @@ const BUDGETS: Record<string, number> = {
   Pessoal: 1000,
 };
 
-const CATEGORY_ALIASES: Record<string, string[]> = {
-  Casa: ["casa", "aluguel", "condomínio", "condominio", "garagem", "internet", "luz", "água", "agua"],
-  Carro: ["carro", "gasolina", "posto", "óleo", "oleo", "seguro", "oficina", "manutenção", "manutencao"],
-  Pets: ["gato", "gatos", "pet", "ração", "racao", "veterinário", "veterinario", "petisco"],
-  Alimentação: ["mercado", "comida", "restaurante", "lanche", "ifood", "café", "cafe", "doce", "doces", "pedindo comida"],
-  Pessoal: ["fies", "faculdade", "curso", "pessoal"],
-  Assinaturas: ["globo", "hocks", "assinatura", "streaming", "netflix", "spotify"],
-  Transporte: ["ônibus", "onibus", "uber", "99", "transporte"],
-  Lazer: ["cinema", "bar", "viagem", "lazer"],
-};
-
 const INCOME = 13000;
-const BRUNA_LIMIT = 600;
 const MATHEUS_LIMIT = 350;
 
 const money = (value: number) =>
@@ -111,44 +102,16 @@ const shortDate = (value: string) =>
     month: "2-digit",
   });
 
-const isoToday = () => new Date().toISOString().slice(0, 10);
-
-function detectCategory(text: string) {
+function categoryFromText(text: string) {
   const normalized = text.toLowerCase();
-  for (const [category, aliases] of Object.entries(CATEGORY_ALIASES)) {
-    if (aliases.some((alias) => normalized.includes(alias))) return category;
-  }
+  if (/mercado|comida|restaurante|lanche|ifood/.test(normalized)) return "Alimentação";
+  if (/gasolina|posto|carro|óleo|seguro/.test(normalized)) return "Carro";
+  if (/gato|pet|ração|veterin/.test(normalized)) return "Pets";
+  if (/luz|internet|condomínio|garagem|casa|aluguel/.test(normalized)) return "Casa";
+  if (/fies|faculdade|curso|pessoal/.test(normalized)) return "Pessoal";
+  if (/globo|hocks|assinatura|streaming/.test(normalized)) return "Assinaturas";
+  if (/ônibus|uber|99/.test(normalized)) return "Transporte";
   return "Outros";
-}
-
-function detectPerson(text: string): Person | null {
-  const normalized = text.toLowerCase();
-  if (/\b(bruna|bru)\b/.test(normalized)) return "Bruna";
-  if (/\b(matheus|theus)\b/.test(normalized)) return "Matheus";
-  if (/\b(casal|nós|nos|juntos|juntas|os dois|os dois)\b/.test(normalized)) return "Casal";
-  return null;
-}
-
-function parseAmount(input: string) {
-  const match = input.match(/(?:r\$\s*)?(\d{1,3}(?:\.\d{3})*(?:,\d{1,2})?|\d+(?:[.,]\d{1,2})?)/i);
-  if (!match) return null;
-  const raw = match[1];
-  const normalized = raw.includes(",")
-    ? raw.replace(/\./g, "").replace(",", ".")
-    : raw;
-  const value = Number(normalized);
-  return Number.isFinite(value) ? value : null;
-}
-
-function cleanExpenseTitle(input: string) {
-  return input
-    .replace(/(?:gastei|gasto|paguei|comprei|custou|paguei)\b/gi, "")
-    .replace(/(?:r\$\s*)?(\d{1,3}(?:\.\d{3})*(?:,\d{1,2})?|\d+(?:[.,]\d{1,2})?)/i, "")
-    .replace(/\b(?:a|o|no|na|em|de|do|da|com|para)\b/gi, " ")
-    .replace(/\b(?:bruna|bru|matheus|theus|casal|nós|nos|juntos|juntas)\b/gi, " ")
-    .replace(/\s+/g, " ")
-    .trim()
-    .replace(/^[\s:,-]+|[\s:,-]+$/g, "");
 }
 
 function iconFor(category: string) {
@@ -157,7 +120,6 @@ function iconFor(category: string) {
   if (category === "Alimentação") return <ShoppingCart size={19} />;
   if (category === "Casa") return <Home size={19} />;
   if (category === "Assinaturas") return <CreditCard size={19} />;
-  if (category === "Pessoal") return <Receipt size={19} />;
   return <Tag size={19} />;
 }
 
@@ -165,59 +127,49 @@ function buildAssistantReply(
   input: string,
   expenses: Expense[],
   installments: Installment[],
-  brunaLimit: number,
-  matheusLimit: number,
 ) {
   const text = input.trim().toLowerCase();
   const totalSpent = expenses.reduce((sum, item) => sum + item.amount, 0);
   const available = INCOME - totalSpent;
-  const installmentTotal = installments
-    .filter((item) => !item.settled)
-    .reduce((sum, item) => sum + item.amount, 0);
-  const next = [...installments]
-    .filter((item) => !item.settled)
-    .sort((a, b) => a.nextDue.localeCompare(b.nextDue))[0];
+  const installmentTotal = installments.reduce((sum, item) => sum + item.amount, 0);
+  const next = [...installments].sort((a, b) => a.nextDue.localeCompare(b.nextDue))[0];
 
-  if (!text) return "Pode mandar a pergunta. Eu consigo consultar gastos, orçamento e parcelas.";
+  if (!text) return "Pode mandar a pergunta. Eu consigo consultar os gastos, orçamento e parcelas.";
 
   if (/resumo|resumir|como estamos|situação/.test(text)) {
-    return `Resumo: ${money(totalSpent)} em ${expenses.length} lançamentos. Disponível pela renda cadastrada: ${money(Math.max(0, available))}. Há ${installments.filter((item) => !item.settled).length} compromissos parcelados ativos.`;
+    return `Resumo de agosto: ${money(totalSpent)} em ${expenses.length} lançamentos. Sobram ${money(available)} da renda de ${money(INCOME)}. Há ${installments.length} parcelas ativas, somando ${money(installmentTotal)} por mês.`;
   }
 
   if (/quanto temos|quanto tem|disponível|saldo|sobrou/.test(text)) {
-    return `Neste mês, já foram registrados ${money(totalSpent)}. Considerando a renda de ${money(INCOME)}, o disponível calculado é ${money(Math.max(0, available))}.`;
+    return `Neste mês, já foram registrados ${money(totalSpent)}. Considerando a renda de ${money(INCOME)}, o disponível calculado é ${money(available)}.`;
   }
 
-  if (/bruna/.test(text) && /limite|gastar|disponível/.test(text)) {
-    const spent = expenses.filter((item) => item.who === "Bruna").reduce((sum, item) => sum + item.amount, 0);
-    return `Limite da Bruna: ${money(brunaLimit)}. Já registrados para a Bruna: ${money(spent)}.`;
+  if (/parcela|parcelas|futuro|prestações/.test(text)) {
+    return `Temos ${installments.length} parcelas ativas. A próxima é ${next.title}, ${money(next.amount)}, com vencimento em ${shortDate(next.nextDue)}. Na aba Futuro você pode ver quantas já foram pagas e quantas faltam em cada uma.`;
   }
 
-  if (/matheus/.test(text) && /limite|gastar|disponível/.test(text)) {
-    const spent = expenses.filter((item) => item.who === "Matheus").reduce((sum, item) => sum + item.amount, 0);
-    return `Limite do Matheus: ${money(matheusLimit)}. Já registrados para o Matheus: ${money(spent)}.`;
-  }
+  const amountMatch = input.match(/(?:r\$?\s*)?(\d+(?:[.,]\d{1,2})?)/i);
+  const amount = amountMatch ? Number(amountMatch[1].replace(".", "").replace(",", ".")) : null;
 
-  if (/parcela|parcelas|futuro|prestações|prestação/.test(text)) {
-    if (!next) return "Não há parcelas ativas cadastradas.";
-    return `Há ${installments.filter((item) => !item.settled).length} compromissos ativos. A próxima é ${next.title}, ${money(next.amount)}/mês, vencendo em ${shortDate(next.nextDue)}. Na aba Futuro você vê pagas, faltantes, total e pode quitar ou adiantar parcelas.`;
+  if (/gastei|gasto|paguei|comprei|custou/.test(text) && amount !== null && amount > 0) {
+    const category = categoryFromText(text);
+    return `Entendi. Registrei ${money(amount)} em ${category}. O lançamento foi adicionado aos gastos e os totais foram recalculados.`;
   }
 
   if (/ajuda|o que você|comandos|pode fazer/.test(text)) {
-    return "Posso registrar gastos, consultar limites, mostrar resumo, calcular disponível, consultar parcelas e ajudar a corrigir um lançamento. Quando você disser quem gastou, eu salvo Bruna, Matheus ou Casal. Se não disser, eu pergunto antes de registrar.";
+    return "Posso registrar gastos, mostrar um resumo, calcular o disponível, consultar parcelas e explicar o orçamento. Pode escrever do jeito que você falaria normalmente.";
   }
 
-  if (/gastei|gasto|paguei|comprei|custou/.test(text)) {
-    return "Posso registrar esse gasto. Só preciso do valor e, quando não estiver claro, de saber se foi Bruna, Matheus ou Casal.";
-  }
-
-  return "Entendi. Posso ajudar com gastos, orçamento e parcelas. Tente “gastei 85 no mercado”, “Bruna gastou 35 no café”, “quanto temos?” ou “quais parcelas faltam?”.";
+  return "Entendi. Posso ajudar com gastos, orçamento e parcelas. Tente algo como “gastei 85 no mercado”, “me dá um resumo”, “quanto temos?” ou “quais parcelas faltam?”.";
 }
 
 export default function Page() {
   const [tab, setTab] = useState<Tab>("home");
+  const [activeProfile, setActiveProfile] = useState<Person>("Bruna");
+  const [theme, setTheme] = useState<Theme>("system");
+  const [themeOpen, setThemeOpen] = useState(false);
   const [expenses, setExpenses] = useState<Expense[]>(INITIAL_EXPENSES);
-  const [installments, setInstallments] = useState<Installment[]>(INITIAL_INSTALLMENTS);
+  const [installments] = useState<Installment[]>(INITIAL_INSTALLMENTS);
   const [text, setText] = useState("");
   const [chat, setChat] = useState<ChatMessage[]>([
     {
@@ -228,45 +180,57 @@ export default function Page() {
   ]);
   const [toast, setToast] = useState("");
   const [modal, setModal] = useState(false);
-  const [installmentModal, setInstallmentModal] = useState(false);
-  const [editingCategory, setEditingCategory] = useState<string | null>(null);
   const [form, setForm] = useState({
     title: "",
     amount: "",
     cat: "Outros",
     who: "Bruna" as Person,
   });
-  const [installmentForm, setInstallmentForm] = useState({
-    title: "",
-    amount: "",
-    category: "Outros",
-    who: "Bruna" as Person,
-    total: "12",
-    paid: "0",
-    nextDue: "",
-  });
-
-  const messagesRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
-    try {
-      const savedExpenses = window.localStorage.getItem("brumath-expenses");
-      if (savedExpenses) {
-        const parsed = JSON.parse(savedExpenses) as Expense[];
+    const savedTheme = window.localStorage.getItem("brumath-theme") as Theme | null;
+    if (savedTheme === "light" || savedTheme === "dark" || savedTheme === "system") {
+      setTheme(savedTheme);
+    }
+  }, []);
+
+  useEffect(() => {
+    window.localStorage.setItem("brumath-theme", theme);
+    const root = document.documentElement;
+    root.dataset.theme = theme;
+    root.style.colorScheme = theme === "system" ? "" : theme;
+  }, [theme]);
+
+  useEffect(() => {
+    const media = window.matchMedia("(prefers-color-scheme: dark)");
+    const update = () => {
+      if (theme === "system") document.documentElement.dataset.theme = media.matches ? "dark" : "light";
+    };
+    update();
+    media.addEventListener?.("change", update);
+    return () => media.removeEventListener?.("change", update);
+  }, [theme]);
+
+  useEffect(() => {
+    const savedProfile = window.localStorage.getItem("brumath-profile") as Person | null;
+    if (savedProfile === "Bruna" || savedProfile === "Matheus" || savedProfile === "Casal") {
+      setActiveProfile(savedProfile);
+    }
+  }, []);
+
+  useEffect(() => {
+    window.localStorage.setItem("brumath-profile", activeProfile);
+  }, [activeProfile]);
+
+  useEffect(() => {
+    const saved = window.localStorage.getItem("brumath-expenses");
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved) as Expense[];
         if (Array.isArray(parsed)) setExpenses(parsed);
+      } catch {
+        // Mantém os dados iniciais quando o armazenamento local estiver inválido.
       }
-      const savedInstallments = window.localStorage.getItem("brumath-installments");
-      if (savedInstallments) {
-        const parsed = JSON.parse(savedInstallments) as Installment[];
-        if (Array.isArray(parsed)) setInstallments(parsed);
-      }
-      const savedChat = window.localStorage.getItem("brumath-chat");
-      if (savedChat) {
-        const parsed = JSON.parse(savedChat) as ChatMessage[];
-        if (Array.isArray(parsed) && parsed.length) setChat(parsed);
-      }
-    } catch {
-      // Usa os dados iniciais se o localStorage estiver inválido.
     }
   }, []);
 
@@ -275,27 +239,10 @@ export default function Page() {
   }, [expenses]);
 
   useEffect(() => {
-    window.localStorage.setItem("brumath-installments", JSON.stringify(installments));
-  }, [installments]);
-
-  useEffect(() => {
-    window.localStorage.setItem("brumath-chat", JSON.stringify(chat));
-  }, [chat]);
-
-  useEffect(() => {
     if (!toast) return;
     const timer = window.setTimeout(() => setToast(""), 2200);
     return () => window.clearTimeout(timer);
   }, [toast]);
-
-  useEffect(() => {
-    if (tab !== "chat") return;
-    const element = messagesRef.current;
-    if (!element) return;
-    requestAnimationFrame(() => {
-      element.scrollTop = element.scrollHeight;
-    });
-  }, [chat, tab]);
 
   const totalSpent = useMemo(
     () => expenses.reduce((sum, item) => sum + item.amount, 0),
@@ -306,84 +253,57 @@ export default function Page() {
   const usedPercent = Math.min(100, (totalSpent / INCOME) * 100);
 
   const categoryTotals = useMemo(() => {
-    const categories = [...Object.keys(BUDGETS), "Outros"];
-    return categories.map((category) => {
-      const budget = BUDGETS[category] ?? 0;
+    return Object.entries(BUDGETS).map(([category, budget]) => {
       const spent = expenses
         .filter((item) => item.cat === category)
         .reduce((sum, item) => sum + item.amount, 0);
-      return {
-        category,
-        budget,
-        spent,
-        percent: budget > 0 ? Math.min(100, (spent / budget) * 100) : spent > 0 ? 100 : 0,
-      };
+      return { category, budget, spent, percent: Math.min(100, (spent / budget) * 100) };
     });
   }, [expenses]);
 
-  const brunaSpent = expenses.filter((item) => item.who === "Bruna").reduce((sum, item) => sum + item.amount, 0);
-  const matheusSpent = expenses.filter((item) => item.who === "Matheus").reduce((sum, item) => sum + item.amount, 0);
+  const futureTotal = installments.reduce((sum, item) => sum + item.amount, 0);
+  const remainingInstallments = installments.reduce(
+    (sum, item) => sum + (item.totalInstallments - item.paidInstallments),
+    0,
+  );
 
-  const futureTotal = installments
-    .filter((item) => !item.settled)
-    .reduce((sum, item) => sum + item.amount, 0);
+  const send = (preset?: string) => {
+    const value = (preset ?? text).trim();
+    if (!value) return;
 
-  const remainingInstallments = installments
-    .filter((item) => !item.settled)
-    .reduce((sum, item) => sum + Math.max(0, item.totalInstallments - item.paidInstallments), 0);
+    const amountMatch = value.match(/(?:r\$?\s*)?(\d+(?:[.,]\d{1,2})?)/i);
+    const amount = amountMatch ? Number(amountMatch[1].replace(".", "").replace(",", ".")) : null;
 
-  const registerExpense = (value: string) => {
-    const amount = parseAmount(value);
-    if (!amount || amount <= 0) return false;
+    if (amount !== null && amount > 0 && /gastei|gasto|paguei|comprei|custou/i.test(value)) {
+      const category = categoryFromText(value);
+      const title = value
+        .replace(/(?:gastei|gasto|paguei|comprei|custou)/i, "")
+        .replace(/r\$?\s*\d+(?:[.,]\d{1,2})?/i, "")
+        .replace(/\bno\b|\bna\b|\bem\b|\bde\b/gi, " ")
+        .trim()
+        .replace(/\s+/g, " ");
 
-    const person = detectPerson(value);
-    if (!person) {
+      const newExpense: Expense = {
+        id: Date.now(),
+        title: title ? title.charAt(0).toUpperCase() + title.slice(1) : "Novo gasto",
+        cat: category,
+        who: /matheus/i.test(value) ? "Matheus" : /bruna/i.test(value) ? "Bruna" : /casal|nós|nos /i.test(value) ? "Casal" : activeProfile,
+        amount,
+        date: new Date().toISOString().slice(0, 10),
+      };
+
+      setExpenses((current) => [newExpense, ...current]);
       setChat((current) => [
         ...current,
         { id: Date.now(), role: "user", text: value },
         {
           id: Date.now() + 1,
           role: "assistant",
-          text: `Entendi o gasto de ${money(amount)}, mas não ficou claro quem gastou. Foi Bruna, Matheus ou Casal?`,
+          text: `Registrei ${money(amount)} em ${category}. Seu disponível agora é ${money(Math.max(0, INCOME - totalSpent - amount))}.`,
         },
       ]);
       setText("");
-      return true;
-    }
-
-    const category = detectCategory(value);
-    const title = cleanExpenseTitle(value) || "Novo gasto";
-    const newExpense: Expense = {
-      id: Date.now(),
-      title: title.charAt(0).toUpperCase() + title.slice(1),
-      cat: category,
-      who: person,
-      amount,
-      date: isoToday(),
-    };
-
-    setExpenses((current) => [newExpense, ...current]);
-    setChat((current) => [
-      ...current,
-      { id: Date.now(), role: "user", text: value },
-      {
-        id: Date.now() + 1,
-        role: "assistant",
-        text: `Registrei ${money(amount)} em ${category} para ${person}. O valor já entrou nos totais e no orçamento.`,
-      },
-    ]);
-    setText("");
-    setToast("Gasto registrado 💚");
-    return true;
-  };
-
-  const send = (preset?: string) => {
-    const value = (preset ?? text).trim();
-    if (!value) return;
-
-    const looksLikeExpense = /gastei|gasto|paguei|comprei|custou|pedi|pedimos|gastamos/i.test(value);
-    if (looksLikeExpense && parseAmount(value)) {
-      registerExpense(value);
+      setToast("Gasto registrado 💚");
       return;
     }
 
@@ -393,7 +313,7 @@ export default function Page() {
       {
         id: Date.now() + 1,
         role: "assistant",
-        text: buildAssistantReply(value, expenses, installments, BRUNA_LIMIT, MATHEUS_LIMIT),
+        text: buildAssistantReply(value, expenses, installments),
       },
     ]);
     setText("");
@@ -414,7 +334,7 @@ export default function Page() {
         amount,
         cat: form.cat,
         who: form.who,
-        date: isoToday(),
+        date: new Date().toISOString().slice(0, 10),
       },
       ...current,
     ]);
@@ -424,88 +344,9 @@ export default function Page() {
     setToast("Gasto adicionado 💚");
   };
 
-  const saveInstallment = (event: FormEvent) => {
-    event.preventDefault();
-    const amount = Number(installmentForm.amount.replace(",", "."));
-    const total = Number(installmentForm.total);
-    const paid = Number(installmentForm.paid);
-    if (
-      !installmentForm.title.trim() ||
-      !Number.isFinite(amount) ||
-      amount <= 0 ||
-      !Number.isInteger(total) ||
-      total <= 0 ||
-      !Number.isInteger(paid) ||
-      paid < 0 ||
-      paid > total ||
-      !installmentForm.nextDue
-    ) {
-      setToast("Confira os dados da parcela.");
-      return;
-    }
-
-    setInstallments((current) => [
-      ...current,
-      {
-        id: Date.now(),
-        title: installmentForm.title.trim(),
-        category: installmentForm.category,
-        who: installmentForm.who,
-        amount,
-        totalInstallments: total,
-        paidInstallments: paid,
-        nextDue: installmentForm.nextDue,
-        status: "em_dia",
-      },
-    ]);
-
-    setInstallmentForm({
-      title: "",
-      amount: "",
-      category: "Outros",
-      who: "Bruna",
-      total: "12",
-      paid: "0",
-      nextDue: "",
-    });
-    setInstallmentModal(false);
-    setToast("Parcelado adicionado 💚");
-  };
-
-  const advanceInstallment = (id: number, amount = 1) => {
-    setInstallments((current) =>
-      current.map((item) => {
-        if (item.id !== id || item.settled) return item;
-        const paid = Math.min(item.totalInstallments, item.paidInstallments + amount);
-        return {
-          ...item,
-          paidInstallments: paid,
-          settled: paid >= item.totalInstallments,
-          status: paid >= item.totalInstallments ? "em_dia" : item.status,
-        };
-      }),
-    );
-    setToast(amount > 1 ? `${amount} parcelas adiantadas.` : "Parcela quitada/baixada.");
-  };
-
-  const settleInstallment = (id: number) => {
-    setInstallments((current) =>
-      current.map((item) =>
-        item.id === id
-          ? { ...item, paidInstallments: item.totalInstallments, settled: true }
-          : item,
-      ),
-    );
-    setToast("Compromisso quitado 💚");
-  };
-
   const removeExpense = (id: number) => {
     setExpenses((current) => current.filter((item) => item.id !== id));
     setToast("Gasto removido.");
-  };
-
-  const openCategory = (category: string) => {
-    setEditingCategory(category);
   };
 
   return (
@@ -517,7 +358,44 @@ export default function Page() {
           <div className="brand">Bru<span>Math</span> <span className="heart">💚</span></div>
           <div className="subtitle">Finanças de Bruna &amp; Matheus</div>
         </div>
-        <button className="avatar" type="button" onClick={() => setToast("Perfil do casal")}>BM</button>
+        <div className="topbar-actions">
+          <div className="profile-switch" aria-label="Quem está falando">
+            <span className="profile-label">Falando como</span>
+            {(["Bruna", "Matheus", "Casal"] as Person[]).map((person) => (
+              <button
+                key={person}
+                type="button"
+                className={activeProfile === person ? "profile-chip active" : "profile-chip"}
+                onClick={() => setActiveProfile(person)}
+              >
+                {person}
+              </button>
+            ))}
+          </div>
+          <div className="theme-control">
+            <button className="theme-button" type="button" aria-label="Escolher tema" onClick={() => setThemeOpen((open) => !open)}>
+              {theme === "dark" ? <Moon size={18} /> : theme === "light" ? <Sun size={18} /> : <Monitor size={18} />}
+            </button>
+            {themeOpen && (
+              <div className="theme-menu" role="menu">
+                {([
+                  ["light", "Claro", <Sun size={16} />],
+                  ["dark", "Escuro", <Moon size={16} />],
+                  ["system", "Automático", <Monitor size={16} />],
+                ] as const).map(([value, label, icon]) => (
+                  <button
+                    key={value}
+                    type="button"
+                    className={theme === value ? "theme-option active" : "theme-option"}
+                    onClick={() => { setTheme(value); setThemeOpen(false); }}
+                  >
+                    {icon}<span>{label}</span>{theme === value && <Check size={15} />}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
       </header>
 
       <main className="page">
@@ -540,17 +418,11 @@ export default function Page() {
             <section className="summary-grid">
               <div className="metric-card">
                 <span>Limite Matheus</span>
-                <strong>{money(MATHEUS_LIMIT - matheusSpent)}</strong>
-                <small>de {money(MATHEUS_LIMIT)} disponíveis</small>
-              </div>
-              <div className="metric-card">
-                <span>Limite Bruna</span>
-                <strong>{money(Math.max(0, BRUNA_LIMIT - brunaSpent))}</strong>
-                <small>de {money(BRUNA_LIMIT)} disponíveis</small>
+                <strong>{money(MATHEUS_LIMIT)}</strong>
               </div>
               <button className="metric-card metric-button" type="button" onClick={() => setTab("future")}>
                 <span>Parcelas</span>
-                <strong>{installments.filter((item) => !item.settled).length} ativas</strong>
+                <strong>{installments.length} ativas</strong>
                 <ChevronRight size={18} />
               </button>
             </section>
@@ -562,6 +434,7 @@ export default function Page() {
               </div>
 
               <div className="chat-preview">
+                <div className="chat-profile-banner compact">Falando como <strong>{activeProfile}</strong></div>
                 <div className="bubble assistant-bubble">
                   {chat[chat.length - 1]?.role === "assistant"
                     ? chat[chat.length - 1].text
@@ -579,7 +452,7 @@ export default function Page() {
                     onKeyDown={(event) => {
                       if (event.key === "Enter") send();
                     }}
-                    placeholder="Ex.: Bruna gastou 50 no mercado"
+                    placeholder="Ex.: gastei 50 no mercado"
                   />
                   <button className="send-button" type="button" onClick={() => send()}>
                     <Send size={17} />
@@ -599,7 +472,7 @@ export default function Page() {
               </div>
 
               <div className="expense-list">
-                {expenses.slice(0, 12).map((expense) => (
+                {expenses.slice(0, 9).map((expense) => (
                   <div className="expense-row" key={expense.id}>
                     <div className="expense-icon">{iconFor(expense.cat)}</div>
                     <div className="expense-info">
@@ -632,9 +505,10 @@ export default function Page() {
               </div>
               <span className="online"><i /> online</span>
             </div>
+            <div className="chat-profile-banner">Falando como <strong>{activeProfile}</strong></div>
 
             <div className="full-chat">
-              <div className="messages" ref={messagesRef}>
+              <div className="messages">
                 {chat.map((message) => (
                   <div className={`message ${message.role}`} key={message.id}>
                     <div className="message-avatar">{message.role === "assistant" ? "💚" : "BM"}</div>
@@ -675,25 +549,25 @@ export default function Page() {
               <div>
                 <span className="eyebrow"><ChartNoAxesColumn size={15} /> Categorias</span>
                 <h1>Orçamento por categoria</h1>
-                <p>Toque em uma categoria para abrir os gastos que formam aquele total.</p>
+                <p>Veja quanto já foi usado em cada limite.</p>
               </div>
             </div>
 
             <div className="category-grid">
               {categoryTotals.map((item) => (
-                <button className="category-card" key={item.category} type="button" onClick={() => openCategory(item.category)}>
+                <div className="category-card" key={item.category}>
                   <div className="category-head">
                     <div className="category-icon">{iconFor(item.category)}</div>
                     <div>
                       <strong>{item.category}</strong>
-                      <span>{money(item.spent)} {item.budget ? `de ${money(item.budget)}` : "registrados"}</span>
+                      <span>{money(item.spent)} de {money(item.budget)}</span>
                     </div>
                     <b>{Math.round(item.percent)}%</b>
                   </div>
                   <div className="progress-track small">
                     <div className="progress-fill" style={{ width: `${Math.max(item.spent ? 4 : 0, item.percent)}%` }} />
                   </div>
-                </button>
+                </div>
               ))}
             </div>
           </section>
@@ -705,17 +579,14 @@ export default function Page() {
               <div>
                 <span className="eyebrow"><CalendarDays size={15} /> Futuro</span>
                 <h1>Parcelas e compromissos</h1>
-                <p>Veja o valor mensal, histórico, quantidade restante, próximo vencimento e ações de quitação/adiantamento.</p>
+                <p>Agora você consegue ver o que é cada parcela, o valor, quantas já foram pagas e quantas ainda faltam.</p>
               </div>
-              <button className="primary-button compact" type="button" onClick={() => setInstallmentModal(true)}>
-                <Plus size={17} /> Novo parcelado
-              </button>
             </div>
 
             <div className="future-summary">
               <div>
                 <span>Parcelas ativas</span>
-                <strong>{installments.filter((item) => !item.settled).length}</strong>
+                <strong>{installments.length}</strong>
               </div>
               <div>
                 <span>Compromisso mensal</span>
@@ -729,11 +600,11 @@ export default function Page() {
 
             <div className="installment-list">
               {installments.map((item) => {
-                const remaining = Math.max(0, item.totalInstallments - item.paidInstallments);
-                const paidPercent = item.totalInstallments ? (item.paidInstallments / item.totalInstallments) * 100 : 0;
+                const remaining = item.totalInstallments - item.paidInstallments;
+                const paidPercent = (item.paidInstallments / item.totalInstallments) * 100;
 
                 return (
-                  <article className={`installment-card ${item.settled ? "settled" : ""}`} key={item.id}>
+                  <article className="installment-card" key={item.id}>
                     <div className="installment-icon">{iconFor(item.category)}</div>
                     <div className="installment-main">
                       <div className="installment-title-row">
@@ -748,7 +619,7 @@ export default function Page() {
                         <div><span>Pagas</span><b>{item.paidInstallments}</b></div>
                         <div><span>Faltam</span><b>{remaining}</b></div>
                         <div><span>Total</span><b>{item.totalInstallments}</b></div>
-                        <div><span>Próximo vencimento</span><b>{item.settled ? "Quitado" : shortDate(item.nextDue)}</b></div>
+                        <div><span>Próximo vencimento</span><b>{shortDate(item.nextDue)}</b></div>
                       </div>
 
                       <div className="installment-progress">
@@ -757,24 +628,10 @@ export default function Page() {
                         </div>
                         <span>{Math.round(paidPercent)}% concluído</span>
                       </div>
-
-                      {!item.settled && (
-                        <div className="installment-actions">
-                          <button type="button" onClick={() => advanceInstallment(item.id, 1)}>
-                            <Check size={15} /> Pagar 1
-                          </button>
-                          <button type="button" onClick={() => advanceInstallment(item.id, 2)}>
-                            +2 adiantadas
-                          </button>
-                          <button type="button" onClick={() => settleInstallment(item.id)}>
-                            Quitar
-                          </button>
-                        </div>
-                      )}
                     </div>
 
                     <span className={`status ${item.status}`}>
-                      {item.settled ? "Quitado" : item.status === "vence_breve" ? "Vence em breve" : "Em dia"}
+                      {item.status === "vence_breve" ? "Vence em breve" : "Em dia"}
                     </span>
                   </article>
                 );
@@ -784,8 +641,8 @@ export default function Page() {
             <div className="future-note">
               <Sparkles size={18} />
               <div>
-                <strong>Controle de parcelados</strong>
-                <span>Você pode cadastrar novos compromissos, baixar uma parcela, adiantar duas ou quitar tudo. O progresso fica salvo no navegador.</span>
+                <strong>Visão completa</strong>
+                <span>As quantidades de pagas e restantes ficam vinculadas a cada compromisso, em vez de aparecerem como uma lista estática.</span>
               </div>
             </div>
           </section>
@@ -811,38 +668,6 @@ export default function Page() {
         </button>
       </nav>
 
-      {editingCategory && (
-        <div className="modal-backdrop" role="presentation" onMouseDown={() => setEditingCategory(null)}>
-          <div className="modal-card category-modal" onMouseDown={(event) => event.stopPropagation()}>
-            <div className="modal-header">
-              <div>
-                <span className="eyebrow">{iconFor(editingCategory)} Categoria</span>
-                <h2>{editingCategory}</h2>
-              </div>
-              <button className="icon-button" type="button" onClick={() => setEditingCategory(null)} aria-label="Fechar">
-                <X size={19} />
-              </button>
-            </div>
-            <div className="category-expenses">
-              {expenses.filter((expense) => expense.cat === editingCategory).length ? (
-                expenses.filter((expense) => expense.cat === editingCategory).map((expense) => (
-                  <div className="expense-row" key={expense.id}>
-                    <div className="expense-icon">{iconFor(expense.cat)}</div>
-                    <div className="expense-info">
-                      <strong>{expense.title}</strong>
-                      <span>{expense.who} · {shortDate(expense.date)}</span>
-                    </div>
-                    <strong className="expense-amount">{money(expense.amount)}</strong>
-                  </div>
-                ))
-              ) : (
-                <div className="empty-state">Nenhum gasto registrado nesta categoria.</div>
-              )}
-            </div>
-          </div>
-        </div>
-      )}
-
       {modal && (
         <div className="modal-backdrop" role="presentation" onMouseDown={() => setModal(false)}>
           <div className="modal-card" onMouseDown={(event) => event.stopPropagation()}>
@@ -859,89 +684,53 @@ export default function Page() {
             <form onSubmit={saveExpense}>
               <label className="field">
                 <span>O que foi?</span>
-                <input value={form.title} onChange={(event) => setForm({ ...form, title: event.target.value })} placeholder="Ex.: Mercado" required />
+                <input
+                  value={form.title}
+                  onChange={(event) => setForm({ ...form, title: event.target.value })}
+                  placeholder="Ex.: Mercado"
+                  required
+                />
               </label>
+
               <label className="field">
                 <span>Valor</span>
-                <input value={form.amount} onChange={(event) => setForm({ ...form, amount: event.target.value })} type="number" step="0.01" min="0.01" placeholder="0,00" required />
+                <input
+                  value={form.amount}
+                  onChange={(event) => setForm({ ...form, amount: event.target.value })}
+                  type="number"
+                  step="0.01"
+                  min="0.01"
+                  placeholder="0,00"
+                  required
+                />
               </label>
+
               <div className="form-grid">
                 <label className="field">
                   <span>Categoria</span>
                   <select value={form.cat} onChange={(event) => setForm({ ...form, cat: event.target.value })}>
-                    {[...Object.keys(BUDGETS), "Outros"].map((category) => <option key={category}>{category}</option>)}
+                    {Object.keys(BUDGETS).concat("Outros").map((category) => (
+                      <option key={category}>{category}</option>
+                    ))}
                   </select>
                 </label>
+
                 <label className="field">
                   <span>Quem</span>
-                  <select value={form.who} onChange={(event) => setForm({ ...form, who: event.target.value as Person })}>
+                  <select
+                    value={form.who}
+                    onChange={(event) => setForm({ ...form, who: event.target.value as Person })}
+                  >
                     <option>Bruna</option>
                     <option>Matheus</option>
                     <option>Casal</option>
                   </select>
                 </label>
               </div>
-              <button className="primary-button" type="submit"><Check size={17} /> Salvar gasto</button>
-            </form>
-          </div>
-        </div>
-      )}
 
-      {installmentModal && (
-        <div className="modal-backdrop" role="presentation" onMouseDown={() => setInstallmentModal(false)}>
-          <div className="modal-card" onMouseDown={(event) => event.stopPropagation()}>
-            <div className="modal-header">
-              <div>
-                <span className="eyebrow"><CalendarDays size={15} /> Parcelado</span>
-                <h2>Novo compromisso</h2>
-              </div>
-              <button className="icon-button" type="button" onClick={() => setInstallmentModal(false)} aria-label="Fechar">
-                <X size={19} />
+              <button className="primary-button" type="submit">
+                <Check size={17} /> Salvar gasto
               </button>
-            </div>
-
-            <form onSubmit={saveInstallment}>
-              <label className="field">
-                <span>O que é?</span>
-                <input value={installmentForm.title} onChange={(event) => setInstallmentForm({ ...installmentForm, title: event.target.value })} placeholder="Ex.: Notebook" required />
-              </label>
-              <div className="form-grid">
-                <label className="field">
-                  <span>Valor da parcela</span>
-                  <input value={installmentForm.amount} onChange={(event) => setInstallmentForm({ ...installmentForm, amount: event.target.value })} type="number" step="0.01" min="0.01" required />
-                </label>
-                <label className="field">
-                  <span>Próximo vencimento</span>
-                  <input value={installmentForm.nextDue} onChange={(event) => setInstallmentForm({ ...installmentForm, nextDue: event.target.value })} type="date" required />
-                </label>
-              </div>
-              <div className="form-grid">
-                <label className="field">
-                  <span>Total de parcelas</span>
-                  <input value={installmentForm.total} onChange={(event) => setInstallmentForm({ ...installmentForm, total: event.target.value })} type="number" min="1" step="1" required />
-                </label>
-                <label className="field">
-                  <span>Já pagas</span>
-                  <input value={installmentForm.paid} onChange={(event) => setInstallmentForm({ ...installmentForm, paid: event.target.value })} type="number" min="0" step="1" required />
-                </label>
-              </div>
-              <div className="form-grid">
-                <label className="field">
-                  <span>Categoria</span>
-                  <select value={installmentForm.category} onChange={(event) => setInstallmentForm({ ...installmentForm, category: event.target.value })}>
-                    {[...Object.keys(BUDGETS), "Outros"].map((category) => <option key={category}>{category}</option>)}
-                  </select>
-                </label>
-                <label className="field">
-                  <span>Quem</span>
-                  <select value={installmentForm.who} onChange={(event) => setInstallmentForm({ ...installmentForm, who: event.target.value as Person })}>
-                    <option>Bruna</option>
-                    <option>Matheus</option>
-                    <option>Casal</option>
-                  </select>
-                </label>
-              </div>
-              <button className="primary-button" type="submit"><Check size={17} /> Salvar parcelado</button>
             </form>
           </div>
         </div>
