@@ -1,12 +1,19 @@
- "use client";
+/* app/page.tsx */
+"use client";
 
-import { useEffect, useMemo, useState, type FormEvent } from "react";
+import {
+  useMemo,
+  useState,
+  type FormEvent,
+  type ReactNode,
+} from "react";
 import {
   CalendarDays,
   Car,
-  ChartNoAxesColumn,
-  Check,
+  Cat,
+  CheckCircle2,
   ChevronRight,
+  CircleUserRound,
   CreditCard,
   Home,
   MessageCircle,
@@ -15,679 +22,889 @@ import {
   Send,
   ShoppingCart,
   Sparkles,
-  Tag,
-  Trash2,
+  Wallet,
   X,
-  Sun,
-  Moon,
-  Monitor,
-  Pencil,
+  Zap,
 } from "lucide-react";
 
+type Category =
+  | "Casa"
+  | "Alimentação"
+  | "Transporte"
+  | "Lazer"
+  | "Pessoal"
+  | "Pets"
+  | "Assinaturas"
+  | "Outros";
+
 type Person = "Bruna" | "Matheus" | "Casal";
-type Tab = "home" | "chat" | "stats" | "future";
-type Theme = "light" | "dark" | "system";
 
 type Expense = {
   id: number;
   title: string;
-  cat: string;
+  cat: Category;
   who: Person;
   amount: number;
   date: string;
-  recurring?: boolean;
 };
 
 type Installment = {
   id: number;
   title: string;
-  category: string;
-  who: Person;
   amount: number;
-  totalInstallments: number;
-  paidInstallments: number;
-  nextDue: string;
-  status: "em_dia" | "vence_breve";
+  current: number;
+  total: number;
+  next: string;
+  category: Category;
+  status?: "active" | "paid";
 };
 
 type ChatMessage = {
   id: number;
-  role: "assistant" | "user";
+  role: "user" | "assistant";
   text: string;
 };
 
+const INCOME = 13000;
+
+const CATEGORY_META: Record<Category, { icon: ReactNode; label: string }> = {
+  Casa: { icon: <Home size={18} />, label: "Casa" },
+  Alimentação: { icon: <ShoppingCart size={18} />, label: "Alimentação" },
+  Transporte: { icon: <Car size={18} />, label: "Transporte" },
+  Lazer: { icon: <Sparkles size={18} />, label: "Lazer" },
+  Pessoal: { icon: <CircleUserRound size={18} />, label: "Pessoal" },
+  Pets: { icon: <Cat size={18} />, label: "Pets" },
+  Assinaturas: { icon: <CreditCard size={18} />, label: "Assinaturas" },
+  Outros: { icon: <Receipt size={18} />, label: "Outros" },
+};
+
 const INITIAL_EXPENSES: Expense[] = [
-  { id: 1, title: "Condomínio", cat: "Casa", who: "Casal", amount: 525, date: "2026-08-01", recurring: true },
-  { id: 2, title: "Garagem", cat: "Casa", who: "Casal", amount: 300, date: "2026-08-02", recurring: true },
-  { id: 3, title: "Parcela do carro", cat: "Carro", who: "Casal", amount: 1680, date: "2026-08-03", recurring: true },
-  { id: 4, title: "Seguro", cat: "Carro", who: "Casal", amount: 500, date: "2026-08-04", recurring: true },
-  { id: 5, title: "Internet", cat: "Casa", who: "Casal", amount: 100, date: "2026-08-05", recurring: true },
-  { id: 6, title: "Luz", cat: "Casa", who: "Casal", amount: 165, date: "2026-08-06", recurring: true },
-  { id: 7, title: "FIES", cat: "Pessoal", who: "Bruna", amount: 553.2, date: "2026-08-07", recurring: true },
-  { id: 8, title: "Mercado", cat: "Alimentação", who: "Bruna", amount: 50, date: "2026-08-08" },
-  { id: 9, title: "Petisco gatos", cat: "Pets", who: "Casal", amount: 10, date: "2026-08-09" },
+  { id: 1, title: "Gastei 50 reais no mercado", cat: "Alimentação", who: "Bruna", amount: 50, date: "2026-08-16" },
+  { id: 2, title: "Petisco gatos", cat: "Pets", who: "Casal", amount: 10, date: "2026-08-16" },
+  { id: 3, title: "Condomínio", cat: "Casa", who: "Casal", amount: 525, date: "2026-08-05" },
+  { id: 4, title: "Garagem", cat: "Casa", who: "Casal", amount: 300, date: "2026-08-05" },
+  { id: 5, title: "Parcela do carro", cat: "Transporte", who: "Casal", amount: 1680, date: "2026-08-04" },
+  { id: 6, title: "Seguro", cat: "Transporte", who: "Casal", amount: 500, date: "2026-08-04" },
+  { id: 7, title: "Internet", cat: "Casa", who: "Casal", amount: 100, date: "2026-08-03" },
+  { id: 8, title: "Luz", cat: "Casa", who: "Casal", amount: 165, date: "2026-08-03" },
+  { id: 9, title: "FIES", cat: "Pessoal", who: "Bruna", amount: 553.2, date: "2026-08-02" },
+  { id: 10, title: "Ração", cat: "Pets", who: "Casal", amount: 80, date: "2026-08-02" },
+  { id: 11, title: "Areia pets", cat: "Pets", who: "Casal", amount: 385.1, date: "2026-08-01" },
 ];
 
 const INITIAL_INSTALLMENTS: Installment[] = [
-  { id: 1, title: "Parcela do carro", category: "Carro", who: "Casal", amount: 1680, totalInstallments: 48, paidInstallments: 8, nextDue: "2026-09-10", status: "em_dia" },
-  { id: 2, title: "Parcela do apartamento", category: "Casa", who: "Casal", amount: 1800, totalInstallments: 120, paidInstallments: 18, nextDue: "2026-09-05", status: "em_dia" },
-  { id: 3, title: "Seguro", category: "Carro", who: "Casal", amount: 500, totalInstallments: 12, paidInstallments: 3, nextDue: "2026-09-08", status: "em_dia" },
-  { id: 4, title: "FIES", category: "Pessoal", who: "Bruna", amount: 553.2, totalInstallments: 60, paidInstallments: 14, nextDue: "2026-09-12", status: "em_dia" },
-  { id: 5, title: "Globo", category: "Assinaturas", who: "Casal", amount: 24.9, totalInstallments: 12, paidInstallments: 7, nextDue: "2026-09-03", status: "vence_breve" },
-  { id: 6, title: "Rei do Óleo", category: "Carro", who: "Casal", amount: 210, totalInstallments: 6, paidInstallments: 2, nextDue: "2026-09-15", status: "em_dia" },
-  { id: 7, title: "Hocks", category: "Pessoal", who: "Bruna", amount: 89.9, totalInstallments: 8, paidInstallments: 3, nextDue: "2026-09-20", status: "em_dia" },
-  { id: 8, title: "Lojão", category: "Casa", who: "Matheus", amount: 150, totalInstallments: 10, paidInstallments: 4, nextDue: "2026-09-18", status: "em_dia" },
+  {
+    id: 1,
+    title: "Parcela do carro",
+    amount: 1680,
+    current: 1,
+    total: 8,
+    next: "2026-09-04",
+    category: "Transporte",
+    status: "active",
+  },
+  {
+    id: 2,
+    title: "Parcela do apartamento",
+    amount: 1300,
+    current: 0,
+    total: 0,
+    next: "2026-09-01",
+    category: "Casa",
+    status: "active",
+  },
+  {
+    id: 3,
+    title: "Globo",
+    amount: 0,
+    current: 0,
+    total: 0,
+    next: "2026-09-10",
+    category: "Assinaturas",
+    status: "active",
+  },
+  {
+    id: 4,
+    title: "Rei do Óleo",
+    amount: 0,
+    current: 0,
+    total: 0,
+    next: "2026-09-12",
+    category: "Transporte",
+    status: "active",
+  },
+  {
+    id: 5,
+    title: "Hocks",
+    amount: 0,
+    current: 0,
+    total: 0,
+    next: "2026-09-15",
+    category: "Pessoal",
+    status: "active",
+  },
+  {
+    id: 6,
+    title: "Lojão",
+    amount: 0,
+    current: 0,
+    total: 0,
+    next: "2026-09-18",
+    category: "Pessoal",
+    status: "active",
+  },
+  {
+    id: 7,
+    title: "Perfumes",
+    amount: 0,
+    current: 0,
+    total: 0,
+    next: "2026-09-20",
+    category: "Pessoal",
+    status: "active",
+  },
+  {
+    id: 8,
+    title: "Outras compras parceladas",
+    amount: 0,
+    current: 0,
+    total: 0,
+    next: "2026-09-25",
+    category: "Outros",
+    status: "active",
+  },
 ];
 
-const BUDGETS: Record<string, number> = {
-  Casa: 2500,
-  Carro: 3000,
-  Assinaturas: 500,
-  Pets: 650,
-  Alimentação: 1400,
-  Transporte: 800,
-  Lazer: 700,
-  Pessoal: 1000,
-};
-
-const INCOME = 13000;
-const MATHEUS_LIMIT = 350;
-
 const money = (value: number) =>
-  value.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+  new Intl.NumberFormat("pt-BR", {
+    style: "currency",
+    currency: "BRL",
+  }).format(value);
 
-const shortDate = (value: string) =>
-  new Date(`${value}T12:00:00`).toLocaleDateString("pt-BR", {
+const dateBR = (value: string) =>
+  new Intl.DateTimeFormat("pt-BR", {
     day: "2-digit",
     month: "2-digit",
-  });
+  }).format(new Date(`${value}T12:00:00`));
 
-function categoryFromText(text: string) {
-  const normalized = text.toLowerCase();
-  if (/mercado|comida|restaurante|lanche|ifood/.test(normalized)) return "Alimentação";
-  if (/gasolina|posto|carro|óleo|seguro/.test(normalized)) return "Carro";
-  if (/gato|pet|ração|veterin/.test(normalized)) return "Pets";
-  if (/luz|internet|condomínio|garagem|casa|aluguel/.test(normalized)) return "Casa";
-  if (/fies|faculdade|curso|pessoal/.test(normalized)) return "Pessoal";
-  if (/globo|hocks|assinatura|streaming/.test(normalized)) return "Assinaturas";
-  if (/ônibus|uber|99/.test(normalized)) return "Transporte";
+function normalize(value: string) {
+  return value
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "");
+}
+
+function extractAmount(text: string) {
+  const match = text.match(/(?:r\$\s*)?(\d{1,3}(?:\.\d{3})*(?:,\d{1,2})?|\d+(?:[.,]\d{1,2})?)/i);
+  if (!match) return null;
+
+  const raw = match[1].replace(/\./g, "").replace(",", ".");
+  const value = Number(raw);
+  return Number.isFinite(value) ? value : null;
+}
+
+function detectCategory(text: string): Category {
+  const value = normalize(text);
+
+  if (/mercado|mercado|comida|restaurante|lanche|ifood|padaria|supermercado/.test(value)) return "Alimentação";
+  if (/gasolina|posto|uber|99|combustivel|carro|estacionamento|garagem|oleo/.test(value)) return "Transporte";
+  if (/gato|pet|racao|areia|veterin|cachorro/.test(value)) return "Pets";
+  if (/luz|energia|internet|condominio|aluguel|casa|agua|faxina/.test(value)) return "Casa";
+  if (/netflix|spotify|globo|prime|disney|assinatura/.test(value)) return "Assinaturas";
+  if (/cinema|bar|viagem|passeio|jogo|lazer/.test(value)) return "Lazer";
+  if (/fies|curso|faculdade|roupa|perfume|pessoal/.test(value)) return "Pessoal";
+
   return "Outros";
 }
 
-function iconFor(category: string) {
-  if (category === "Carro") return <Car size={19} />;
-  if (category === "Pets") return <span className="emoji-icon">🐱</span>;
-  if (category === "Alimentação") return <ShoppingCart size={19} />;
-  if (category === "Casa") return <Home size={19} />;
-  if (category === "Assinaturas") return <CreditCard size={19} />;
-  return <Tag size={19} />;
+function detectPerson(text: string): Person {
+  const value = normalize(text);
+
+  if (/\bmatheus\b/.test(value)) return "Matheus";
+  if (/\bbruna\b/.test(value)) return "Bruna";
+  if (/\bcasal\b|\bnos\b|\bnossa\b|\bnosso\b/.test(value)) return "Casal";
+
+  return "Bruna";
 }
 
-function buildAssistantReply(
-  input: string,
+function assistantAnswer(
+  normalizedText: string,
+  available: number,
+  used: number,
   expenses: Expense[],
-  installments: Installment[],
+  installments: Installment[]
 ) {
-  const text = input.trim().toLowerCase();
-  const totalSpent = expenses.reduce((sum, item) => sum + item.amount, 0);
-  const available = INCOME - totalSpent;
-  const installmentTotal = installments.reduce((sum, item) => sum + item.amount, 0);
-  const next = [...installments].sort((a, b) => a.nextDue.localeCompare(b.nextDue))[0];
-
-  if (!text) return "Pode mandar a pergunta. Eu consigo consultar os gastos, orçamento e parcelas.";
-
-  if (/resumo|resumir|como estamos|situação/.test(text)) {
-    return `Resumo de agosto: ${money(totalSpent)} em ${expenses.length} lançamentos. Sobram ${money(available)} da renda de ${money(INCOME)}. Há ${installments.length} parcelas ativas, somando ${money(installmentTotal)} por mês.`;
+  if (/^(oi|ola|hey|e ai|bom dia|boa tarde|boa noite)\b/.test(normalizedText)) {
+    return "Oi! 💚 Pode falar comigo normalmente. Posso registrar gastos, mostrar o resumo, dizer quanto temos ou listar as parcelas.";
   }
 
-  if (/quanto temos|quanto tem|disponível|saldo|sobrou/.test(text)) {
-    return `Neste mês, já foram registrados ${money(totalSpent)}. Considerando a renda de ${money(INCOME)}, o disponível calculado é ${money(available)}.`;
+  if (
+    /quanto temos|quanto tem|disponivel|saldo|quanto sobrou|quanto ainda temos/.test(
+      normalizedText
+    )
+  ) {
+    return `Hoje temos ${money(available)} disponíveis em agosto. A renda cadastrada é ${money(INCOME)} e os gastos registrados somam ${money(used)}.`;
   }
 
-  if (/parcela|parcelas|futuro|prestações/.test(text)) {
-    return `Temos ${installments.length} parcelas ativas. A próxima é ${next.title}, ${money(next.amount)}, com vencimento em ${shortDate(next.nextDue)}. Na aba Futuro você pode ver quantas já foram pagas e quantas faltam em cada uma.`;
+  if (/resumo|resumir|situacao|como estamos|fechamento/.test(normalizedText)) {
+    const byPerson = expenses.reduce(
+      (acc, item) => {
+        acc[item.who] += item.amount;
+        return acc;
+      },
+      { Bruna: 0, Matheus: 0, Casal: 0 } as Record<Person, number>
+    );
+
+    return `Resumo de agosto 💚\n• Renda: ${money(INCOME)}\n• Gastos: ${money(used)}\n• Disponível: ${money(available)}\n• Bruna: ${money(byPerson.Bruna)}\n• Matheus: ${money(byPerson.Matheus)}\n• Casal: ${money(byPerson.Casal)}\n• Parcelas ativas: ${installments.filter((item) => item.status === "active").length}`;
   }
 
-  const amountMatch = input.match(/(?:r\$?\s*)?(\d+(?:[.,]\d{1,2})?)/i);
-  const amount = amountMatch ? Number(amountMatch[1].replace(".", "").replace(",", ".")) : null;
+  if (/parcela|parcelas|futuro|proximas/.test(normalizedText)) {
+    const active = installments.filter((item) => item.status === "active");
+    if (!active.length) return "Não há parcelas ativas cadastradas.";
 
-  if (/gastei|gasto|paguei|comprei|custou/.test(text) && amount !== null && amount > 0) {
-    const category = categoryFromText(text);
-    return `Entendi. Registrei ${money(amount)} em ${category}. O lançamento foi adicionado aos gastos e os totais foram recalculados.`;
+    const lines = active.slice(0, 5).map((item) => {
+      const remaining =
+        item.total > 0 ? `${Math.max(item.total - item.current, 0)} restantes` : "quantidade ainda não informada";
+      const amount = item.amount > 0 ? money(item.amount) : "valor não informado";
+      return `• ${item.title}: ${amount} · ${remaining}`;
+    });
+
+    return `Parcelas futuras 📅\n${lines.join("\n")}`;
   }
 
-  if (/ajuda|o que você|comandos|pode fazer/.test(text)) {
-    return "Posso registrar gastos, mostrar um resumo, calcular o disponível, consultar parcelas e explicar o orçamento. Pode escrever do jeito que você falaria normalmente.";
+  if (/ajuda|o que voce faz|comandos/.test(normalizedText)) {
+    return "Posso fazer 4 coisas principais: registrar um gasto, mostrar o resumo, dizer quanto está disponível e consultar as parcelas. Você pode escrever de forma natural, por exemplo: “gastei 85 no mercado”.";
   }
 
-  return "Entendi. Posso ajudar com gastos, orçamento e parcelas. Tente algo como “gastei 85 no mercado”, “me dá um resumo”, “quanto temos?” ou “quais parcelas faltam?”.";
+  return null;
 }
 
 export default function Page() {
-  const [tab, setTab] = useState<Tab>("home");
-  const [activeProfile, setActiveProfile] = useState<Person>("Bruna");
-  const [theme, setTheme] = useState<Theme>("system");
-  const [themeOpen, setThemeOpen] = useState(false);
   const [expenses, setExpenses] = useState<Expense[]>(INITIAL_EXPENSES);
-  const [installments] = useState<Installment[]>(INITIAL_INSTALLMENTS);
+  const [installments, setInstallments] =
+    useState<Installment[]>(INITIAL_INSTALLMENTS);
+  const [tab, setTab] = useState<"home" | "chat" | "stats" | "future">("home");
   const [text, setText] = useState("");
+  const [toast, setToast] = useState("");
+  const [modal, setModal] = useState(false);
   const [chat, setChat] = useState<ChatMessage[]>([
     {
       id: 1,
       role: "assistant",
-      text: "Oi! 💚 Pode falar normalmente comigo. Eu consigo registrar gastos, consultar o orçamento e acompanhar as parcelas.",
+      text: "Oi! 💚 Pode falar normalmente comigo. Ex.: “gastei 85 no mercado”.",
     },
   ]);
-  const [toast, setToast] = useState("");
-  const [modal, setModal] = useState(false);
+
   const [form, setForm] = useState({
     title: "",
     amount: "",
-    cat: "Outros",
+    cat: "Outros" as Category,
     who: "Bruna" as Person,
   });
 
-  useEffect(() => {
-    const savedTheme = window.localStorage.getItem("brumath-theme") as Theme | null;
-    if (savedTheme === "light" || savedTheme === "dark" || savedTheme === "system") {
-      setTheme(savedTheme);
-    }
-  }, []);
-
-  useEffect(() => {
-    window.localStorage.setItem("brumath-theme", theme);
-    const root = document.documentElement;
-    root.dataset.theme = theme;
-    root.style.colorScheme = theme === "system" ? "" : theme;
-  }, [theme]);
-
-  useEffect(() => {
-    const media = window.matchMedia("(prefers-color-scheme: dark)");
-    const update = () => {
-      if (theme === "system") document.documentElement.dataset.theme = media.matches ? "dark" : "light";
-    };
-    update();
-    media.addEventListener?.("change", update);
-    return () => media.removeEventListener?.("change", update);
-  }, [theme]);
-
-  useEffect(() => {
-    const savedProfile = window.localStorage.getItem("brumath-profile") as Person | null;
-    if (savedProfile === "Bruna" || savedProfile === "Matheus" || savedProfile === "Casal") {
-      setActiveProfile(savedProfile);
-    }
-  }, []);
-
-  useEffect(() => {
-    window.localStorage.setItem("brumath-profile", activeProfile);
-  }, [activeProfile]);
-
-  useEffect(() => {
-    const saved = window.localStorage.getItem("brumath-expenses");
-    if (saved) {
-      try {
-        const parsed = JSON.parse(saved) as Expense[];
-        if (Array.isArray(parsed)) setExpenses(parsed);
-      } catch {
-        // Mantém os dados iniciais quando o armazenamento local estiver inválido.
-      }
-    }
-  }, []);
-
-  useEffect(() => {
-    window.localStorage.setItem("brumath-expenses", JSON.stringify(expenses));
-  }, [expenses]);
-
-  useEffect(() => {
-    if (!toast) return;
-    const timer = window.setTimeout(() => setToast(""), 2200);
-    return () => window.clearTimeout(timer);
-  }, [toast]);
-
-  const totalSpent = useMemo(
-    () => expenses.reduce((sum, item) => sum + item.amount, 0),
-    [expenses],
+  const used = useMemo(
+    () => expenses.reduce((sum, expense) => sum + expense.amount, 0),
+    [expenses]
   );
 
-  const available = Math.max(0, INCOME - totalSpent);
-  const usedPercent = Math.min(100, (totalSpent / INCOME) * 100);
+  const available = Math.max(INCOME - used, 0);
 
-  const categoryTotals = useMemo(() => {
-    return Object.entries(BUDGETS).map(([category, budget]) => {
-      const spent = expenses
-        .filter((item) => item.cat === category)
-        .reduce((sum, item) => sum + item.amount, 0);
-      return { category, budget, spent, percent: Math.min(100, (spent / budget) * 100) };
+  const activeInstallments = useMemo(
+    () => installments.filter((item) => item.status === "active"),
+    [installments]
+  );
+
+  const paidInstallments = useMemo(
+    () => installments.filter((item) => item.status === "paid"),
+    [installments]
+  );
+
+  const upcomingTotal = useMemo(
+    () =>
+      activeInstallments.reduce(
+        (sum, item) => sum + (item.amount > 0 ? item.amount : 0),
+        0
+      ),
+    [activeInstallments]
+  );
+
+  const categories = useMemo(() => {
+    return (Object.keys(CATEGORY_META) as Category[]).map((category) => {
+      const total = expenses
+        .filter((expense) => expense.cat === category)
+        .reduce((sum, expense) => sum + expense.amount, 0);
+
+      return { category, total };
     });
   }, [expenses]);
 
-  const futureTotal = installments.reduce((sum, item) => sum + item.amount, 0);
-  const remainingInstallments = installments.reduce(
-    (sum, item) => sum + (item.totalInstallments - item.paidInstallments),
-    0,
-  );
+  function notify(message: string) {
+    setToast(message);
+    window.setTimeout(() => setToast(""), 2200);
+  }
 
-  const send = (preset?: string) => {
-    const value = (preset ?? text).trim();
-    if (!value) return;
+  function addExpense(
+    title: string,
+    amount: number,
+    cat: Category,
+    who: Person
+  ) {
+    const expense: Expense = {
+      id: Date.now(),
+      title,
+      cat,
+      who,
+      amount,
+      date: new Date().toISOString().slice(0, 10),
+    };
 
-    const amountMatch = value.match(/(?:r\$?\s*)?(\d+(?:[.,]\d{1,2})?)/i);
-    const amount = amountMatch ? Number(amountMatch[1].replace(".", "").replace(",", ".")) : null;
+    setExpenses((current) => [expense, ...current]);
+    notify(`Gasto de ${money(amount)} registrado 💚`);
+    return expense;
+  }
 
-    if (amount !== null && amount > 0 && /gastei|gasto|paguei|comprei|custou/i.test(value)) {
-      const category = categoryFromText(value);
-      const title = value
-        .replace(/(?:gastei|gasto|paguei|comprei|custou)/i, "")
-        .replace(/r\$?\s*\d+(?:[.,]\d{1,2})?/i, "")
-        .replace(/\bno\b|\bna\b|\bem\b|\bde\b/gi, " ")
-        .trim()
-        .replace(/\s+/g, " ");
+  function sendMessage(message = text) {
+    const raw = message.trim();
+    if (!raw) return;
 
-      const newExpense: Expense = {
-        id: Date.now(),
-        title: title ? title.charAt(0).toUpperCase() + title.slice(1) : "Novo gasto",
-        cat: category,
-        who: /matheus/i.test(value) ? "Matheus" : /bruna/i.test(value) ? "Bruna" : /casal|nós|nos /i.test(value) ? "Casal" : activeProfile,
-        amount,
-        date: new Date().toISOString().slice(0, 10),
-      };
-
-      setExpenses((current) => [newExpense, ...current]);
-      setChat((current) => [
-        ...current,
-        { id: Date.now(), role: "user", text: value },
-        {
-          id: Date.now() + 1,
-          role: "assistant",
-          text: `Registrei ${money(amount)} em ${category}. Seu disponível agora é ${money(Math.max(0, INCOME - totalSpent - amount))}.`,
-        },
-      ]);
-      setText("");
-      setToast("Gasto registrado 💚");
-      return;
-    }
+    const normalized = normalize(raw);
 
     setChat((current) => [
       ...current,
-      { id: Date.now(), role: "user", text: value },
-      {
-        id: Date.now() + 1,
-        role: "assistant",
-        text: buildAssistantReply(value, expenses, installments),
-      },
+      { id: Date.now(), role: "user", text: raw },
     ]);
     setText("");
-  };
 
-  const saveExpense = (event: FormEvent) => {
-    event.preventDefault();
-    const amount = Number(form.amount.replace(",", "."));
-    if (!form.title.trim() || !Number.isFinite(amount) || amount <= 0) {
-      setToast("Preencha descrição e valor.");
+    const amount = extractAmount(raw);
+    const looksLikeExpense =
+      amount !== null &&
+      /gastei|gasto|paguei|pague|comprei|compra|custou|pagar/.test(normalized);
+
+    if (looksLikeExpense && amount !== null) {
+      const cat = detectCategory(raw);
+      const who = detectPerson(raw);
+      const title = raw
+        .replace(/^(eu\s+)?(gastei|gasto|paguei|pague|comprei|comprarei)\s*/i, "")
+        .trim();
+
+      addExpense(
+        title || `Gasto de ${money(amount)}`,
+        amount,
+        cat,
+        who
+      );
+
+      setChat((current) => [
+        ...current,
+        {
+          id: Date.now() + 1,
+          role: "assistant",
+          text: `Registrado 💚 ${money(amount)} em ${cat}, para ${who}. Seu disponível agora é ${money(
+            Math.max(INCOME - (used + amount), 0)
+          )}.`,
+        },
+      ]);
       return;
     }
 
-    setExpenses((current) => [
-      {
-        id: Date.now(),
-        title: form.title.trim(),
-        amount,
-        cat: form.cat,
-        who: form.who,
-        date: new Date().toISOString().slice(0, 10),
-      },
-      ...current,
-    ]);
+    const answer = assistantAnswer(
+      normalized,
+      available,
+      used,
+      expenses,
+      installments
+    );
 
+    setChat((current) => [
+      ...current,
+      {
+        id: Date.now() + 1,
+        role: "assistant",
+        text:
+          answer ??
+          "Entendi. Ainda não consegui interpretar esse comando. Tente “resumo”, “quanto temos?”, “parcelas” ou algo como “gastei 50 no mercado”.",
+      },
+    ]);
+  }
+
+  function submitExpense(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+
+    const amount = Number(form.amount.replace(",", "."));
+    if (!form.title.trim() || !Number.isFinite(amount) || amount <= 0) {
+      notify("Preencha descrição e valor.");
+      return;
+    }
+
+    addExpense(form.title.trim(), amount, form.cat, form.who);
     setForm({ title: "", amount: "", cat: "Outros", who: "Bruna" });
     setModal(false);
-    setToast("Gasto adicionado 💚");
-  };
+  }
 
-  const removeExpense = (id: number) => {
-    setExpenses((current) => current.filter((item) => item.id !== id));
-    setToast("Gasto removido.");
-  };
+  function markInstallmentPaid(id: number) {
+    setInstallments((current) =>
+      current.map((item) => {
+        if (item.id !== id) return item;
+
+        if (item.total > 0 && item.current < item.total) {
+          const nextCurrent = item.current + 1;
+          return {
+            ...item,
+            current: nextCurrent,
+            status: nextCurrent >= item.total ? "paid" : "active",
+          };
+        }
+
+        return item;
+      })
+    );
+
+    notify("Parcela atualizada.");
+  }
+
+  const tabTitle =
+    tab === "home"
+      ? "Início"
+      : tab === "chat"
+        ? "Assistente"
+        : tab === "stats"
+          ? "Categorias"
+          : "Futuro";
 
   return (
-    <div className="app-shell">
-      {toast && <div className="toast">{toast}</div>}
+    <main className="app">
+      {toast && (
+        <div className="toast">
+          <CheckCircle2 size={17} />
+          {toast}
+        </div>
+      )}
 
-      <header className="topbar">
+      <header className="top">
         <div>
-          <div className="brand">Bru<span>Math</span> <span className="heart">💚</span></div>
-          <div className="subtitle">Finanças de Bruna &amp; Matheus</div>
-        </div>
-        <div className="topbar-actions">
-          <div className="profile-switch" aria-label="Quem está falando">
-            <span className="profile-label">Falando como</span>
-            {(["Bruna", "Matheus", "Casal"] as Person[]).map((person) => (
-              <button
-                key={person}
-                type="button"
-                className={activeProfile === person ? "profile-chip active" : "profile-chip"}
-                onClick={() => setActiveProfile(person)}
-              >
-                {person}
-              </button>
-            ))}
+          <div className="brand">
+            Bru<span>Math</span> <span className="heart">💚</span>
           </div>
-          <div className="theme-control">
-            <button className="theme-button" type="button" aria-label="Escolher tema" onClick={() => setThemeOpen((open) => !open)}>
-              {theme === "dark" ? <Moon size={18} /> : theme === "light" ? <Sun size={18} /> : <Monitor size={18} />}
-            </button>
-            {themeOpen && (
-              <div className="theme-menu" role="menu">
-                {([
-                  ["light", "Claro", <Sun size={16} />],
-                  ["dark", "Escuro", <Moon size={16} />],
-                  ["system", "Automático", <Monitor size={16} />],
-                ] as const).map(([value, label, icon]) => (
-                  <button
-                    key={value}
-                    type="button"
-                    className={theme === value ? "theme-option active" : "theme-option"}
-                    onClick={() => { setTheme(value); setThemeOpen(false); }}
-                  >
-                    {icon}<span>{label}</span>{theme === value && <Check size={15} />}
-                  </button>
-                ))}
-              </div>
-            )}
-          </div>
+          <div className="sub">Finanças de Bruna &amp; Matheus</div>
         </div>
+
+        <button
+          className="avatar"
+          onClick={() => notify("BruMath: perfil do casal")}
+          aria-label="Perfil"
+        >
+          BM
+        </button>
       </header>
 
-      <main className="page">
-        {tab === "home" && (
-          <>
-            <section className="hero">
-              <div>
-                <small>Disponível em agosto</small>
-                <div className="hero-amount">{money(available)}</div>
-                <div className="progress-track">
-                  <div className="progress-fill" style={{ width: `${Math.max(3, usedPercent)}%` }} />
-                </div>
-                <div className="progress-labels">
-                  <span>Usado {money(totalSpent)}</span>
-                  <span>Renda {money(INCOME)}</span>
-                </div>
-              </div>
-            </section>
+      {tab === "home" && (
+        <>
+          <section className="hero">
+            <small>Disponível em agosto</small>
+            <div className="amount">{money(available)}</div>
 
-            <section className="summary-grid">
-              <div className="metric-card">
-                <span>Limite Matheus</span>
-                <strong>{money(MATHEUS_LIMIT)}</strong>
-              </div>
-              <button className="metric-card metric-button" type="button" onClick={() => setTab("future")}>
-                <span>Parcelas</span>
-                <strong>{installments.length} ativas</strong>
-                <ChevronRight size={18} />
-              </button>
-            </section>
+            <div className="progress">
+              <i style={{ width: `${Math.min((used / INCOME) * 100, 100)}%` }} />
+            </div>
 
-            <section className="section">
-              <div className="section-title">
-                <h2>Assistente</h2>
-                <span className="online"><i /> online</span>
+            <div className="row">
+              <span>Usado {money(used)}</span>
+              <span>Renda {money(INCOME)}</span>
+            </div>
+          </section>
+
+          <section className="cards">
+            <div className="card">
+              <span>Limite Matheus</span>
+              <strong>R$ 350,00</strong>
+            </div>
+            <div className="card">
+              <span>Parcelas</span>
+              <strong>{activeInstallments.length} ativas</strong>
+            </div>
+          </section>
+
+          <section className="section">
+            <div className="sectionTitle">
+              <h2>Assistente</h2>
+              <span className="online">online</span>
+            </div>
+
+            <div className="chat">
+              <div className="conversation homeConversation">
+                {chat.slice(-4).map((message) => (
+                  <div
+                    className={`message ${
+                      message.role === "user" ? "user" : "bot"
+                    }`}
+                    key={message.id}
+                  >
+                    <div className="messageIcon">
+                      {message.role === "user" ? (
+                        <CircleUserRound size={15} />
+                      ) : (
+                        <Sparkles size={15} />
+                      )}
+                    </div>
+                    <div className="messageText">
+                      {message.text.split("\n").map((line, index) => (
+                        <span key={`${message.id}-${index}`}>
+                          {line}
+                          {index < message.text.split("\n").length - 1 && <br />}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                ))}
               </div>
 
-              <div className="chat-preview">
-                <div className="chat-profile-banner compact">Falando como <strong>{activeProfile}</strong></div>
-                <div className="bubble assistant-bubble">
-                  {chat[chat.length - 1]?.role === "assistant"
-                    ? chat[chat.length - 1].text
-                    : "Oi! 💚 Pode falar normalmente comigo."}
-                </div>
-                <div className="quick-actions">
-                  <button type="button" onClick={() => send("Quanto temos?")}>Quanto temos?</button>
-                  <button type="button" onClick={() => send("Resumo")}>Resumo</button>
-                  <button type="button" onClick={() => send("Parcelas")}>Parcelas</button>
-                </div>
-                <div className="input-row">
-                  <input
-                    value={text}
-                    onChange={(event) => setText(event.target.value)}
-                    onKeyDown={(event) => {
-                      if (event.key === "Enter") send();
-                    }}
-                    placeholder="Ex.: gastei 50 no mercado"
-                  />
-                  <button className="send-button" type="button" onClick={() => send()}>
-                    <Send size={17} />
-                    <span>Enviar</span>
-                  </button>
-                </div>
-                <button className="open-chat" type="button" onClick={() => setTab("chat")}>
-                  Abrir conversa completa <ChevronRight size={16} />
+              <div className="quick">
+                <button onClick={() => sendMessage("Quanto temos?")}>
+                  Quanto temos?
+                </button>
+                <button onClick={() => sendMessage("Resumo")}>Resumo</button>
+                <button onClick={() => sendMessage("Parcelas")}>
+                  Parcelas
                 </button>
               </div>
-            </section>
 
-            <section className="section">
-              <div className="section-title">
-                <h2>Últimos gastos</h2>
-                <span className="muted">Agosto</span>
-              </div>
-
-              <div className="expense-list">
-                {expenses.slice(0, 9).map((expense) => (
-                  <div className="expense-row" key={expense.id}>
-                    <div className="expense-icon">{iconFor(expense.cat)}</div>
-                    <div className="expense-info">
-                      <strong>{expense.title}</strong>
-                      <span>{expense.cat} · {expense.who}</span>
-                    </div>
-                    <strong className="expense-amount">{money(expense.amount)}</strong>
-                    <button
-                      className="delete-button"
-                      type="button"
-                      aria-label={`Remover ${expense.title}`}
-                      onClick={() => removeExpense(expense.id)}
-                    >
-                      <Trash2 size={15} />
-                    </button>
-                  </div>
-                ))}
-              </div>
-            </section>
-          </>
-        )}
-
-        {tab === "chat" && (
-          <section className="chat-page">
-            <div className="page-heading">
-              <div>
-                <span className="eyebrow"><MessageCircle size={15} /> Assistente</span>
-                <h1>Conversa com o BruMath</h1>
-                <p>Fale naturalmente. O assistente consulta os dados que estão na tela.</p>
-              </div>
-              <span className="online"><i /> online</span>
-            </div>
-            <div className="chat-profile-banner">Falando como <strong>{activeProfile}</strong></div>
-
-            <div className="full-chat">
-              <div className="messages">
-                {chat.map((message) => (
-                  <div className={`message ${message.role}`} key={message.id}>
-                    <div className="message-avatar">{message.role === "assistant" ? "💚" : "BM"}</div>
-                    <div className="message-content">{message.text}</div>
-                  </div>
-                ))}
-              </div>
-
-              <div className="chat-composer">
-                <div className="quick-actions">
-                  <button type="button" onClick={() => send("Quanto temos?")}>Quanto temos?</button>
-                  <button type="button" onClick={() => send("Resumo")}>Resumo</button>
-                  <button type="button" onClick={() => send("Parcelas")}>Parcelas</button>
-                  <button type="button" onClick={() => send("O que você pode fazer?")}>Ajuda</button>
-                </div>
-                <div className="input-row">
-                  <input
-                    value={text}
-                    onChange={(event) => setText(event.target.value)}
-                    onKeyDown={(event) => {
-                      if (event.key === "Enter") send();
-                    }}
-                    placeholder="Digite uma mensagem..."
-                  />
-                  <button className="send-button" type="button" onClick={() => send()}>
-                    <Send size={17} />
-                    <span>Enviar</span>
-                  </button>
-                </div>
+              <div className="inputrow">
+                <input
+                  value={text}
+                  onChange={(event) => setText(event.target.value)}
+                  onKeyDown={(event) => {
+                    if (event.key === "Enter") sendMessage();
+                  }}
+                  placeholder="Ex.: gastei 50 no mercado"
+                />
+                <button className="send" onClick={() => sendMessage()}>
+                  <Send size={17} />
+                  Enviar
+                </button>
               </div>
             </div>
           </section>
-        )}
 
-        {tab === "stats" && (
           <section className="section">
-            <div className="page-heading">
-              <div>
-                <span className="eyebrow"><ChartNoAxesColumn size={15} /> Categorias</span>
-                <h1>Orçamento por categoria</h1>
-                <p>Veja quanto já foi usado em cada limite.</p>
-              </div>
+            <div className="sectionTitle">
+              <h2>Últimos gastos</h2>
+              <span className="sub">Agosto</span>
             </div>
 
-            <div className="category-grid">
-              {categoryTotals.map((item) => (
-                <div className="category-card" key={item.category}>
-                  <div className="category-head">
-                    <div className="category-icon">{iconFor(item.category)}</div>
-                    <div>
-                      <strong>{item.category}</strong>
-                      <span>{money(item.spent)} de {money(item.budget)}</span>
-                    </div>
-                    <b>{Math.round(item.percent)}%</b>
+            <div className="list">
+              {expenses.slice(0, 8).map((expense) => (
+                <div className="expense" key={expense.id}>
+                  <div className="ico">
+                    {CATEGORY_META[expense.cat].icon}
                   </div>
-                  <div className="progress-track small">
-                    <div className="progress-fill" style={{ width: `${Math.max(item.spent ? 4 : 0, item.percent)}%` }} />
-                  </div>
+                  <main>
+                    <b>{expense.title}</b>
+                    <span>
+                      {expense.cat} · {expense.who}
+                    </span>
+                  </main>
+                  <strong>{money(expense.amount)}</strong>
                 </div>
               ))}
             </div>
           </section>
-        )}
+        </>
+      )}
 
-        {tab === "future" && (
-          <section className="section future-page">
-            <div className="page-heading">
-              <div>
-                <span className="eyebrow"><CalendarDays size={15} /> Futuro</span>
-                <h1>Parcelas e compromissos</h1>
-                <p>Agora você consegue ver o que é cada parcela, o valor, quantas já foram pagas e quantas ainda faltam.</p>
-              </div>
+      {tab === "chat" && (
+        <section className="chatPage">
+          <div className="sectionTitle">
+            <div>
+              <h2>Assistente</h2>
+              <span className="sub">Conversa com o BruMath</span>
             </div>
+            <span className="online">online</span>
+          </div>
 
-            <div className="future-summary">
-              <div>
-                <span>Parcelas ativas</span>
-                <strong>{installments.length}</strong>
+          <div className="conversation">
+            {chat.map((message) => (
+              <div
+                className={`message ${
+                  message.role === "user" ? "user" : "bot"
+                }`}
+                key={message.id}
+              >
+                <div className="messageIcon">
+                  {message.role === "user" ? (
+                    <CircleUserRound size={16} />
+                  ) : (
+                    <Sparkles size={16} />
+                  )}
+                </div>
+                <div className="messageText">
+                  {message.text.split("\n").map((line, index) => (
+                    <span key={`${message.id}-${index}`}>
+                      {line}
+                      {index < message.text.split("\n").length - 1 && <br />}
+                    </span>
+                  ))}
+                </div>
               </div>
-              <div>
-                <span>Compromisso mensal</span>
-                <strong>{money(futureTotal)}</strong>
-              </div>
-              <div>
-                <span>Parcelas restantes</span>
-                <strong>{remainingInstallments}</strong>
-              </div>
+            ))}
+          </div>
+
+          <div className="quick">
+            <button onClick={() => sendMessage("Quanto temos?")}>
+              Quanto temos?
+            </button>
+            <button onClick={() => sendMessage("Resumo")}>Resumo</button>
+            <button onClick={() => sendMessage("Parcelas")}>Parcelas</button>
+          </div>
+
+          <div className="inputrow">
+            <input
+              value={text}
+              onChange={(event) => setText(event.target.value)}
+              onKeyDown={(event) => {
+                if (event.key === "Enter") sendMessage();
+              }}
+              placeholder="Fale comigo..."
+            />
+            <button className="send" onClick={() => sendMessage()}>
+              <Send size={17} />
+              Enviar
+            </button>
+          </div>
+        </section>
+      )}
+
+      {tab === "stats" && (
+        <section className="section pageSection">
+          <div className="sectionTitle">
+            <div>
+              <h2>Gastos por categoria</h2>
+              <span className="sub">{money(used)} registrados em agosto</span>
             </div>
+          </div>
 
-            <div className="installment-list">
-              {installments.map((item) => {
-                const remaining = item.totalInstallments - item.paidInstallments;
-                const paidPercent = (item.paidInstallments / item.totalInstallments) * 100;
+          <div className="list">
+            {categories
+              .sort((a, b) => b.total - a.total)
+              .map(({ category, total }) => {
+                const percent = used ? (total / used) * 100 : 0;
 
                 return (
-                  <article className="installment-card" key={item.id}>
-                    <div className="installment-icon">{iconFor(item.category)}</div>
-                    <div className="installment-main">
-                      <div className="installment-title-row">
-                        <div>
-                          <strong>{item.title}</strong>
-                          <span>{item.category} · {item.who}</span>
-                        </div>
-                        <strong>{money(item.amount)}/mês</strong>
-                      </div>
-
-                      <div className="installment-details">
-                        <div><span>Pagas</span><b>{item.paidInstallments}</b></div>
-                        <div><span>Faltam</span><b>{remaining}</b></div>
-                        <div><span>Total</span><b>{item.totalInstallments}</b></div>
-                        <div><span>Próximo vencimento</span><b>{shortDate(item.nextDue)}</b></div>
-                      </div>
-
-                      <div className="installment-progress">
-                        <div className="progress-track small">
-                          <div className="progress-fill" style={{ width: `${paidPercent}%` }} />
-                        </div>
-                        <span>{Math.round(paidPercent)}% concluído</span>
-                      </div>
+                  <div className="categoryRow" key={category}>
+                    <div className="categoryHead">
+                      <span>
+                        {CATEGORY_META[category].icon}
+                        <b>{CATEGORY_META[category].label}</b>
+                      </span>
+                      <strong>{money(total)}</strong>
                     </div>
-
-                    <span className={`status ${item.status}`}>
-                      {item.status === "vence_breve" ? "Vence em breve" : "Em dia"}
-                    </span>
-                  </article>
+                    <div className="progress small">
+                      <i style={{ width: `${percent}%` }} />
+                    </div>
+                  </div>
                 );
               })}
-            </div>
+          </div>
+        </section>
+      )}
 
-            <div className="future-note">
-              <Sparkles size={18} />
-              <div>
-                <strong>Visão completa</strong>
-                <span>As quantidades de pagas e restantes ficam vinculadas a cada compromisso, em vez de aparecerem como uma lista estática.</span>
+      {tab === "future" && (
+        <section className="section pageSection">
+          <div className="sectionTitle">
+            <div>
+              <h2>Futuro</h2>
+              <span className="sub">
+                Visão completa das parcelas e próximos compromissos
+              </span>
+            </div>
+            <CalendarDays size={22} />
+          </div>
+
+          <div className="futureSummary">
+            <div>
+              <span>Parcelas ativas</span>
+              <strong>{activeInstallments.length}</strong>
+            </div>
+            <div>
+              <span>Próximas parcelas</span>
+              <strong>{money(upcomingTotal)}</strong>
+            </div>
+          </div>
+
+          <div className="list">
+            {activeInstallments.map((item) => {
+              const hasCount = item.total > 0;
+              const remaining = hasCount
+                ? Math.max(item.total - item.current, 0)
+                : null;
+
+              return (
+                <div className="futureItem" key={item.id}>
+                  <div className="futureIcon">
+                    {CATEGORY_META[item.category].icon}
+                  </div>
+
+                  <div className="futureMain">
+                    <div className="futureTitle">
+                      <b>{item.title}</b>
+                      <strong>
+                        {item.amount > 0 ? money(item.amount) : "Valor não informado"}
+                      </strong>
+                    </div>
+
+                    <span>
+                      {hasCount
+                        ? `Parcela ${item.current + 1} de ${item.total} · faltam ${remaining}`
+                        : "Quantidade de parcelas ainda não informada"}
+                    </span>
+
+                    <span>
+                      Próxima: {dateBR(item.next)} · {item.category}
+                    </span>
+
+                    {hasCount && (
+                      <div className="progress small">
+                        <i
+                          style={{
+                            width: `${Math.min(
+                              (item.current / item.total) * 100,
+                              100
+                            )}%`,
+                          }}
+                        />
+                      </div>
+                    )}
+                  </div>
+
+                  <button
+                    className="iconButton"
+                    title={
+                      hasCount
+                        ? "Marcar parcela atual como paga"
+                        : "Quantidade ainda não cadastrada"
+                    }
+                    onClick={() => markInstallmentPaid(item.id)}
+                    disabled={!hasCount}
+                  >
+                    <CheckCircle2 size={19} />
+                  </button>
+                </div>
+              );
+            })}
+          </div>
+
+          {paidInstallments.length > 0 && (
+            <section className="paidSection">
+              <div className="sectionTitle">
+                <div>
+                  <h2>Já pagas</h2>
+                  <span className="sub">
+                    {paidInstallments.length} parcela(s) quitada(s)
+                  </span>
+                </div>
+                <CheckCircle2 size={20} />
               </div>
-            </div>
-          </section>
-        )}
-      </main>
 
-      <button className="floating-add" type="button" onClick={() => setModal(true)} aria-label="Adicionar gasto">
-        <Plus size={25} />
+              <div className="list">
+                {paidInstallments.map((item) => (
+                  <div className="futureItem paidItem" key={item.id}>
+                    <div className="futureIcon">
+                      <CheckCircle2 size={18} />
+                    </div>
+                    <div className="futureMain">
+                      <div className="futureTitle">
+                        <b>{item.title}</b>
+                        <strong>{money(item.amount)}</strong>
+                      </div>
+                      <span>
+                        {item.total > 0
+                          ? `${item.total} de ${item.total} parcelas pagas`
+                          : "Parcela paga"}
+                      </span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </section>
+          )}
+
+          <div className="infoBox">
+            <Wallet size={19} />
+            <div>
+              <b>Importante</b>
+              <span>
+                Os itens sem quantidade cadastrada aparecem como “quantidade
+                ainda não informada”. Assim o BruMath não inventa quantas
+                parcelas faltam.
+              </span>
+            </div>
+          </div>
+        </section>
+      )}
+
+      <button className="fab" onClick={() => setModal(true)} aria-label="Novo gasto">
+        <Plus size={27} />
       </button>
 
-      <nav className="bottom-nav" aria-label="Navegação principal">
-        <button className={tab === "home" ? "active" : ""} type="button" onClick={() => setTab("home")}>
-          <Home size={20} /><span>Início</span>
+      <nav className="bottom">
+        <button
+          className={tab === "home" ? "active" : ""}
+          onClick={() => setTab("home")}
+        >
+          <Home size={19} />
+          <span>Início</span>
         </button>
-        <button className={tab === "chat" ? "active" : ""} type="button" onClick={() => setTab("chat")}>
-          <MessageCircle size={20} /><span>Assistente</span>
+        <button
+          className={tab === "chat" ? "active" : ""}
+          onClick={() => setTab("chat")}
+        >
+          <MessageCircle size={19} />
+          <span>Assistente</span>
         </button>
-        <button className={tab === "stats" ? "active" : ""} type="button" onClick={() => setTab("stats")}>
-          <ChartNoAxesColumn size={20} /><span>Categorias</span>
+        <button
+          className={tab === "stats" ? "active" : ""}
+          onClick={() => setTab("stats")}
+        >
+          <Zap size={19} />
+          <span>Categorias</span>
         </button>
-        <button className={tab === "future" ? "active" : ""} type="button" onClick={() => setTab("future")}>
-          <CalendarDays size={20} /><span>Futuro</span>
+        <button
+          className={tab === "future" ? "active" : ""}
+          onClick={() => setTab("future")}
+        >
+          <CalendarDays size={19} />
+          <span>Futuro</span>
         </button>
       </nav>
 
       {modal && (
-        <div className="modal-backdrop" role="presentation" onMouseDown={() => setModal(false)}>
-          <div className="modal-card" onMouseDown={(event) => event.stopPropagation()}>
-            <div className="modal-header">
+        <div className="modal" onClick={() => setModal(false)}>
+          <div className="sheet" onClick={(event) => event.stopPropagation()}>
+            <div className="sheetHead">
               <div>
-                <span className="eyebrow"><Receipt size={15} /> Novo gasto</span>
-                <h2>Adicionar gasto</h2>
+                <h2>Novo gasto</h2>
+                <span className="sub">Registre uma despesa rapidamente</span>
               </div>
-              <button className="icon-button" type="button" onClick={() => setModal(false)} aria-label="Fechar">
+              <button
+                className="iconButton"
+                onClick={() => setModal(false)}
+                aria-label="Fechar"
+              >
                 <X size={19} />
               </button>
             </div>
 
-            <form onSubmit={saveExpense}>
+            <form onSubmit={submitExpense}>
               <label className="field">
                 <span>O que foi?</span>
                 <input
                   value={form.title}
-                  onChange={(event) => setForm({ ...form, title: event.target.value })}
-                  placeholder="Ex.: Mercado"
+                  onChange={(event) =>
+                    setForm((current) => ({
+                      ...current,
+                      title: event.target.value,
+                    }))
+                  }
+                  placeholder="Mercado"
                   required
                 />
               </label>
@@ -696,45 +913,76 @@ export default function Page() {
                 <span>Valor</span>
                 <input
                   value={form.amount}
-                  onChange={(event) => setForm({ ...form, amount: event.target.value })}
+                  onChange={(event) =>
+                    setForm((current) => ({
+                      ...current,
+                      amount: event.target.value,
+                    }))
+                  }
                   type="number"
                   step="0.01"
-                  min="0.01"
-                  placeholder="0,00"
+                  min="0"
+                  placeholder="50,00"
                   required
                 />
               </label>
 
-              <div className="form-grid">
-                <label className="field">
-                  <span>Categoria</span>
-                  <select value={form.cat} onChange={(event) => setForm({ ...form, cat: event.target.value })}>
-                    {Object.keys(BUDGETS).concat("Outros").map((category) => (
-                      <option key={category}>{category}</option>
-                    ))}
-                  </select>
-                </label>
+              <label className="field">
+                <span>Categoria</span>
+                <select
+                  value={form.cat}
+                  onChange={(event) =>
+                    setForm((current) => ({
+                      ...current,
+                      cat: event.target.value as Category,
+                    }))
+                  }
+                >
+                  {(Object.keys(CATEGORY_META) as Category[]).map((category) => (
+                    <option key={category} value={category}>
+                      {category}
+                    </option>
+                  ))}
+                </select>
+              </label>
 
-                <label className="field">
-                  <span>Quem</span>
-                  <select
-                    value={form.who}
-                    onChange={(event) => setForm({ ...form, who: event.target.value as Person })}
-                  >
-                    <option>Bruna</option>
-                    <option>Matheus</option>
-                    <option>Casal</option>
-                  </select>
-                </label>
+              <label className="field">
+                <span>Quem?</span>
+                <select
+                  value={form.who}
+                  onChange={(event) =>
+                    setForm((current) => ({
+                      ...current,
+                      who: event.target.value as Person,
+                    }))
+                  }
+                >
+                  <option value="Bruna">Bruna</option>
+                  <option value="Matheus">Matheus</option>
+                  <option value="Casal">Casal</option>
+                </select>
+              </label>
+
+              <div className="formActions">
+                <button
+                  type="button"
+                  className="cancel"
+                  onClick={() => setModal(false)}
+                >
+                  Cancelar
+                </button>
+                <button type="submit" className="primary">
+                  Salvar gasto
+                </button>
               </div>
-
-              <button className="primary-button" type="submit">
-                <Check size={17} /> Salvar gasto
-              </button>
             </form>
           </div>
         </div>
       )}
-    </div>
+
+      <div className="srOnly" aria-live="polite">
+        {tabTitle}
+      </div>
+    </main>
   );
 }
