@@ -265,7 +265,7 @@ export default function Page() {
     event.preventDefault(); const amount = Number(incomeForm.amount.replace(",", "."));
     if (!incomeForm.title.trim() || !amount || amount < 0) return setToast("Informe a entrada e o valor.");
     const item: IncomeEntry = { id: editingIncome?.id ?? Date.now(), title: incomeForm.title.trim(), amount, who: incomeForm.who, date: incomeForm.date || viewMonth + "-01", destination: incomeForm.destination, note: incomeForm.note.trim() };
-    setIncomeEntries(cur => editingIncome ? cur.map(i => i.id === item.id ? item : cur) : [item, ...cur]); setEditingIncome(null); setModal("none"); setToast("Entrada salva 💚");
+    setIncomeEntries(cur => editingIncome ? cur.map(i => i.id === item.id ? item : i) : [item, ...cur]); setEditingIncome(null); setModal("none"); setToast("Entrada salva 💚");
   };
 
   const openEditExpense = (expense: Expense) => { resetExpenseForm(expense); setEditingExpense(expense); setModal("expense"); };
