@@ -319,7 +319,7 @@ export default function Page() {
     const insightText = () => {
       const top = [...cats].sort((a, b) => b.spent - a.spent)[0];
       const nearLimit = cats.filter(x => x.budget > 0 && x.spent / x.budget >= 0.8).sort((a, b) => b.percent - a.percent);
-      const personal = (["Bruna", "Matheus"] as Person[]).map(person => {
+      const personal = (["Bruna", "Matheus"] as const).map(person => {
         const spent = monthExpenses.filter(e => e.who === person).reduce((s, e) => s + e.amount, 0);
         return { person, spent, limit: limits[person] };
       });
