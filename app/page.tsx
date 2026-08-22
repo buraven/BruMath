@@ -228,7 +228,7 @@ export default function Page() {
   const monthDebts = useMemo(() => debts.filter(d => {
     const debtMonth = d.month || viewMonth;
     if (debtMonth > viewMonth) return false;
-    if (d.paid >= d.amount && d.receivedMonth && d.receivedMonth < viewMonth) return false;
+    if (d.paid >= d.amount) return d.receivedMonth === viewMonth || debtMonth === viewMonth;
     return true;
   }), [debts, viewMonth]);
   const debtTotal = useMemo(() => monthDebts.reduce((s, d) => s + Math.max(0, d.amount - d.paid), 0), [monthDebts]);
