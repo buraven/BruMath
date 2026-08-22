@@ -36,7 +36,7 @@ type Installment = {
   id: number; title: string; category: string; who: Person; amount: number;
   totalInstallments: number; paidInstallments: number; nextDue: string;
 };
-type Debt = { id: number; person: string; amount: number; destination: DebtDestination; note: string; paid: number; month: string };
+type Debt = { id: number; person: string; amount: number; destination: DebtDestination; note: string; paid: number; month: string; receivedMonth?: string };
 type IncomeEntry = { id: number; title: string; amount: number; who: Person; date: string; destination: "conta" | "cartao"; note: string };
 type ChatMessage = { id: number; role: "assistant" | "user"; text: string };
 
@@ -153,7 +153,9 @@ export default function Page() {
   const [limits, setLimits] = useState({ Bruna: 350, Matheus: 350 });
   const [text, setText] = useState("");
   const [toast, setToast] = useState("");
-  const [modal, setModal] = useState<"none" | "expense" | "installment" | "debt" | "income" | "settings">("none");
+  const [modal, setModal] = useState<"none" | "expense" | "installment" | "debt" | "income" | "receive" | "settings">("none");
+  const [receivingDebt, setReceivingDebt] = useState<Debt | null>(null);
+  const [receiveAmount, setReceiveAmount] = useState("");
   const [editingExpense, setEditingExpense] = useState<Expense | null>(null);
   const [editingInstallment, setEditingInstallment] = useState<Installment | null>(null);
   const [editingDebt, setEditingDebt] = useState<Debt | null>(null);
@@ -223,21 +225,26 @@ export default function Page() {
   const extraIncome = useMemo(() => monthIncome.reduce((s, e) => s + e.amount, 0), [monthIncome]);
   const monthIncomeTotal = income + extraIncome;
   const available = monthIncomeTotal - totalSpent;
-  const monthDebts = useMemo(() => debts.filter(d => (d.month || viewMonth) === viewMonth), [debts, viewMonth]);
+  const monthDebts = useMemo(() => debts.filter(d => {
+    const debtMonth = d.month || viewMonth;
+    if (debtMonth > viewMonth) return false;
+    if (d.paid >= d.amount) return d.receivedMonth === viewMonth || debtMonth === viewMonth;
+    return true;
+  }), [debts, viewMonth]);
   const debtTotal = useMemo(() => monthDebts.reduce((s, d) => s + Math.max(0, d.amount - d.paid), 0), [monthDebts]);
   const activeInstallments = useMemo(() => installments.filter(i => i.paidInstallments < i.totalInstallments), [installments]);
   const remaining = useMemo(() => activeInstallments.reduce((s, i) => s + i.totalInstallments - i.paidInstallments, 0), [activeInstallments]);
-  const futureMonthly = useMemo(() => activeInstallments.filter(i => i.nextDue.startsWith(viewMonth)).reduce((s, i) => s + i.amount, 0), [activeInstallments, viewMonth]);
-
-  const cats = useMemo(() => Object.entries(budgets).map(([category, budget]) => {
+  const futureMonthly = useMemo(() => installments.filter(i => i.paidInstallments < i.totalInstallments && i.nextDue.startsWith(viewMonth)).reduce((s, i) => s + i.amount, 0), [installments, viewMonth]);
+  const cats = useMemo(() => Object.keys(budgets).map(category => {
     const spent = monthExpenses.filter(e => e.cat === category).reduce((s, e) => s + e.amount, 0);
-    return { category, budget, spent, percent: budget ? Math.min(100, spent / budget * 100) : 0 };
+    const budget = budgets[category] || 0;
+    return { category, spent, budget, percent: budget ? Math.min(100, spent / budget * 100) : 0 };
   }), [budgets, monthExpenses]);
 
-  const resetExpenseForm = (expense?: Expense) => setForm(expense ? { title: expense.title, amount: String(expense.amount), cat: expense.cat, who: expense.who, date: expense.date } : { title: "", amount: "", cat: "Outros", who: activeProfile, date: viewMonth + "-01" });
-  const openNewExpense = () => { setEditingExpense(null); resetExpenseForm(); setQuickAddOpen(false); setModal("expense"); };
-  const openNewInstallment = () => { setEditingInstallment(null); setInstForm({ title: "", amount: "", category: "Outros", who: activeProfile, total: "", paid: "0", nextDue: `${addMonths(viewMonth, 1)}-10` }); setQuickAddOpen(false); setModal("installment"); };
-  const openNewIncome = () => { setEditingIncome(null); setIncomeForm({ title: "", amount: "", who: activeProfile, date: viewMonth + "-01", destination: "conta", note: "" }); setQuickAddOpen(false); setModal("income"); };
+  const resetExpenseForm = (expense?: Expense) => setForm(expense ? { title: expense.title, amount: String(expense.amount), cat: expense.cat, who: expense.who, date: expense.date } : { title: "", amount: "", cat: "Outros", who: activeProfile, date: `${viewMonth}-01` });
+  const openNewExpense = () => { setQuickAddOpen(false); setEditingExpense(null); resetExpenseForm(); setModal("expense"); };
+  const openNewInstallment = () => { setQuickAddOpen(false); setEditingInstallment(null); setInstForm({ title: "", amount: "", category: "Outros", who: activeProfile, total: "", paid: "0", nextDue: `${addMonths(viewMonth, 1)}-10` }); setModal("installment"); };
+  const openNewIncome = () => { setQuickAddOpen(false); setEditingIncome(null); setIncomeForm({ title: "", amount: "", who: activeProfile, date: `${viewMonth}-01`, destination: "conta", note: "" }); setModal("income"); };
   const openDebt = (debt?: Debt) => { setDebtForm(debt ? { person: debt.person, amount: String(debt.amount), destination: debt.destination, note: debt.note, month: debt.month || viewMonth } : { person: "Amigo", amount: "", destination: "bruna", note: "", month: viewMonth }); setEditingDebt(debt ?? null); setModal("debt"); };
 
   const saveExpense = (event: FormEvent) => {
@@ -258,7 +265,7 @@ export default function Page() {
   const saveDebt = (event: FormEvent) => {
     event.preventDefault(); const amount = Number(debtForm.amount.replace(",", "."));
     if (!debtForm.person.trim() || !amount || amount < 0) return setToast("Informe quem deve e o valor.");
-    const item: Debt = { id: editingDebt?.id ?? Date.now(), person: debtForm.person.trim(), amount, destination: debtForm.destination, note: debtForm.note.trim(), paid: Math.min(editingDebt?.paid ?? 0, amount), month: debtForm.month || viewMonth };
+    const item: Debt = { id: editingDebt?.id ?? Date.now(), person: debtForm.person.trim(), amount, destination: debtForm.destination, note: debtForm.note.trim(), paid: Math.min(editingDebt?.paid ?? 0, amount), month: debtForm.month || viewMonth, receivedMonth: editingDebt?.receivedMonth };
     setDebts(cur => editingDebt ? cur.map(d => d.id === item.id ? item : d) : [item, ...cur]); setEditingDebt(null); setModal("none"); setToast(editingDebt ? "Dívida atualizada 💚" : "Dívida adicionada 💚");
   };
 
@@ -272,7 +279,7 @@ export default function Page() {
   const openEditExpense = (expense: Expense) => { resetExpenseForm(expense); setEditingExpense(expense); setModal("expense"); };
   const openEditInstallment = (item: Installment) => { setInstForm({ title: item.title, amount: String(item.amount), category: item.category, who: item.who, total: String(item.totalInstallments), paid: String(item.paidInstallments), nextDue: item.nextDue }); setEditingInstallment(item); setModal("installment"); };
   const openEditIncome = (item: IncomeEntry) => { setIncomeForm({ title: item.title, amount: String(item.amount), who: item.who, date: item.date, destination: item.destination, note: item.note }); setEditingIncome(item); setModal("income"); };
-
+  const openEditDebt = (debt: Debt) => { openDebt(debt); };
   const deleteExpense = (id: number) => { setExpenses(cur => cur.filter(e => e.id !== id)); setToast("Gasto excluído"); };
   const deleteInstallment = (id: number) => { setInstallments(cur => cur.filter(i => i.id !== id)); setToast("Parcela excluída"); };
   const deleteDebt = (id: number) => { setDebts(cur => cur.filter(d => d.id !== id)); setToast("Dívida excluída"); };
@@ -302,20 +309,35 @@ export default function Page() {
     payInstallment(item.id, count);
   };
 
-  const receiveDebt = (id: number) => {
-    const debt = debts.find(d => d.id === id); if (!debt) return;
-    const open = Math.max(0, debt.amount - debt.paid); if (!open) return;
-    setDebts(cur => cur.map(d => d.id === id ? { ...d, paid: d.amount } : d));
-    const destination = debt.destination === "cartao" ? "cartao" : "conta";
-    setIncomeEntries(cur => [...cur, { id: Date.now(), title: `Recebimento de ${debt.person}`, amount: open, who: activeProfile, date: `${debt.month || viewMonth}-01`, destination, note: debt.note || "Pagamento de dívida" }]);
-    setToast(destination === "cartao" ? "Dívida recebida e direcionada ao cartão 💚" : "Dívida recebida e registrada em O que entra 💚");
+  const openReceiveDebt = (debt: Debt) => {
+    const open = Math.max(0, debt.amount - debt.paid);
+    if (!open) return;
+    setReceivingDebt(debt);
+    setReceiveAmount("");
+    setModal("receive");
+  };
+
+  const saveDebtReceipt = (event: FormEvent) => {
+    event.preventDefault();
+    if (!receivingDebt) return;
+    const open = Math.max(0, receivingDebt.amount - receivingDebt.paid);
+    const amount = Number(receiveAmount.replace(",", "."));
+    if (!Number.isFinite(amount) || amount <= 0) return setToast("Informe quanto recebeu.");
+    if (amount > open) return setToast(`O máximo que pode registrar agora é ${money(open)}.`);
+    const nextPaid = Math.min(receivingDebt.amount, receivingDebt.paid + amount);
+    const destination = receivingDebt.destination === "cartao" ? "cartao" : "conta";
+    setDebts(cur => cur.map(d => d.id === receivingDebt.id ? { ...d, paid: nextPaid, receivedMonth: viewMonth } : d));
+    setIncomeEntries(cur => [...cur, { id: Date.now(), title: `Recebimento de ${receivingDebt.person}`, amount, who: activeProfile, date: `${viewMonth}-01`, destination, note: receivingDebt.note || "Pagamento de dívida" }]);
+    setReceivingDebt(null);
+    setReceiveAmount("");
+    setModal("none");
+    setToast(nextPaid >= receivingDebt.amount ? "Dívida quitada e registrada em O que entra 💚" : `${money(amount)} recebido. Restam ${money(receivingDebt.amount - nextPaid)} 💚`);
   };
 
   const send = (preset?: string) => {
     const value = (preset ?? text).trim(); if (!value) return;
     const normalized = value.toLowerCase(); const amount = parseAmount(value); const who = detectPerson(value, activeProfile);
     const push = (assistant: string) => { const now = Date.now(); setChat(cur => [...cur, { id: now, role: "user", text: value }, { id: now + 1, role: "assistant", text: assistant }]); setText(""); };
-
     const insightText = () => {
       const top = [...cats].sort((a, b) => b.spent - a.spent)[0];
       const nearLimit = cats.filter(x => x.budget > 0 && x.spent / x.budget >= 0.8).sort((a, b) => b.percent - a.percent);
@@ -377,37 +399,17 @@ export default function Page() {
             <button type="button" className="theme-button" onClick={() => setThemeOpen(v => !v)} aria-label={`Tema: ${theme}`}>
               {theme === "light" ? <Sun size={18} /> : theme === "dark" ? <Moon size={18} /> : <Monitor size={18} />}
             </button>
-            {themeOpen && <div className="theme-menu">
-              {([["light", "Claro", Sun], ["dark", "Escuro", Moon], ["system", "Automático", Monitor]] as const).map(([mode, label, Icon]) => <button type="button" key={mode} className={`theme-option ${theme === mode ? "active" : ""}`} onClick={() => applyTheme(mode)}><Icon size={16} /><span>{label}</span>{theme === mode && <Check size={15} />}</button>)}
-            </div>}
+            {themeOpen && <div className="theme-menu"><button type="button" className={`theme-option ${theme === "light" ? "active" : ""}`} onClick={() => applyTheme("light")}><Sun size={16} /><span>Claro</span></button><button type="button" className={`theme-option ${theme === "dark" ? "active" : ""}`} onClick={() => applyTheme("dark")}><Moon size={16} /><span>Escuro</span></button><button type="button" className={`theme-option ${theme === "system" ? "active" : ""}`} onClick={() => applyTheme("system")}><Monitor size={16} /><span>Automático</span></button></div>}
           </div>
         </div>
       </header>
 
       <main className="page">
-        <div className="month-bar">
-          <button type="button" className="month-arrow" onClick={() => setViewMonth(addMonths(viewMonth, -1))}><ChevronLeft size={18} /></button>
-          <div><span>Visão mensal</span><strong>{monthName}</strong></div>
-          <div className="month-presets">
-            <button type="button" className={viewMonth === addMonths(dateKey(), -1) ? "active" : ""} onClick={() => setViewMonth(addMonths(dateKey(), -1))}>Mês passado</button>
-            <button type="button" className={viewMonth === dateKey() ? "active" : ""} onClick={() => setViewMonth(dateKey())}>Mês atual</button>
-            <button type="button" className={viewMonth === addMonths(dateKey(), 1) ? "active" : ""} onClick={() => setViewMonth(addMonths(dateKey(), 1))}>Próximo</button>
-          </div>
-          <button type="button" className="month-arrow" onClick={() => setViewMonth(addMonths(viewMonth, 1))}><ChevronRight size={18} /></button>
-        </div>
+        <div className="month-bar"><button type="button" className="month-arrow" onClick={() => setViewMonth(addMonths(viewMonth, -1))} aria-label="Mês anterior"><ChevronLeft size={19} /></button><div><span>Visualizando</span><strong>{monthName}</strong></div><div className="month-presets"><button type="button" className={viewMonth === addMonths(dateKey(), -1) ? "active" : ""} onClick={() => setViewMonth(addMonths(dateKey(), -1))}>Anterior</button><button type="button" className={viewMonth === dateKey() ? "active" : ""} onClick={() => setViewMonth(dateKey())}>Atual</button><button type="button" className={viewMonth === addMonths(dateKey(), 1) ? "active" : ""} onClick={() => setViewMonth(addMonths(dateKey(), 1))}>Próximo</button></div><button type="button" className="month-arrow" onClick={() => setViewMonth(addMonths(viewMonth, 1))} aria-label="Próximo mês"><ChevronRight size={19} /></button></div>
 
         {tab === "home" && <>
-          <section className="hero">
-            <div className="hero-copy"><small>Disponível em {monthLabelShort(viewMonth)}</small><div className="hero-amount">{money(available)}</div><p>{money(totalSpent)} usados de {money(monthIncomeTotal)}</p></div>
-            <div className="hero-progress"><div className="progress-track"><div className="progress-fill" style={{ width: `${monthIncomeTotal > 0 ? Math.min(100, Math.max(0, totalSpent / monthIncomeTotal * 100)) : 0}%` }} /></div><div className="progress-labels"><span>Gastos {money(totalSpent)}</span><span>Entradas {money(monthIncomeTotal)}</span></div></div>
-          </section>
-
-          <section className="summary-grid">
-            <button type="button" className="metric-card metric-button" onClick={() => setModal("settings")}><span>Renda base</span><strong>{money(income)}</strong><small>Editar renda</small></button>
-            <button type="button" className="metric-card metric-button" onClick={() => setModal("settings")}><span>Limite Bruna</span><strong>{money(limits.Bruna)}</strong><small>Café, doces e pessoal</small></button>
-            <button type="button" className="metric-card metric-button" onClick={() => setModal("settings")}><span>Limite Matheus</span><strong>{money(limits.Matheus)}</strong><small>Gastos pessoais</small></button>
-            <button type="button" className="metric-card metric-button" onClick={() => switchTab("future")}><span>Parcelas</span><strong>{activeInstallments.length} ativas</strong><small>{remaining} parcelas restantes</small></button>
-          </section>
+          <section className="hero"><div className="hero-copy"><small>Disponível em {monthName}</small><div className="hero-amount">{money(available)}</div><p>Renda base {money(income)} + entradas {money(extraIncome)} − gastos {money(totalSpent)}.</p></div><div className="hero-progress"><div className="progress-track"><div className="progress-fill" style={{ width: `${Math.min(100, Math.max(0, totalSpent / Math.max(1, monthIncomeTotal) * 100))}%` }} /></div><div className="progress-labels"><span>{Math.round(totalSpent / Math.max(1, monthIncomeTotal) * 100)}% da renda comprometida</span><span>{money(Math.max(0, monthIncomeTotal - totalSpent))} livres</span></div></div></section>
+          <section className="summary-grid"><button type="button" className="metric-card metric-button" onClick={() => switchTab("debts")}><span>A receber</span><strong>{money(debtTotal)}</strong><small>{monthDebts.filter(d => d.amount > d.paid).length} em aberto</small></button><button type="button" className="metric-card metric-button" onClick={() => switchTab("income")}><span>Entradas extras</span><strong>{money(extraIncome)}</strong><small>{selectedIncome.length} registros</small></button><button type="button" className="metric-card metric-button" onClick={() => switchTab("stats")}><span>Gastos</span><strong>{money(totalSpent)}</strong><small>{selectedMonthExpenses.length} registros</small></button><button type="button" className="metric-card metric-button" onClick={() => switchTab("future")}><span>Parcelas</span><strong>{activeInstallments.length} ativas</strong><small>{remaining} parcelas restantes</small></button></section>
 
           <section className="section"><div className="section-title"><div><h2>Assistente</h2><span className="muted">Você está falando como <strong>{activeProfile}</strong></span></div><span className="online"><i /> online</span></div>
             <div className="chat-preview"><div className="chat-profile-banner">Perfil atual: <strong>{activeProfile}</strong>. O perfil é usado quando a frase não informa outra pessoa.</div><div className="bubble assistant-bubble">{chat.at(-1)?.text}</div>
@@ -431,7 +433,7 @@ export default function Page() {
           <div className="installment-list">{selectedInstallments.length === 0 ? <div className="empty-state">Nenhuma parcela cadastrada.</div> : selectedInstallments.map(item => { const left = Math.max(0, item.totalInstallments - item.paidInstallments); const progress = item.totalInstallments ? item.paidInstallments / item.totalInstallments * 100 : 0; return <article className="installment-card" key={item.id}><div className="installment-icon">{iconFor(item.category)}</div><div className="installment-main"><div className="installment-title-row"><div><strong>{item.title}</strong><span>{item.category} · {item.who}</span></div><strong>{money(item.amount)}/mês</strong></div><div className="installment-details"><div><span>Pagas</span><b>{item.paidInstallments}</b></div><div><span>Faltam</span><b>{left}</b></div><div><span>Total</span><b>{item.totalInstallments}</b></div><div><span>Próximo</span><b>{left ? shortDate(item.nextDue) : "Quitada"}</b></div></div><div className="installment-progress"><div className="progress-track small"><div className="progress-fill" style={{ width: `${progress}%` }} /></div><span>{Math.round(progress)}% pago</span></div><div className="installment-actions"><button type="button" disabled={!left} onClick={() => payInstallment(item.id, 1)}>Pagar 1</button><button type="button" disabled={left < 2} onClick={() => chooseAdvanceInstallments(item)}>Adiantar</button><button type="button" disabled={!left} onClick={() => payInstallment(item.id, left)}>Quitar</button><button type="button" onClick={() => openEditInstallment(item)}><Pencil size={14} /> Editar</button><button type="button" className="danger-action" onClick={() => deleteInstallment(item.id)}><Trash2 size={14} /> Excluir</button></div></div></article>; })}</div>
         </section>}
 
-        {tab === "debts" && <section className="section"><div className="page-heading"><div><span className="eyebrow"><WalletCards size={15} /> Quem me deve</span><h1>Valores a receber</h1><p>Cadastre quem deve, quanto deve, o mês da cobrança e escolha se o pagamento será usado no cartão ou entregue para Bruna, Matheus ou o casal.</p></div><button type="button" className="primary-button compact" onClick={() => openDebt()}><Plus size={17} /> Novo valor</button></div><div className="debt-total-card"><span>Valores pendentes em {monthName}</span><strong>{money(debtTotal)}</strong><small>{selectedDebts.filter(d => d.amount > d.paid).length} pessoas/valores em aberto neste mês</small></div><div className="debt-list">{selectedDebts.length ? selectedDebts.map(d => <div className="debt-row" key={d.id}><div><strong>{d.person}</strong><span>{d.note || "Valor a receber"} · {d.destination === "cartao" ? "vai para o cartão" : d.destination === "bruna" ? "vai para Bruna" : d.destination === "matheus" ? "vai para Matheus" : "vai para o casal"} · {monthLabelShort(d.month || viewMonth)}</span></div><strong>{money(Math.max(0, d.amount - d.paid))}</strong><button type="button" className="icon-button" onClick={() => openDebt(d)} aria-label="Editar dívida"><Pencil size={15} /></button><button type="button" className="icon-button danger-icon" onClick={() => deleteDebt(d.id)} aria-label="Excluir dívida"><Trash2 size={15} /></button><button type="button" className="primary-button compact" onClick={() => receiveDebt(d.id)} disabled={d.paid >= d.amount}>{d.paid >= d.amount ? "Recebido" : "Recebi"}</button></div>) : <div className="empty-state">Nenhum valor a receber em {monthName}. Use "Novo valor" para cadastrar uma cobrança neste mês.</div>}</div></section>}
+        {tab === "debts" && <section className="section"><div className="page-heading"><div><span className="eyebrow"><WalletCards size={15} /> Quem me deve</span><h1>Valores a receber</h1><p>Cadastre quem deve e quanto deve. Se ficar saldo em aberto, ele continua automaticamente nos meses seguintes até ser quitado.</p></div><button type="button" className="primary-button compact" onClick={() => openDebt()}><Plus size={17} /> Novo valor</button></div><div className="debt-total-card"><span>Valores pendentes em {monthName}</span><strong>{money(debtTotal)}</strong><small>{selectedDebts.filter(d => d.amount > d.paid).length} pessoas/valores em aberto neste mês</small></div><div className="debt-list">{selectedDebts.length ? selectedDebts.map(d => <div className="debt-row" key={d.id}><div><strong>{d.person}</strong><span>{d.note || "Valor a receber"} · {d.destination === "cartao" ? "vai para o cartão" : d.destination === "bruna" ? "vai para Bruna" : d.destination === "matheus" ? "vai para Matheus" : "vai para o casal"} · {monthLabelShort(d.month || viewMonth)}</span></div><strong>{money(Math.max(0, d.amount - d.paid))}</strong><button type="button" className="icon-button" onClick={() => openEditDebt(d)} aria-label="Editar dívida"><Pencil size={15} /></button><button type="button" className="icon-button danger-icon" onClick={() => deleteDebt(d.id)} aria-label="Excluir dívida"><Trash2 size={15} /></button><button type="button" className="primary-button compact" onClick={() => openReceiveDebt(d)} disabled={d.paid >= d.amount}>{d.paid >= d.amount ? "Recebido" : "Recebi"}</button></div>) : <div className="empty-state">Nenhum valor a receber em {monthName}. Use "Novo valor" para cadastrar uma cobrança neste mês.</div>}</div></section>}
 
         {tab === "income" && <section className="section"><div className="page-heading"><div><span className="eyebrow"><WalletCards size={15} /> O que entra</span><h1>Entradas de {monthName}</h1><p>Salário, reembolsos e recebimentos ficam separados dos gastos. A renda base é editada em Orçamento.</p></div><button type="button" className="primary-button compact" onClick={openNewIncome}><Plus size={17} /> Nova entrada</button></div><div className="future-summary"><div><span>Renda base</span><strong>{money(income)}</strong></div><div><span>Entradas extras</span><strong>{money(extraIncome)}</strong></div><div><span>Total disponível antes dos gastos</span><strong>{money(monthIncomeTotal)}</strong></div></div><div className="income-list">{selectedIncome.length ? selectedIncome.map(item => <div className="income-row" key={item.id}><div className="income-icon"><WalletCards size={18} /></div><div><strong>{item.title}</strong><span>{item.who} · {item.destination === "cartao" ? "cartão" : "conta"}{item.note ? ` · ${item.note}` : ""}</span></div><strong>{money(item.amount)}</strong><button type="button" className="icon-button" onClick={() => openEditIncome(item)}><Pencil size={15} /></button><button type="button" className="icon-button danger-icon" onClick={() => deleteIncome(item.id)}><Trash2 size={15} /></button></div>) : <div className="empty-state">Nenhuma entrada extra neste mês.</div>}</div></section>}
       </main>
@@ -447,16 +449,12 @@ export default function Page() {
         <NavButton active={tab === "income"} onClick={() => switchTab("income")} icon={<Sparkles size={19} />} label="O que entra" />
       </nav>
 
-      {modal !== "none" && <div className="modal-backdrop" onMouseDown={e => { if (e.target === e.currentTarget) setModal("none"); }}><div className="modal-card" role="dialog" aria-modal="true"><div className="modal-header"><div><span className="eyebrow"><Receipt size={15} /> BruMath</span><h2>{modal === "expense" ? (editingExpense ? "Editar gasto" : "Adicionar gasto") : modal === "installment" ? (editingInstallment ? "Editar parcela" : "Nova parcela") : modal === "debt" ? (editingDebt ? "Editar quem me deve" : "Adicionar quem me deve") : modal === "income" ? (editingIncome ? "Editar entrada" : "Nova entrada") : "Renda e orçamento"}</h2></div><button type="button" className="icon-button" onClick={() => setModal("none")}><X size={18} /></button></div>
-
+      {modal !== "none" && <div className="modal-backdrop" onMouseDown={e => { if (e.target === e.currentTarget) setModal("none"); }}><div className="modal-card" role="dialog" aria-modal="true"><div className="modal-header"><div><span className="eyebrow"><Receipt size={15} /> BruMath</span><h2>{modal === "expense" ? (editingExpense ? "Editar gasto" : "Adicionar gasto") : modal === "installment" ? (editingInstallment ? "Editar parcela" : "Nova parcela") : modal === "debt" ? (editingDebt ? "Editar quem me deve" : "Adicionar quem me deve") : modal === "income" ? (editingIncome ? "Editar entrada" : "Nova entrada") : modal === "receive" ? "Registrar recebimento" : "Renda e orçamento"}</h2></div><button type="button" className="icon-button" onClick={() => setModal("none")}><X size={18} /></button></div>
         {modal === "expense" && <form onSubmit={saveExpense}><label className="field"><span>O que foi?</span><input value={form.title} onChange={e => setForm({ ...form, title: e.target.value })} placeholder="Ex.: Mercado" required /></label><div className="form-grid"><label className="field"><span>Valor</span><input inputMode="decimal" value={form.amount} onChange={e => setForm({ ...form, amount: e.target.value })} placeholder="50,00" required /></label><label className="field"><span>Data</span><input type="date" value={form.date} onChange={e => setForm({ ...form, date: e.target.value })} /></label></div><div className="form-grid"><label className="field"><span>Categoria</span><select value={form.cat} onChange={e => setForm({ ...form, cat: e.target.value })}>{Object.keys(budgets).map(c => <option key={c}>{c}</option>)}</select></label><label className="field"><span>Quem</span><select value={form.who} onChange={e => setForm({ ...form, who: e.target.value as Person })}><option>Bruna</option><option>Matheus</option><option>Casal</option></select></label></div><button type="submit" className="primary-button"><Check size={17} /> Salvar gasto</button></form>}
-
         {modal === "installment" && <form onSubmit={saveInstallment}><label className="field"><span>Nome</span><input value={instForm.title} onChange={e => setInstForm({ ...instForm, title: e.target.value })} placeholder="Ex.: Notebook" required /></label><div className="form-grid"><label className="field"><span>Valor mensal</span><input inputMode="decimal" value={instForm.amount} onChange={e => setInstForm({ ...instForm, amount: e.target.value })} placeholder="300,00" required /></label><label className="field"><span>Total de parcelas</span><input type="number" min="1" value={instForm.total} onChange={e => setInstForm({ ...instForm, total: e.target.value })} required /></label></div><div className="form-grid"><label className="field"><span>Já pagas</span><input type="number" min="0" value={instForm.paid} onChange={e => setInstForm({ ...instForm, paid: e.target.value })} /></label><label className="field"><span>Próximo vencimento</span><input type="date" value={instForm.nextDue} onChange={e => setInstForm({ ...instForm, nextDue: e.target.value })} /></label></div><div className="form-grid"><label className="field"><span>Categoria</span><select value={instForm.category} onChange={e => setInstForm({ ...instForm, category: e.target.value })}>{Object.keys(budgets).map(c => <option key={c}>{c}</option>)}</select></label><label className="field"><span>Quem</span><select value={instForm.who} onChange={e => setInstForm({ ...instForm, who: e.target.value as Person })}><option>Bruna</option><option>Matheus</option><option>Casal</option></select></label></div><button type="submit" className="primary-button"><Check size={17} /> Salvar parcela</button></form>}
-
         {modal === "debt" && <form onSubmit={saveDebt}><label className="field"><span>Quem deve?</span><input value={debtForm.person} onChange={e => setDebtForm({ ...debtForm, person: e.target.value })} placeholder="Ex.: João" required /></label><label className="field"><span>Valor total</span><input inputMode="decimal" value={debtForm.amount} onChange={e => setDebtForm({ ...debtForm, amount: e.target.value })} placeholder="13.000,00" required /></label><div className="form-grid"><label className="field"><span>Mês</span><input type="month" value={debtForm.month} onChange={e => setDebtForm({ ...debtForm, month: e.target.value })} /></label><label className="field"><span>Quando pagar, vai para</span><select value={debtForm.destination} onChange={e => setDebtForm({ ...debtForm, destination: e.target.value as DebtDestination })}><option value="cartao">Cartão</option><option value="bruna">Bruna</option><option value="matheus">Matheus</option><option value="casal">Casal</option></select></label></div><label className="field"><span>Observação</span><input value={debtForm.note} onChange={e => setDebtForm({ ...debtForm, note: e.target.value })} placeholder="Ex.: amigo me deve R$ 13 mil" /></label><button type="submit" className="primary-button"><Check size={17} /> Salvar valor a receber</button></form>}
-
+        {modal === "receive" && receivingDebt && <form onSubmit={saveDebtReceipt}><div className="receive-summary"><span>Valor em aberto</span><strong>{money(Math.max(0, receivingDebt.amount - receivingDebt.paid))}</strong><small>{receivingDebt.person}{receivingDebt.note ? ` · ${receivingDebt.note}` : ""}</small></div><label className="field"><span>Quanto você recebeu?</span><input autoFocus inputMode="decimal" value={receiveAmount} onChange={e => setReceiveAmount(e.target.value)} placeholder="Ex.: 200,00" required /></label><p className="receive-help">Você pode receber uma parte agora e o restante continuará em aberto para os próximos meses.</p><button type="submit" className="primary-button"><Check size={17} /> Registrar recebimento</button></form>}
         {modal === "income" && <form onSubmit={saveIncome}><label className="field"><span>Entrada</span><input value={incomeForm.title} onChange={e => setIncomeForm({ ...incomeForm, title: e.target.value })} placeholder="Ex.: Reembolso" required /></label><div className="form-grid"><label className="field"><span>Valor</span><input inputMode="decimal" value={incomeForm.amount} onChange={e => setIncomeForm({ ...incomeForm, amount: e.target.value })} placeholder="500,00" required /></label><label className="field"><span>Data</span><input type="date" value={incomeForm.date} onChange={e => setIncomeForm({ ...incomeForm, date: e.target.value })} /></label></div><div className="form-grid"><label className="field"><span>Quem</span><select value={incomeForm.who} onChange={e => setIncomeForm({ ...incomeForm, who: e.target.value as Person })}><option>Bruna</option><option>Matheus</option><option>Casal</option></select></label><label className="field"><span>Destino</span><select value={incomeForm.destination} onChange={e => setIncomeForm({ ...incomeForm, destination: e.target.value as "conta" | "cartao" })}><option value="conta">Conta</option><option value="cartao">Cartão</option></select></label></div><label className="field"><span>Observação</span><input value={incomeForm.note} onChange={e => setIncomeForm({ ...incomeForm, note: e.target.value })} /></label><button type="submit" className="primary-button"><Check size={17} /> Salvar entrada</button></form>}
-
         {modal === "settings" && <form onSubmit={e => { e.preventDefault(); setModal("none"); setToast("Renda e orçamento atualizados 💚"); }}><label className="field"><span>Renda mensal base</span><input type="number" step="0.01" min="0" value={income} onChange={e => setIncome(Number(e.target.value))} /></label><div className="form-grid"><label className="field"><span>Limite Bruna</span><input type="number" step="0.01" min="0" value={limits.Bruna} onChange={e => setLimits({ ...limits, Bruna: Number(e.target.value) })} /></label><label className="field"><span>Limite Matheus</span><input type="number" step="0.01" min="0" value={limits.Matheus} onChange={e => setLimits({ ...limits, Matheus: Number(e.target.value) })} /></label></div><div className="settings-grid">{Object.entries(budgets).map(([category, value]) => <label className="field" key={category}><span>Limite {category}</span><input type="number" step="0.01" min="0" value={value} onChange={e => setBudgets({ ...budgets, [category]: Number(e.target.value) })} /></label>)}</div><button type="submit" className="primary-button"><Check size={17} /> Salvar orçamento</button></form>}
       </div></div>}
     </div>
@@ -468,6 +466,5 @@ function NavButton({ active, onClick, icon, label }: { active: boolean; onClick:
 }
 
 function ExpenseList({ expenses, onEdit, onDelete }: { expenses: Expense[]; onEdit: (expense: Expense) => void; onDelete: (id: number) => void }) {
-  if (!expenses.length) return <div className="expense-list"><div className="empty-state">Nenhum gasto neste mês.</div></div>;
-  return <div className="expense-list">{expenses.map(expense => <div className="expense-row" key={expense.id}><div className="expense-icon">{iconFor(expense.cat)}</div><div className="expense-info"><strong>{expense.title}</strong><span>{expense.cat} · {expense.who} · {shortDate(expense.date)}</span></div><strong className="expense-amount">{money(expense.amount)}</strong><div className="row-actions"><button type="button" className="icon-button" onClick={() => onEdit(expense)} aria-label={`Editar ${expense.title}`}><Pencil size={15} /></button><button type="button" className="icon-button danger-icon" onClick={() => onDelete(expense.id)} aria-label={`Excluir ${expense.title}`}><Trash2 size={15} /></button></div></div>)}</div>;
+  return <div className="expense-list">{expenses.length ? expenses.map(expense => <div className="expense-row" key={expense.id}><div className="expense-icon">{iconFor(expense.cat)}</div><div className="expense-info"><strong>{expense.title}</strong><span>{expense.cat} · {expense.who} · {shortDate(expense.date)}</span></div><strong className="expense-amount">{money(expense.amount)}</strong><div className="row-actions"><button type="button" className="icon-button" onClick={() => onEdit(expense)} aria-label="Editar gasto"><Pencil size={15} /></button><button type="button" className="icon-button danger-icon" onClick={() => onDelete(expense.id)} aria-label="Excluir gasto"><Trash2 size={15} /></button></div></div>) : <div className="empty-state">Nenhum gasto registrado neste mês.</div>}</div>;
 }
