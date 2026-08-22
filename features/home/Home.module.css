@@ -1,0 +1,36 @@
+.home {
+  display: grid;
+  gap: var(--space-6);
+  width: 100%;
+}
+
+.header,
+.balance,
+.summary,
+.insights,
+.grid > section {
+  min-width: 0;
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-6);
+}
+
+@media (max-width: 767px) {
+  .home {
+    gap: var(--space-4);
+  }
+
+  .grid {
+    grid-template-columns: 1fr;
+    gap: var(--space-4);
+  }
+}
+
+@media (min-width: 768px) and (max-width: 1023px) {
+  .home {
+    gap: var(--space-5);
+  }
+}
