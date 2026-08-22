@@ -1,0 +1,1 @@
+FinancialSnapshot presents the monthly financial overview using values provided by the feature layer. It does not own financial calculations or persistence.
