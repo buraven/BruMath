@@ -1,4 +1,5 @@
 import { Pencil, Trash2 } from "lucide-react";
+import type { ReactNode } from "react";
 
 type Expense = {
   id: number;
@@ -15,7 +16,7 @@ type ExpenseListProps = {
   onDelete: (id: number) => void;
   formatMoney: (value: number) => string;
   formatDate: (value: string) => string;
-  renderCategoryIcon: (category: string) => React.ReactNode;
+  renderCategoryIcon: (category: string) => ReactNode;
 };
 
 export function ExpenseList({ expenses, onEdit, onDelete, formatMoney, formatDate, renderCategoryIcon }: ExpenseListProps) {
