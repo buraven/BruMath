@@ -1,0 +1,47 @@
+.card {
+  width: 100%;
+  min-width: 0;
+  padding: 16px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface);
+  color: inherit;
+  text-align: left;
+  box-shadow: 0 6px 24px rgba(31, 42, 34, .04);
+}
+
+button.card {
+  cursor: pointer;
+  font: inherit;
+}
+
+button.card:hover {
+  background: var(--surface-soft);
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  color: var(--muted);
+  font-size: .72rem;
+}
+
+.card strong {
+  display: block;
+  margin-top: 8px;
+  font-size: 1.05rem;
+}
+
+.card small {
+  display: block;
+  margin-top: 4px;
+  color: var(--muted);
+  font-size: .68rem;
+}
+
+.icon {
+  display: grid;
+  place-items: center;
+}
