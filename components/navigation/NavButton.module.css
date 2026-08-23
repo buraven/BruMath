@@ -1,0 +1,34 @@
+.button {
+  min-width: 0;
+  border: 0;
+  border-radius: 15px;
+  background: transparent;
+  color: var(--nav-muted);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  cursor: pointer;
+  font-size: .61rem;
+  font-weight: 600;
+}
+
+.button span {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.button:hover { background: var(--surface-soft); }
+.button.active { background: var(--nav-active-bg); color: var(--nav-active-text); font-weight: 800; }
+
+@media (max-width: 760px) {
+  .button { font-size: .56rem; }
+  .button svg { width: 18px; height: 18px; }
+}
+
+@media (max-width: 380px) {
+  .button { font-size: .5rem; }
+}
