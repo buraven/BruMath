@@ -26,6 +26,7 @@ import {
   X,
 } from "lucide-react";
 import { ExpenseList } from "../components/finance/ExpenseList";
+import { MetricGrid } from "../components/finance/MetricGrid";
 import { NavButton } from "../components/navigation/NavButton";
 
 type Person = "Bruna" | "Matheus" | "Casal";
@@ -411,7 +412,36 @@ export default function Page() {
 
         {tab === "home" && <>
           <section className="hero"><div className="hero-copy"><small>Disponível em {monthName}</small><div className="hero-amount">{money(available)}</div><p>Renda base {money(income)} + entradas {money(extraIncome)} − gastos {money(totalSpent)}.</p></div><div className="hero-progress"><div className="progress-track"><div className="progress-fill" style={{ width: `${Math.min(100, Math.max(0, totalSpent / Math.max(1, monthIncomeTotal) * 100))}%` }} /></div><div className="progress-labels"><span>{Math.round(totalSpent / Math.max(1, monthIncomeTotal) * 100)}% da renda comprometida</span><span>{money(Math.max(0, monthIncomeTotal - totalSpent))} livres</span></div></div></section>
-          <section className="summary-grid"><button type="button" className="metric-card metric-button" onClick={() => switchTab("debts")}><span>A receber</span><strong>{money(debtTotal)}</strong><small>{monthDebts.filter(d => d.amount > d.paid).length} em aberto</small></button><button type="button" className="metric-card metric-button" onClick={() => switchTab("income")}><span>Entradas extras</span><strong>{money(extraIncome)}</strong><small>{selectedIncome.length} registros</small></button><button type="button" className="metric-card metric-button" onClick={() => switchTab("stats")}><span>Gastos</span><strong>{money(totalSpent)}</strong><small>{selectedMonthExpenses.length} registros</small></button><button type="button" className="metric-card metric-button" onClick={() => switchTab("future")}><span>Parcelas</span><strong>{activeInstallments.length} ativas</strong><small>{remaining} parcelas restantes</small></button></section>
+          <section className="summary-grid">
+          <MetricGrid
+            metrics={[
+              {
+                label: "A receber",
+                value: String(monthDebts.filter(d => d.amount > d.paid).length),
+                detail: "em aberto",
+                onClick: () => switchTab("debts"),
+              },
+              {
+                label: "Entradas extras",
+                value: money(extraIncome),
+                detail: `${selectedIncome.length} registros`,
+                onClick: () => switchTab("income"),
+              },
+              {
+                label: "Gastos",
+                value: money(totalSpent),
+                detail: `${monthExpenses.length} registros`,
+                onClick: () => switchTab("stats"),
+              },
+              {
+                label: "Parcelas",
+                value: String(activeInstallments.length),
+                detail: `${remaining} parcelas restantes`,
+                onClick: () => switchTab("future"),
+              },
+            ]}
+          />
+        </section>
           <section className="section"><div className="section-title"><div><h2>Assistente</h2><span className="muted">Você está falando como <strong>{activeProfile}</strong></span></div><span className="online"><i /> online</span></div>
             <div className="chat-preview"><div className="chat-profile-banner">Perfil atual: <strong>{activeProfile}</strong>. O perfil é usado quando a frase não informa outra pessoa.</div><div className="bubble assistant-bubble">{chat.at(-1)?.text}</div>
               <div className="quick-actions"><button type="button" onClick={() => send("Quanto temos?")}>Quanto temos?</button><button type="button" onClick={() => send("Me dê insights")}>Insights</button><button type="button" onClick={() => send("Resumo")}>Resumo</button><button type="button" onClick={() => send("Parcelas")}>Parcelas</button><button type="button" onClick={() => switchTab("debts")}>Quem me deve?</button><button type="button" onClick={() => switchTab("income")}>O que entra</button></div>
