@@ -12,3 +12,15 @@ export async function getLimitUsages(
 
   return calculateIntegratedLimitUsages(limits, spending);
 }
+
+export async function getLimitUsagesForMonth(
+  repository: TransactionRepository,
+  limits: CategoryLimit[],
+  month: string,
+): Promise<LimitUsage[]> {
+  const transactions = await repository.getAll();
+  const monthTransactions = transactions.filter((transaction) => transaction.date.startsWith(month));
+  const spending = aggregateExpenses(monthTransactions);
+
+  return calculateIntegratedLimitUsages(limits, spending);
+}
