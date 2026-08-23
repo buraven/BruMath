@@ -1,0 +1,59 @@
+.card {
+  display: grid;
+  gap: var(--space-3);
+  padding: var(--space-4);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  background: var(--color-surface);
+  color: var(--color-text);
+}
+
+.header,
+.footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+
+.header > div {
+  display: grid;
+  gap: var(--space-1);
+}
+
+.label,
+.limit,
+.footer {
+  color: var(--color-text-muted);
+  font-size: 0.8125rem;
+}
+
+.header strong {
+  font-size: 1.125rem;
+}
+
+.track {
+  height: 0.5rem;
+  overflow: hidden;
+  border-radius: 999px;
+  background: var(--color-border);
+}
+
+.track span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--color-primary);
+}
+
+.exceeded {
+  border-color: var(--color-negative);
+}
+
+.exceeded .track span {
+  background: var(--color-negative);
+}
+
+.exceeded .footer span:first-child {
+  color: var(--color-negative);
+}
