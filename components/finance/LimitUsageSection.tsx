@@ -17,14 +17,14 @@ const money = (value: number) =>
 export function LimitUsageSection({ month, limits }: LimitUsageSectionProps) {
   const [usages, setUsages] = useState<LimitUsage[]>([]);
   const [loading, setLoading] = useState(true);
-
   const repository = useMemo(() => new LocalStorageTransactionRepository(), []);
+  const configuredLimits = useMemo(() => limits.filter((limit) => limit.amount > 0), [limits]);
 
   useEffect(() => {
     let cancelled = false;
     setLoading(true);
 
-    getLimitUsagesForMonth(repository, limits, month)
+    getLimitUsagesForMonth(repository, configuredLimits, month)
       .then((nextUsages) => {
         if (!cancelled) setUsages(nextUsages);
       })
@@ -35,7 +35,7 @@ export function LimitUsageSection({ month, limits }: LimitUsageSectionProps) {
     return () => {
       cancelled = true;
     };
-  }, [limits, month, repository]);
+  }, [configuredLimits, month, repository]);
 
   return (
     <section className={styles.section} aria-labelledby="limit-usage-title">
