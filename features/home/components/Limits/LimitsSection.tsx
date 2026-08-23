@@ -1,20 +1,17 @@
+import { calculateLimitUsages, type CategoryLimit } from "../../../../lib/finance/limits";
 import { LimitCard } from "./LimitCard";
 import styles from "./LimitsSection.module.css";
 
-type Limit = {
-  id: string;
-  label: string;
-  spent: number;
-  limit: number;
-};
-
 type LimitsSectionProps = {
-  limits: Limit[];
+  limits: CategoryLimit[];
+  spentByLimit: Record<string, number>;
   formatMoney: (value: number) => string;
 };
 
-export function LimitsSection({ limits, formatMoney }: LimitsSectionProps) {
-  if (!limits.length) return null;
+export function LimitsSection({ limits, spentByLimit, formatMoney }: LimitsSectionProps) {
+  const usages = calculateLimitUsages(limits, spentByLimit);
+
+  if (!usages.length) return null;
 
   return (
     <section className={styles.section} aria-labelledby="home-limits-title">
@@ -25,8 +22,14 @@ export function LimitsSection({ limits, formatMoney }: LimitsSectionProps) {
         </div>
       </div>
       <div className={styles.grid}>
-        {limits.map((limit) => (
-          <LimitCard key={limit.id} {...limit} formatMoney={formatMoney} />
+        {usages.map((limit) => (
+          <LimitCard
+            key={limit.id}
+            label={limit.label}
+            spent={limit.spent}
+            limit={limit.amount}
+            formatMoney={formatMoney}
+          />
         ))}
       </div>
     </section>
