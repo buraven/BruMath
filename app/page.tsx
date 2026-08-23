@@ -25,6 +25,8 @@ import {
   WalletCards,
   X,
 } from "lucide-react";
+import { ExpenseList } from "../components/finance/ExpenseList";
+import { NavButton } from "../components/navigation/NavButton";
 
 type Person = "Bruna" | "Matheus" | "Casal";
 type Tab = "home" | "chat" | "stats" | "future" | "debts" | "income";
@@ -410,7 +412,6 @@ export default function Page() {
         {tab === "home" && <>
           <section className="hero"><div className="hero-copy"><small>Disponível em {monthName}</small><div className="hero-amount">{money(available)}</div><p>Renda base {money(income)} + entradas {money(extraIncome)} − gastos {money(totalSpent)}.</p></div><div className="hero-progress"><div className="progress-track"><div className="progress-fill" style={{ width: `${Math.min(100, Math.max(0, totalSpent / Math.max(1, monthIncomeTotal) * 100))}%` }} /></div><div className="progress-labels"><span>{Math.round(totalSpent / Math.max(1, monthIncomeTotal) * 100)}% da renda comprometida</span><span>{money(Math.max(0, monthIncomeTotal - totalSpent))} livres</span></div></div></section>
           <section className="summary-grid"><button type="button" className="metric-card metric-button" onClick={() => switchTab("debts")}><span>A receber</span><strong>{money(debtTotal)}</strong><small>{monthDebts.filter(d => d.amount > d.paid).length} em aberto</small></button><button type="button" className="metric-card metric-button" onClick={() => switchTab("income")}><span>Entradas extras</span><strong>{money(extraIncome)}</strong><small>{selectedIncome.length} registros</small></button><button type="button" className="metric-card metric-button" onClick={() => switchTab("stats")}><span>Gastos</span><strong>{money(totalSpent)}</strong><small>{selectedMonthExpenses.length} registros</small></button><button type="button" className="metric-card metric-button" onClick={() => switchTab("future")}><span>Parcelas</span><strong>{activeInstallments.length} ativas</strong><small>{remaining} parcelas restantes</small></button></section>
-
           <section className="section"><div className="section-title"><div><h2>Assistente</h2><span className="muted">Você está falando como <strong>{activeProfile}</strong></span></div><span className="online"><i /> online</span></div>
             <div className="chat-preview"><div className="chat-profile-banner">Perfil atual: <strong>{activeProfile}</strong>. O perfil é usado quando a frase não informa outra pessoa.</div><div className="bubble assistant-bubble">{chat.at(-1)?.text}</div>
               <div className="quick-actions"><button type="button" onClick={() => send("Quanto temos?")}>Quanto temos?</button><button type="button" onClick={() => send("Me dê insights")}>Insights</button><button type="button" onClick={() => send("Resumo")}>Resumo</button><button type="button" onClick={() => send("Parcelas")}>Parcelas</button><button type="button" onClick={() => switchTab("debts")}>Quem me deve?</button><button type="button" onClick={() => switchTab("income")}>O que entra</button></div>
@@ -418,8 +419,7 @@ export default function Page() {
               <button type="button" className="open-chat" onClick={() => switchTab("chat")}>Abrir conversa completa <ChevronRight size={16} /></button>
             </div>
           </section>
-
-          <section className="section"><div className="section-title"><h2>Gastos de {monthName}</h2><span className="muted">{selectedMonthExpenses.length} registros</span></div><ExpenseList expenses={selectedMonthExpenses} onEdit={openEditExpense} onDelete={deleteExpense} /></section>
+          <section className="section"><div className="section-title"><h2>Gastos de {monthName}</h2><span className="muted">{selectedMonthExpenses.length} registros</span></div><ExpenseList expenses={selectedMonthExpenses} onEdit={openEditExpense} onDelete={deleteExpense} formatMoney={money} formatDate={shortDate} renderIcon={iconFor} /></section>
         </>}
 
         {tab === "chat" && <section className="chat-page"><div className="page-heading"><div><span className="eyebrow"><MessageCircle size={15} /> Assistente</span><h1>Conversa com o BruMath</h1><p>Perfil atual: <strong>{activeProfile}</strong>. A conversa fica preservada ao trocar de aba.</p></div></div>
@@ -459,12 +459,4 @@ export default function Page() {
       </div></div>}
     </div>
   );
-}
-
-function NavButton({ active, onClick, icon, label }: { active: boolean; onClick: () => void; icon: ReactNode; label: string }) {
-  return <button type="button" className={active ? "active" : ""} onClick={onClick}>{icon}<span>{label}</span></button>;
-}
-
-function ExpenseList({ expenses, onEdit, onDelete }: { expenses: Expense[]; onEdit: (expense: Expense) => void; onDelete: (id: number) => void }) {
-  return <div className="expense-list">{expenses.length ? expenses.map(expense => <div className="expense-row" key={expense.id}><div className="expense-icon">{iconFor(expense.cat)}</div><div className="expense-info"><strong>{expense.title}</strong><span>{expense.cat} · {expense.who} · {shortDate(expense.date)}</span></div><strong className="expense-amount">{money(expense.amount)}</strong><div className="row-actions"><button type="button" className="icon-button" onClick={() => onEdit(expense)} aria-label="Editar gasto"><Pencil size={15} /></button><button type="button" className="icon-button danger-icon" onClick={() => onDelete(expense.id)} aria-label="Excluir gasto"><Trash2 size={15} /></button></div></div>) : <div className="empty-state">Nenhum gasto registrado neste mês.</div>}</div>;
 }
