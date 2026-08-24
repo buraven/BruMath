@@ -26,7 +26,7 @@ import {
   X,
 } from "lucide-react";
 import { ExpenseList } from "../components/finance/ExpenseList";
-import { MetricGrid } from "../components/finance/MetricGrid";
+import { ExpenseSummary } from "../components/finance/ExpenseSummary";
 import { LimitUsageSection } from "../components/finance/LimitUsageSection";
 import { DEFAULT_CATEGORY_LIMITS } from "../lib/finance/defaultLimits";
 import { NavButton } from "../components/navigation/NavButton";
@@ -414,37 +414,20 @@ export default function Page() {
 
         {tab === "home" && <>
           <section className="hero"><div className="hero-copy"><small>Disponível em {monthName}</small><div className="hero-amount">{money(available)}</div><p>Renda base {money(income)} + entradas {money(extraIncome)} − gastos {money(totalSpent)}.</p></div><div className="hero-progress"><div className="progress-track"><div className="progress-fill" style={{ width: `${Math.min(100, Math.max(0, totalSpent / Math.max(1, monthIncomeTotal) * 100))}%` }} /></div><div className="progress-labels"><span>{Math.round(totalSpent / Math.max(1, monthIncomeTotal) * 100)}% da renda comprometida</span><span>{money(Math.max(0, monthIncomeTotal - totalSpent))} livres</span></div></div></section>
-          <section className="summary-grid">
-          <MetricGrid
-            metrics={[
-              {
-                label: "A receber",
-                value: String(monthDebts.filter(d => d.amount > d.paid).length),
-                detail: "em aberto",
-                onClick: () => switchTab("debts"),
-              },
-              {
-                label: "Entradas extras",
-                value: money(extraIncome),
-                detail: `${selectedIncome.length} registros`,
-                onClick: () => switchTab("income"),
-              },
-              {
-                label: "Gastos",
-                value: money(totalSpent),
-                detail: `${monthExpenses.length} registros`,
-                onClick: () => switchTab("stats"),
-              },
-              {
-                label: "Parcelas",
-                value: String(activeInstallments.length),
-                detail: `${remaining} parcelas restantes`,
-                onClick: () => switchTab("future"),
-              },
-            ]}
-          />
-        </section>
-          <LimitUsageSection month={viewMonth} limits={DEFAULT_CATEGORY_LIMITS} />
+          <ExpenseSummary
+        receivableCount={monthDebts.filter(d => d.amount > d.paid).length}
+        extraIncome={money(extraIncome)}
+        extraIncomeCount={selectedIncome.length}
+        totalSpent={money(totalSpent)}
+        expenseCount={monthExpenses.length}
+        installmentCount={activeInstallments.length}
+        remainingInstallments={remaining}
+        onReceivablesClick={() => switchTab("debts")}
+        onExtraIncomeClick={() => switchTab("income")}
+        onExpensesClick={() => switchTab("stats")}
+        onInstallmentsClick={() => switchTab("future")}
+      />
+<LimitUsageSection month={viewMonth} limits={DEFAULT_CATEGORY_LIMITS} />
           <section className="section"><div className="section-title"><div><h2>Assistente</h2><span className="muted">Você está falando como <strong>{activeProfile}</strong></span></div><span className="online"><i /> online</span></div>
             <div className="chat-preview"><div className="chat-profile-banner">Perfil atual: <strong>{activeProfile}</strong>. O perfil é usado quando a frase não informa outra pessoa.</div><div className="bubble assistant-bubble">{chat.at(-1)?.text}</div>
               <div className="quick-actions"><button type="button" onClick={() => send("Quanto temos?")}>Quanto temos?</button><button type="button" onClick={() => send("Me dê insights")}>Insights</button><button type="button" onClick={() => send("Resumo")}>Resumo</button><button type="button" onClick={() => send("Parcelas")}>Parcelas</button><button type="button" onClick={() => switchTab("debts")}>Quem me deve?</button><button type="button" onClick={() => switchTab("income")}>O que entra</button></div>
