@@ -101,9 +101,6 @@ button { color: inherit; }
 .chat-profile-banner strong { color: var(--text); }
 .bubble { border-radius: 18px; padding: 14px 16px; line-height: 1.48; font-size: .88rem; }
 .assistant-bubble { background: var(--surface-soft); }
-.quick-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
-.quick-actions button { border: 1px solid var(--line); background: var(--surface); border-radius: 999px; padding: 9px 13px; color: var(--soft-text); cursor: pointer; font-size: .72rem; font-weight: 600; }
-.quick-actions button:hover { background: var(--surface-soft); }
 .input-row { display: flex; align-items: stretch; gap: 9px; margin-top: 12px; }
 .input-row input { min-width: 0; flex: 1; height: 48px; border: 1px solid var(--line); border-radius: 15px; padding: 0 15px; background: var(--input-bg); color: var(--text); }
 .input-row input::placeholder { color: var(--placeholder); }
