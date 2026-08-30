@@ -1,0 +1,63 @@
+name: Open pull request after Vercel succeeds
+
+on:
+  check_suite:
+    types: [completed]
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  open-pull-request:
+    if: >-
+      github.event.check_suite.app.slug == 'vercel' &&
+      github.event.check_suite.conclusion == 'success' &&
+      github.event.check_suite.head_branch != github.event.repository.default_branch
+    runs-on: ubuntu-latest
+    steps:
+      - name: Create pull request when needed
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const { owner, repo } = context.repo;
+            const head = context.payload.check_suite.head_branch;
+            const base = context.payload.repository.default_branch;
+
+            if (!head) {
+              core.setFailed('The Vercel check did not include a branch name.');
+              return;
+            }
+
+            const { data: existingPullRequests } = await github.rest.pulls.list({
+              owner,
+              repo,
+              state: 'open',
+              head: `${owner}:${head}`,
+              base,
+            });
+
+            if (existingPullRequests.length > 0) {
+              core.info(`A pull request already exists for ${head}.`);
+              return;
+            }
+
+            const { data: commit } = await github.rest.repos.getCommit({
+              owner,
+              repo,
+              ref: context.payload.check_suite.head_sha,
+            });
+
+            await github.rest.pulls.create({
+              owner,
+              repo,
+              head,
+              base,
+              title: commit.commit.message.split('\n')[0],
+              body: [
+                '## Validação automática',
+                '',
+                '- Preview da Vercel concluído com sucesso.',
+                '- PR criado automaticamente após o push da branch.',
+              ].join('\n'),
+            });
