@@ -27,6 +27,7 @@ import {
 } from "lucide-react";
 import { ExpenseList } from "../components/finance/ExpenseList";
 import { ExpenseSummary } from "../components/finance/ExpenseSummary";
+import { DebtSection } from "../components/finance/DebtSection";
 import { LimitUsageSection } from "../components/finance/LimitUsageSection";
 import { IncomeSection } from "../components/finance/IncomeSection";
 import { InstallmentSection } from "../components/finance/InstallmentSection";
@@ -449,7 +450,7 @@ export default function Page() {
 
         {tab === "future" && <InstallmentSection monthName={monthLabelShort(viewMonth)} activeCount={activeInstallments.length} futureMonthly={futureMonthly} remainingInstallments={remaining} installments={selectedInstallments} formatMoney={money} formatDate={shortDate} renderIcon={iconFor} onCreate={openNewInstallment} onPay={payInstallment} onAdvance={chooseAdvanceInstallments} onEdit={openEditInstallment} onDelete={deleteInstallment} />}
 
-        {tab === "debts" && <section className="section"><div className="page-heading"><div><span className="eyebrow"><WalletCards size={15} /> Quem me deve</span><h1>Valores a receber</h1><p>Cadastre quem deve e quanto deve. Se ficar saldo em aberto, ele continua automaticamente nos meses seguintes até ser quitado.</p></div><button type="button" className="primary-button compact" onClick={() => openDebt()}><Plus size={17} /> Novo valor</button></div><div className="debt-total-card"><span>Valores pendentes em {monthName}</span><strong>{money(debtTotal)}</strong><small>{selectedDebts.filter(d => d.amount > d.paid).length} pessoas/valores em aberto neste mês</small></div><div className="debt-list">{selectedDebts.length ? selectedDebts.map(d => <div className="debt-row" key={d.id}><div><strong>{d.person}</strong><span>{d.note || "Valor a receber"} · {d.destination === "cartao" ? "vai para o cartão" : d.destination === "bruna" ? "vai para Bruna" : d.destination === "matheus" ? "vai para Matheus" : "vai para o casal"} · {monthLabelShort(d.month || viewMonth)}</span></div><strong>{money(Math.max(0, d.amount - d.paid))}</strong><button type="button" className="icon-button" onClick={() => openEditDebt(d)} aria-label="Editar dívida"><Pencil size={15} /></button><button type="button" className="icon-button danger-icon" onClick={() => deleteDebt(d.id)} aria-label="Excluir dívida"><Trash2 size={15} /></button><button type="button" className="primary-button compact" onClick={() => openReceiveDebt(d)} disabled={d.paid >= d.amount}>{d.paid >= d.amount ? "Recebido" : "Recebi"}</button></div>) : <div className="empty-state">Nenhum valor a receber em {monthName}. Use "Novo valor" para cadastrar uma cobrança neste mês.</div>}</div></section>}
+        {tab === "debts" && <DebtSection monthName={monthName} fallbackMonth={viewMonth} totalPending={debtTotal} openCount={selectedDebts.filter(debt => debt.amount > debt.paid).length} debts={selectedDebts} formatMoney={money} formatMonth={monthLabelShort} onCreate={() => openDebt()} onEdit={openEditDebt} onDelete={deleteDebt} onReceive={openReceiveDebt} />}
 
         {tab === "income" && <IncomeSection monthName={monthName} income={income} extraIncome={extraIncome} totalAvailable={monthIncomeTotal} entries={selectedIncome} formatMoney={money} onCreate={openNewIncome} onEdit={openEditIncome} onDelete={deleteIncome} />}
       </main>
