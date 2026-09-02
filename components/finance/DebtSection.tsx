@@ -57,15 +57,23 @@ export function DebtSection({
       </div>
       <div className="debt-total-card"><span>Valores pendentes em {monthName}</span><strong>{formatMoney(totalPending)}</strong><small>{openCount} pessoas/valores em aberto neste mês</small></div>
       <div className="debt-list">
-        {debts.length ? debts.map(debt => (
-          <div className="debt-row" key={debt.id}>
-            <div><strong>{debt.person}</strong><span>{debt.note || "Valor a receber"} · {destinationLabel(debt.destination)} · {formatMonth(debt.month || fallbackMonth)}</span></div>
-            <strong>{formatMoney(Math.max(0, debt.amount - debt.paid))}</strong>
-            <button type="button" className="icon-button" onClick={() => onEdit(debt)} aria-label="Editar dívida"><Pencil size={15} /></button>
-            <button type="button" className="icon-button danger-icon" onClick={() => onDelete(debt.id)} aria-label="Excluir dívida"><Trash2 size={15} /></button>
-            <button type="button" className="primary-button compact" onClick={() => onReceive(debt)} disabled={debt.paid >= debt.amount}>{debt.paid >= debt.amount ? "Recebido" : "Recebi"}</button>
-          </div>
-        )) : <div className="empty-state">Nenhum valor a receber em {monthName}. Use "Novo valor" para cadastrar uma cobrança neste mês.</div>}
+        {debts.length ? debts.map(debt => {
+          const remaining = Math.max(0, debt.amount - debt.paid);
+          const hasPartialReceipt = debt.paid > 0 && remaining > 0;
+          return (
+            <div className="debt-row" key={debt.id}>
+              <div>
+                <strong>{debt.person}</strong>
+                <span>{debt.note || "Valor a receber"} · {destinationLabel(debt.destination)} · {formatMonth(debt.month || fallbackMonth)}</span>
+                {hasPartialReceipt && <small>Recebido {formatMoney(debt.paid)} de {formatMoney(debt.amount)} · restante {formatMoney(remaining)}</small>}
+              </div>
+              <strong>{formatMoney(remaining)}</strong>
+              <button type="button" className="icon-button" onClick={() => onEdit(debt)} aria-label="Editar dívida"><Pencil size={15} /></button>
+              <button type="button" className="icon-button danger-icon" onClick={() => onDelete(debt.id)} aria-label="Excluir dívida"><Trash2 size={15} /></button>
+              <button type="button" className="primary-button compact" onClick={() => onReceive(debt)} disabled={remaining <= 0}>{remaining <= 0 ? "Recebido" : "Recebi"}</button>
+            </div>
+          );
+        }) : <div className="empty-state">Nenhum valor a receber em {monthName}. Use "Novo valor" para cadastrar uma cobrança neste mês.</div>}
       </div>
     </section>
   );
