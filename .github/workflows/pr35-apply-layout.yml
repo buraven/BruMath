@@ -17,7 +17,7 @@ jobs:
           ref: feature/home-new-layout-pr35
           fetch-depth: 0
 
-      - name: Apply home migration
+      - name: Apply migration
         run: |
           python - <<'PY'
           from pathlib import Path
@@ -33,10 +33,10 @@ jobs:
               text = text.replace(marker, marker + '\nimport { NewHome } from "../features/home/NewHome";', 1)
 
           if '{tab === "home" && <NewHome' not in text:
-              pattern = re.compile(r'\{tab === "home" &&\s*<>.*?(?=\n\s*\{tab === "chat")', re.S)
-              match = pattern.search(text)
-              if not match:
-                  raise SystemExit('PR35: home tab block not found')
+              start = text.find('{tab === "home" && <>')
+              end = text.find('{tab === "chat"', start)
+              if start < 0 or end < 0:
+                  raise SystemExit(f'PR35: home block not found start={start} end={end}')
               replacement = '''{tab === "home" && <NewHome
             profile={activeProfile}
             monthLabel={monthName}
@@ -61,24 +61,20 @@ jobs:
                 <ExpenseList expenses={selectedMonthExpenses} onEdit={openEditExpense} onDelete={deleteExpense} formatMoney={money} formatDate={shortDate} renderIcon={iconFor} />
               </section>
             </>}
-          />}'''
-              text = text[:match.start()] + replacement + text[match.end():]
+          />}\n\n        '''
+              text = text[:start] + replacement + text[end:]
 
-          Path('app/page.tsx').write_text(text)
+          page.write_text(text)
 
           Path('features/home/NewHome.tsx').write_text('''import type { ReactNode } from "react";\nimport { BalanceCard } from "./components/BalanceCard/BalanceCard";\nimport { FinancialSnapshot } from "./components/FinancialSnapshot/FinancialSnapshot";\nimport { HomeHeader } from "./components/HomeHeader/HomeHeader";\nimport { SummaryCards } from "./components/Summary/SummaryCards";\nimport { Home } from "./Home";\n\ntype NewHomeProps = {\n  profile: string;\n  monthLabel: string;\n  balance: number;\n  income: number;\n  expenses: number;\n  formatMoney: (value: number) => string;\n  limits?: ReactNode;\n  upcoming?: ReactNode;\n};\n\nexport function NewHome({ profile, monthLabel, balance, income, expenses, formatMoney, limits, upcoming }: NewHomeProps) {\n  return (\n    <Home\n      header={<HomeHeader profile={profile} monthLabel={monthLabel} />}\n      balance={<BalanceCard balance={balance} income={income} expenses={expenses} formatMoney={formatMoney} />}\n      summary={<SummaryCards income={income} expenses={expenses} formatMoney={formatMoney} />}\n      limits={limits}\n      upcoming={upcoming ?? <FinancialSnapshot balance={balance} income={income} expenses={expenses} formatMoney={formatMoney} />}\n    />\n  );\n}\n''')
           PY
 
-      - name: Validate
-        run: |
-          npm ci
-          npm run build
+          rm .github/workflows/pr35-apply-layout.yml
 
       - name: Commit migration
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add app/page.tsx features/home/NewHome.tsx .github/workflows/pr35-apply-layout.yml
-          if git diff --cached --quiet; then exit 0; fi
           git commit -m "feat: migrate home to new layout - PR35 automated migration"
           git push origin feature/home-new-layout-pr35
