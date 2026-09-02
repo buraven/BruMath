@@ -1,45 +1,143 @@
-.home-header,.balance-card{display:none}
+.home-header,
+.balance-card {
+  display: none
+}
 
 /* PR9: refinamento visual da Home existente, sem substituir a lógica financeira. */
-.hero{position:relative;overflow:hidden;margin-top:4px;border:1px solid rgba(255,255,255,.06);box-shadow:0 18px 50px rgba(31,42,34,.12)}
-.hero::after{content:"";position:absolute;right:-80px;top:-90px;width:220px;height:220px;border-radius:50%;background:rgba(183,238,54,.09);pointer-events:none}
-.hero-copy,.hero-progress{position:relative;z-index:1}
-.summary-grid{grid-template-columns:repeat(4,minmax(0,1fr));gap:14px}
-.metric-card{min-height:116px;padding:20px;transition:transform .16s ease,box-shadow .16s ease,border-color .16s ease}
-.metric-card:hover{box-shadow:0 10px 28px rgba(31,42,34,.08)}
-.section-title h2{font-size:1.08rem}
-.chat-preview{padding:20px}
-.expense-list{box-shadow:0 8px 28px rgba(31,42,34,.045)}
-
-@media (min-width:901px){
-  .page{width:min(1240px,calc(100% - 48px))}
-  .topbar{width:min(1240px,calc(100% - 48px))}
-  .hero{padding:34px}
-  .summary-grid{margin-top:18px}
+.hero {
+  position: relative;
+  overflow: hidden;
+  margin-top: 4px;
+  border: 1px solid rgba(255, 255, 255, .06);
+  box-shadow: 0 18px 50px rgba(31, 42, 34, .12)
 }
 
-@media (max-width:900px){
-  .summary-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
+.hero::after {
+  content: "";
+  position: absolute;
+  right: -80px;
+  top: -90px;
+  width: 220px;
+  height: 220px;
+  border-radius: 50%;
+  background: rgba(183, 238, 54, .09);
+  pointer-events: none
 }
 
-@media (max-width:760px){
-  .topbar{padding-top:18px}
-  .hero{margin-top:2px;padding:22px 18px}
-  .hero-amount{font-size:clamp(2rem,11vw,2.7rem)}
-  .summary-grid{gap:9px}
-  .metric-card{min-height:94px;padding:15px}
-  .chat-preview{padding:15px}
+.hero-copy,
+.hero-progress {
+  position: relative;
+  z-index: 1
 }
 
-@media (max-width:520px){
-  .summary-grid{grid-template-columns:1fr 1fr}
-  .metric-card strong{font-size:1rem}
+.summary-grid {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 14px
 }
 
-@media (max-width:380px){
-  .summary-grid{grid-template-columns:1fr}
+.metric-card {
+  min-height: 116px;
+  padding: 20px;
+  transition: transform .16s ease, box-shadow .16s ease, border-color .16s ease
 }
 
-html[data-theme="dark"] .hero,html[data-theme="system"] .hero{border-color:rgba(255,255,255,.08);box-shadow:0 18px 50px rgba(0,0,0,.28)}
-html[data-theme="dark"] .metric-card,html[data-theme="system"] .metric-card{box-shadow:0 8px 28px rgba(0,0,0,.18)}
-html[data-theme="dark"] .metric-button:hover,html[data-theme="system"] .metric-button:hover{border-color:var(--accent-strong);box-shadow:0 10px 30px rgba(0,0,0,.24)}
+.metric-card:hover {
+  box-shadow: 0 10px 28px rgba(31, 42, 34, .08)
+}
+
+.section-title h2 {
+  font-size: 1.08rem
+}
+
+.chat-preview {
+  padding: 20px
+}
+
+.expense-list {
+  box-shadow: 0 8px 28px rgba(31, 42, 34, .045)
+}
+
+@media (min-width:901px) {
+  .page {
+    width: min(1240px, calc(100% - 48px))
+  }
+
+  .topbar {
+    width: min(1240px, calc(100% - 48px))
+  }
+
+  .hero {
+    padding: 34px
+  }
+
+  .summary-grid {
+    margin-top: 18px
+  }
+}
+
+@media (max-width:900px) {
+  .summary-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr))
+  }
+}
+
+@media (max-width:760px) {
+  .topbar {
+    padding-top: 18px
+  }
+
+  .hero {
+    margin-top: 2px;
+    padding: 22px 18px
+  }
+
+  .hero-amount {
+    font-size: clamp(2rem, 11vw, 2.7rem)
+  }
+
+  .summary-grid {
+    gap: 9px
+  }
+
+  .metric-card {
+    min-height: 94px;
+    padding: 15px
+  }
+
+  .chat-preview {
+    padding: 15px
+  }
+}
+
+@media (max-width:520px) {
+  .summary-grid {
+    grid-template-columns: 1fr 1fr
+  }
+
+  .metric-card strong {
+    font-size: 1rem
+  }
+}
+
+@media (max-width:380px) {
+  .summary-grid {
+    grid-template-columns: 1fr
+  }
+}
+
+html[data-theme="dark"] .hero,
+html[data-theme="system"] .hero {
+  border-color: rgba(255, 255, 255, .08);
+  box-shadow: 0 18px 50px rgba(0, 0, 0, .28)
+}
+
+html[data-theme="dark"] .metric-card,
+html[data-theme="system"] .metric-card {
+  box-shadow: 0 8px 28px rgba(0, 0, 0, .18)
+}
+
+html[data-theme="dark"] .metric-button:hover,
+html[data-theme="system"] .metric-button:hover {
+  border-color: var(--accent-strong);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, .24)
+}
