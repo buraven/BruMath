@@ -18,17 +18,16 @@ jobs:
           ref: feature/home-new-layout-pr35
           fetch-depth: 0
       - name: Apply PR35 migration
-        shell: python
         run: |
+          python - <<'PY'
           from pathlib import Path
           import re
 
           page = Path('app/page.tsx')
           text = page.read_text()
           old_import = 'import { MonthSelector } from "../components/navigation/MonthSelector";'
-          new_import = old_import + '\nimport { NewHome } from "../features/home/NewHome";'
           if 'from "../features/home/NewHome"' not in text:
-              text = text.replace(old_import, new_import, 1)
+              text = text.replace(old_import, old_import + '\nimport { NewHome } from "../features/home/NewHome";', 1)
 
           pattern = re.compile(r'        \{tab === "home" && <>.*?        \</>\}\n\n        \{tab === "chat"', re.S)
           replacement = '''        {tab === "home" && <NewHome
@@ -41,11 +40,7 @@ jobs:
           limits={<LimitUsageSection month={viewMonth} limits={DEFAULT_CATEGORY_LIMITS} />}
           upcoming={<>
             <section className="section">
-              <div className="section-title">
-                <div>
-                  <h2>Assistente</h2><span className="muted">Você está falando como <strong>{activeProfile}</strong></span>
-                </div><span className="online"><i /> online</span>
-              </div>
+              <div className="section-title"><div><h2>Assistente</h2><span className="muted">Você está falando como <strong>{activeProfile}</strong></span></div><span className="online"><i /> online</span></div>
               <div className="chat-preview">
                 <div className="chat-profile-banner">Perfil atual: <strong>{activeProfile}</strong>. O perfil é usado quando a frase não informa outra pessoa.</div>
                 <div className="bubble assistant-bubble">{chat.at(-1)?.text}</div>
@@ -64,17 +59,21 @@ jobs:
         {tab === "chat"'''
           if not pattern.search(text):
               raise SystemExit('Could not locate home block')
-          text = pattern.sub(replacement, text, count=1)
-          page.write_text(text)
+          page.write_text(pattern.sub(replacement, text, count=1))
 
           home = Path('features/home/NewHome.tsx')
           h = home.read_text()
-          h = h.replace('import { Home } from "./Home";', 'import { Home } from "./Home";\nimport type { ReactNode } from "react";')
-          h = h.replace('  formatMoney: (value: number) => string;\n};', '  formatMoney: (value: number) => string;\n  limits?: ReactNode;\n  upcoming?: ReactNode;\n};')
+          if 'import type { ReactNode } from "react";' not in h:
+              h = h.replace('import { Home } from "./Home";', 'import { Home } from "./Home";\nimport type { ReactNode } from "react";')
+          if 'limits?: ReactNode;' not in h:
+              h = h.replace('  formatMoney: (value: number) => string;\n};', '  formatMoney: (value: number) => string;\n  limits?: ReactNode;\n  upcoming?: ReactNode;\n};')
           h = re.sub(r'      upcoming=\{\n        <FinancialSnapshot.*?\n      \}\n', '      limits={limits}\n      upcoming={upcoming ?? (\n        <FinancialSnapshot\n          balance={balance}\n          income={income}\n          expenses={expenses}\n          formatMoney={formatMoney}\n        />\n      )}\n', h, flags=re.S)
           home.write_text(h)
-      - name: Commit PR35 automated migration
+          PY
+      - name: Validate and commit
         run: |
+          npm ci
+          npm run build
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add app/page.tsx features/home/NewHome.tsx .github/workflows/pr35-migrate-home.yml
