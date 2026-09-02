@@ -178,7 +178,7 @@ export default function Page() {
   const [categoryOpen, setCategoryOpen] = useState<string | null>(null);
   const [form, setForm] = useState({ title: "", amount: "", cat: "Outros", who: "Bruna" as Person, date: viewMonth + "-01" });
   const [instForm, setInstForm] = useState({ title: "", amount: "", category: "Outros", who: "Bruna" as Person, total: "", paid: "0", nextDue: "" });
-  const [debtForm, setDebtForm] = useState({ person: "Amigo", amount: "", destination: "bruna" as DebtDestination, note: "", month: viewMonth });
+  const [debtForm, setDebtForm] = useState({ person: "Amigo", amount: "", paid: "0", destination: "bruna" as DebtDestination, note: "", month: viewMonth });
   const [incomeForm, setIncomeForm] = useState({ title: "", amount: "", who: "Bruna" as Person, date: viewMonth + "-01", destination: "conta" as "conta" | "cartao", note: "" });
   const [chat, setChat] = useState<ChatMessage[]>([{ id: 1, role: "assistant", text: "Oi! 💚 Estou falando com você como Bruna. Escolha o perfil no topo para definir quem está falando. Se a frase citar Bruna, Matheus ou casal, isso ganha prioridade." }]);
   const messagesRef = useRef<HTMLDivElement>(null);
@@ -259,7 +259,7 @@ export default function Page() {
   const openNewExpense = () => { setQuickAddOpen(false); setEditingExpense(null); resetExpenseForm(); setModal("expense"); };
   const openNewInstallment = () => { setQuickAddOpen(false); setEditingInstallment(null); setInstForm({ title: "", amount: "", category: "Outros", who: activeProfile, total: "", paid: "0", nextDue: `${addMonths(viewMonth, 1)}-10` }); setModal("installment"); };
   const openNewIncome = () => { setQuickAddOpen(false); setEditingIncome(null); setIncomeForm({ title: "", amount: "", who: activeProfile, date: `${viewMonth}-01`, destination: "conta", note: "" }); setModal("income"); };
-  const openDebt = (debt?: Debt) => { setDebtForm(debt ? { person: debt.person, amount: String(debt.amount), destination: debt.destination, note: debt.note, month: debt.month || viewMonth } : { person: "Amigo", amount: "", destination: "bruna", note: "", month: viewMonth }); setEditingDebt(debt ?? null); setModal("debt"); };
+  const openDebt = (debt?: Debt) => { setDebtForm(debt ? { person: debt.person, amount: String(debt.amount), paid: String(debt.paid), destination: debt.destination, note: debt.note, month: debt.month || viewMonth } : { person: "Amigo", amount: "", paid: "0", destination: "bruna", note: "", month: viewMonth }); setEditingDebt(debt ?? null); setModal("debt"); };
 
   const saveExpense = (event: FormEvent) => {
     event.preventDefault(); const amount = Number(form.amount.replace(",", "."));
@@ -273,8 +273,10 @@ export default function Page() {
   };
 
   const saveDebt = (event: FormEvent) => {
-    event.preventDefault(); const amount = Number(debtForm.amount.replace(",", "."));
-    if (!debtForm.person.trim() || !amount || amount < 0) return setToast("Informe quem deve e o valor."); const item: Debt = { id: editingDebt?.id ?? Date.now(), person: debtForm.person.trim(), amount, destination: debtForm.destination, note: debtForm.note.trim(), paid: Math.min(editingDebt?.paid ?? 0, amount), month: debtForm.month || viewMonth, receivedMonth: editingDebt?.receivedMonth }; setDebts(cur => editingDebt ? cur.map(d => d.id === item.id ? item : d) : [item, ...cur]); setEditingDebt(null); setModal("none"); setToast(editingDebt ? "Dívida atualizada 💚" : "Dívida adicionada 💚");
+    event.preventDefault(); const amount = Number(debtForm.amount.replace(",", ".")); const paid = Number(debtForm.paid.replace(",", ".")) || 0;
+    if (!debtForm.person.trim() || !amount || amount < 0) return setToast("Informe quem deve e o valor.");
+    if (!Number.isFinite(paid) || paid < 0 || paid > amount) return setToast("O valor recebido precisa ficar entre R$ 0 e o valor total.");
+    const item: Debt = { id: editingDebt?.id ?? Date.now(), person: debtForm.person.trim(), amount, destination: debtForm.destination, note: debtForm.note.trim(), paid, month: debtForm.month || viewMonth, receivedMonth: paid >= amount ? (editingDebt?.receivedMonth || viewMonth) : editingDebt?.receivedMonth }; setDebts(cur => editingDebt ? cur.map(d => d.id === item.id ? item : d) : [item, ...cur]); setEditingDebt(null); setModal("none"); setToast(editingDebt ? "Dívida atualizada 💚" : "Dívida adicionada 💚");
   };
 
   const saveIncome = (event: FormEvent) => {
@@ -594,7 +596,7 @@ export default function Page() {
             <Check size={17} /> Salvar parcela
           </button>
         </form>}
-        {modal === "debt" && <form onSubmit={saveDebt}><label className="field"><span>Quem deve?</span><input value={debtForm.person} onChange={e => setDebtForm({ ...debtForm, person: e.target.value })} placeholder="Ex.: João" required /></label><label className="field"><span>Valor total</span><input inputMode="decimal" value={debtForm.amount} onChange={e => setDebtForm({ ...debtForm, amount: e.target.value })} placeholder="13.000,00" required /></label>
+        {modal === "debt" && <form onSubmit={saveDebt}><label className="field"><span>Quem deve?</span><input value={debtForm.person} onChange={e => setDebtForm({ ...debtForm, person: e.target.value })} placeholder="Ex.: João" required /></label><div className="form-grid"><label className="field"><span>Valor total</span><input inputMode="decimal" value={debtForm.amount} onChange={e => setDebtForm({ ...debtForm, amount: e.target.value })} placeholder="13.000,00" required /></label><label className="field"><span>Já recebido</span><input inputMode="decimal" value={debtForm.paid} onChange={e => setDebtForm({ ...debtForm, paid: e.target.value })} placeholder="0,00" /></label></div>
           <div className="form-grid"><label className="field"><span>Mês</span><input type="month" value={debtForm.month} onChange={e => setDebtForm({ ...debtForm, month: e.target.value })} /></label><label className="field"><span>Quando pagar, vai para</span><select value={debtForm.destination} onChange={e => setDebtForm({ ...debtForm, destination: e.target.value as DebtDestination })}><option value="cartao">Cartão</option>
             <option value="bruna">Bruna</option>
             <option value="matheus">Matheus</option>
