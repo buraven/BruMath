@@ -65,7 +65,7 @@ export function DebtSection({
               <div>
                 <strong>{debt.person}</strong>
                 <span>{debt.note || "Valor a receber"} · {destinationLabel(debt.destination)} · {formatMonth(debt.month || fallbackMonth)}</span>
-                {hasPartialReceipt && <small>Recebido {formatMoney(debt.paid)} de {formatMoney(debt.amount)} · restante {formatMoney(remaining)}</small>}
+                {debt.paid > 0 && <small>Recebido {formatMoney(debt.paid)} de {formatMoney(debt.amount)} · restante {formatMoney(remaining)}</small>}
               </div>
               <strong>{formatMoney(remaining)}</strong>
               <button type="button" className="icon-button" onClick={() => onEdit(debt)} aria-label="Editar dívida"><Pencil size={15} /></button>
