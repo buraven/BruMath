@@ -10,15 +10,18 @@ permissions:
 
 jobs:
   migrate:
-    if: ${{ !contains(github.event.head_commit.message, 'PR35 automated migration') }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
         with:
           ref: feature/home-new-layout-pr35
           fetch-depth: 0
-      - name: Apply PR35 migration
+      - name: Apply migration
         run: |
+          if [[ "${{ github.event.head_commit.message }}" == *"PR35 automated migration"* ]]; then
+            echo "Migration already applied."
+            exit 0
+          fi
           python - <<'PY'
           from pathlib import Path
           import re
@@ -28,7 +31,6 @@ jobs:
           old_import = 'import { MonthSelector } from "../components/navigation/MonthSelector";'
           if 'from "../features/home/NewHome"' not in text:
               text = text.replace(old_import, old_import + '\nimport { NewHome } from "../features/home/NewHome";', 1)
-
           pattern = re.compile(r'        \{tab === "home" && <>.*?        \</>\}\n\n        \{tab === "chat"', re.S)
           replacement = '''        {tab === "home" && <NewHome
           profile={activeProfile}
@@ -70,7 +72,7 @@ jobs:
           h = re.sub(r'      upcoming=\{\n        <FinancialSnapshot.*?\n      \}\n', '      limits={limits}\n      upcoming={upcoming ?? (\n        <FinancialSnapshot\n          balance={balance}\n          income={income}\n          expenses={expenses}\n          formatMoney={formatMoney}\n        />\n      )}\n', h, flags=re.S)
           home.write_text(h)
           PY
-      - name: Validate and commit
+      - name: Build and commit
         run: |
           npm ci
           npm run build
