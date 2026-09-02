@@ -1,0 +1,54 @@
+name: PR33 edit debt receipt
+
+on:
+  push:
+    branches:
+      - feature/edit-debt-receipt-pr33
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Apply PR33 changes
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          page = Path('app/page.tsx')
+          text = page.read_text()
+          replacements = [
+            ('const [debtForm, setDebtForm] = useState({ person: "Amigo", amount: "", destination: "bruna" as DebtDestination, note: "", month: viewMonth });', 'const [debtForm, setDebtForm] = useState({ person: "Amigo", amount: "", paid: "0", destination: "bruna" as DebtDestination, note: "", month: viewMonth });'),
+            ('const openDebt = (debt?: Debt) => { setDebtForm(debt ? { person: debt.person, amount: String(debt.amount), destination: debt.destination, note: debt.note, month: debt.month || viewMonth } : { person: "Amigo", amount: "", destination: "bruna", note: "", month: viewMonth }); setEditingDebt(debt ?? null); setModal("debt"); };', 'const openDebt = (debt?: Debt) => { setDebtForm(debt ? { person: debt.person, amount: String(debt.amount), paid: String(debt.paid), destination: debt.destination, note: debt.note, month: debt.month || viewMonth } : { person: "Amigo", amount: "", paid: "0", destination: "bruna", note: "", month: viewMonth }); setEditingDebt(debt ?? null); setModal("debt"); };'),
+          ]
+          for old, new in replacements:
+              assert old in text
+              text = text.replace(old, new, 1)
+          old = '''const saveDebt = (event: FormEvent) => {\n    event.preventDefault(); const amount = Number(debtForm.amount.replace(",", "."));\n    if (!debtForm.person.trim() || !amount || amount < 0) return setToast("Informe quem deve e o valor."); const item: Debt = { id: editingDebt?.id ?? Date.now(), person: debtForm.person.trim(), amount, destination: debtForm.destination, note: debtForm.note.trim(), paid: Math.min(editingDebt?.paid ?? 0, amount), month: debtForm.month || viewMonth, receivedMonth: editingDebt?.receivedMonth }; setDebts(cur => editingDebt ? cur.map(d => d.id === item.id ? item : d) : [item, ...cur]); setEditingDebt(null); setModal("none"); setToast(editingDebt ? "Dívida atualizada 💚" : "Dívida adicionada 💚");\n  };'''
+          new = '''const saveDebt = (event: FormEvent) => {\n    event.preventDefault(); const amount = Number(debtForm.amount.replace(",", ".")); const paid = Number(debtForm.paid.replace(",", ".")) || 0;\n    if (!debtForm.person.trim() || !amount || amount < 0) return setToast("Informe quem deve e o valor.");\n    if (!Number.isFinite(paid) || paid < 0 || paid > amount) return setToast("O valor recebido precisa ficar entre R$ 0 e o valor total.");\n    const item: Debt = { id: editingDebt?.id ?? Date.now(), person: debtForm.person.trim(), amount, destination: debtForm.destination, note: debtForm.note.trim(), paid, month: debtForm.month || viewMonth, receivedMonth: paid >= amount ? (editingDebt?.receivedMonth || viewMonth) : editingDebt?.receivedMonth }; setDebts(cur => editingDebt ? cur.map(d => d.id === item.id ? item : d) : [item, ...cur]); setEditingDebt(null); setModal("none"); setToast(editingDebt ? "Dívida atualizada 💚" : "Dívida adicionada 💚");\n  };'''
+          assert old in text
+          text = text.replace(old, new, 1)
+          old = '''<label className="field"><span>Valor total</span><input inputMode="decimal" value={debtForm.amount} onChange={e => setDebtForm({ ...debtForm, amount: e.target.value })} placeholder="13.000,00" required /></label>\n          <div className="form-grid">'''
+          new = '''<div className="form-grid"><label className="field"><span>Valor total</span><input inputMode="decimal" value={debtForm.amount} onChange={e => setDebtForm({ ...debtForm, amount: e.target.value })} placeholder="13.000,00" required /></label><label className="field"><span>Já recebido</span><input inputMode="decimal" value={debtForm.paid} onChange={e => setDebtForm({ ...debtForm, paid: e.target.value })} placeholder="0,00" /></label></div>\n          <div className="form-grid">'''
+          assert old in text
+          page.write_text(text.replace(old, new, 1))
+          debt = Path('components/finance/DebtSection.tsx')
+          text = debt.read_text()
+          old = '{hasPartialReceipt && <small>Recebido {formatMoney(debt.paid)} de {formatMoney(debt.amount)} · restante {formatMoney(remaining)}</small>}'
+          assert old in text
+          debt.write_text(text.replace(old, '{debt.paid > 0 && <small>Recebido {formatMoney(debt.paid)} de {formatMoney(debt.amount)} · restante {formatMoney(remaining)}</small>}', 1))
+          PY
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add app/page.tsx components/finance/DebtSection.tsx
+          git commit -m "feat: edit received amount on debts"
+          git push
+      - name: Remove temporary workflow
+        run: |
+          git rm .github/workflows/pr33-edit-receipt.yml
+          git commit -m "chore: remove PR33 patch workflow"
+          git push
