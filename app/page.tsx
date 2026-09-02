@@ -35,6 +35,7 @@ import { QuickActions } from "../components/finance/QuickActions";
 import { DEFAULT_CATEGORY_LIMITS } from "../lib/finance/defaultLimits";
 import { NavButton } from "../components/navigation/NavButton";
 import { MonthSelector } from "../components/navigation/MonthSelector";
+import { NewHome } from "../features/home/NewHome";
 
 type Person = "Bruna" | "Matheus" | "Casal";
 type Tab = "home" | "chat" | "stats" | "future" | "debts" | "income";
@@ -436,57 +437,31 @@ export default function Page() {
           onStepNext={() => setViewMonth(addMonths(viewMonth, 1))}
         />
 
-        {tab === "home" && <>
-          <section className="hero">
-            <div className="hero-copy"><small>Disponível em {monthName}</small>
-              <div className="hero-amount">{money(available)}</div>
-              <p>Renda base {money(income)} + entradas {money(extraIncome)} − gastos {money(totalSpent)}.</p>
-            </div>
-            <div className="hero-progress">
-              <div className="progress-track">
-                <div className="progress-fill" style={{ width: `${Math.min(100, Math.max(0, totalSpent / Math.max(1, monthIncomeTotal) * 100))}%` }} />
-              </div>
-              <div className="progress-labels"><span>{Math.round(totalSpent / Math.max(1, monthIncomeTotal) * 100)}% da renda comprometida</span><span>{money(Math.max(0, monthIncomeTotal - totalSpent))} livres</span></div>
-            </div>
-          </section>
-          <ExpenseSummary receivableCount={monthDebts.filter(d => d.amount > d.paid).length}
-            extraIncome={money(extraIncome)}
-            extraIncomeCount={selectedIncome.length}
-            totalSpent={money(totalSpent)}
-            expenseCount={monthExpenses.length}
-            installmentCount={activeInstallments.length}
-            remainingInstallments={remaining}
-            onReceivablesClick={() => switchTab("debts")}
-            onExtraIncomeClick={() => switchTab("income")}
-            onExpensesClick={() => switchTab("stats")}
-            onInstallmentsClick={() => switchTab("future")}
-          />
-          <LimitUsageSection month={viewMonth} limits={DEFAULT_CATEGORY_LIMITS} />
-          <section className="section">
-            <div className="section-title">
-              <div>
-                <h2>Assistente</h2><span className="muted">Você está falando como <strong>{activeProfile}</strong></span>
-              </div><span className="online"><i /> online</span>
-            </div>
-            <div className="chat-preview">
-              <div className="chat-profile-banner">Perfil atual: <strong>{activeProfile}</strong>. O perfil é usado quando a frase não informa outra pessoa.</div>
-              <div className="bubble assistant-bubble">{chat.at(-1)?.text}</div>
-              <QuickActions actions={[{ label: "Quanto temos?", onClick: () => send("Quanto temos?") }, { label: "Insights", onClick: () => send("Me dê insights") }, { label: "Resumo", onClick: () => send("Resumo") }, { label: "Parcelas", onClick: () => send("Parcelas") }, { label: "Quem me deve?", onClick: () => switchTab("debts") }, { label: "O que entra", onClick: () => switchTab("income") }]} />
-              <div className="input-row"><input value={text} onChange={e => setText(e.target.value)} onKeyDown={e => { if (e.key === "Enter") send(); }} placeholder="Ex.: Matheus comprou bermuda por 70" /><button type="button" className="send-button" onClick={() => send()}>
-                <Send size={17} /><span>Enviar</span>
-              </button></div>
-              <button type="button" className="open-chat" onClick={() => switchTab("chat")}>Abrir conversa completa
-                <ChevronRight size={16} />
-              </button>
-            </div>
-          </section>
-          <section className="section">
-            <div className="section-title">
-              <h2>Gastos de {monthName}</h2><span className="muted">{selectedMonthExpenses.length} registros</span>
-            </div>
-            <ExpenseList expenses={selectedMonthExpenses} onEdit={openEditExpense} onDelete={deleteExpense} formatMoney={money} formatDate={shortDate} renderIcon={iconFor} />
-          </section>
-        </>}
+        {tab === "home" && <NewHome
+  profile={activeProfile}
+  monthLabel={monthName}
+  balance={available}
+  income={monthIncomeTotal}
+  expenses={totalSpent}
+  formatMoney={money}
+  limits={<LimitUsageSection month={viewMonth} limits={DEFAULT_CATEGORY_LIMITS} />}
+  upcoming={<>
+    <section className="section">
+      <div className="section-title"><div><h2>Assistente</h2><span className="muted">Você está falando como <strong>{activeProfile}</strong></span></div><span className="online"><i /> online</span></div>
+      <div className="chat-preview">
+        <div className="chat-profile-banner">Perfil atual: <strong>{activeProfile}</strong>. O perfil é usado quando a frase não informa outra pessoa.</div>
+        <div className="bubble assistant-bubble">{chat.at(-1)?.text}</div>
+        <QuickActions actions={[{ label: "Quanto temos?", onClick: () => send("Quanto temos?") }, { label: "Insights", onClick: () => send("Me dê insights") }, { label: "Resumo", onClick: () => send("Resumo") }, { label: "Parcelas", onClick: () => send("Parcelas") }, { label: "Quem me deve?", onClick: () => switchTab("debts") }, { label: "O que entra", onClick: () => switchTab("income") }]} />
+        <div className="input-row"><input value={text} onChange={e => setText(e.target.value)} onKeyDown={e => { if (e.key === "Enter") send(); }} placeholder="Ex.: Matheus comprou bermuda por 70" /><button type="button" className="send-button" onClick={() => send()}><Send size={17} /><span>Enviar</span></button></div>
+        <button type="button" className="open-chat" onClick={() => switchTab("chat")}>Abrir conversa completa <ChevronRight size={16} /></button>
+      </div>
+    </section>
+    <section className="section">
+      <div className="section-title"><h2>Gastos de {monthName}</h2><span className="muted">{selectedMonthExpenses.length} registros</span></div>
+      <ExpenseList expenses={selectedMonthExpenses} onEdit={openEditExpense} onDelete={deleteExpense} formatMoney={money} formatDate={shortDate} renderIcon={iconFor} />
+    </section>
+  </>}
+/>}
 
         {tab === "chat" && <section className="chat-page">
           <div className="page-heading">
