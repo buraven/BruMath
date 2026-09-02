@@ -1,0 +1,82 @@
+name: PR35 migrate home
+
+on:
+  push:
+    branches:
+      - feature/home-new-layout-pr35
+
+permissions:
+  contents: write
+
+jobs:
+  migrate:
+    if: ${{ !contains(github.event.head_commit.message, 'PR35 automated migration') }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: feature/home-new-layout-pr35
+          fetch-depth: 0
+      - name: Apply PR35 migration
+        shell: python
+        run: |
+          from pathlib import Path
+          import re
+
+          page = Path('app/page.tsx')
+          text = page.read_text()
+          old_import = 'import { MonthSelector } from "../components/navigation/MonthSelector";'
+          new_import = old_import + '\nimport { NewHome } from "../features/home/NewHome";'
+          if 'from "../features/home/NewHome"' not in text:
+              text = text.replace(old_import, new_import, 1)
+
+          pattern = re.compile(r'        \{tab === "home" && <>.*?        \</>\}\n\n        \{tab === "chat"', re.S)
+          replacement = '''        {tab === "home" && <NewHome
+          profile={activeProfile}
+          monthLabel={monthName}
+          balance={available}
+          income={monthIncomeTotal}
+          expenses={totalSpent}
+          formatMoney={money}
+          limits={<LimitUsageSection month={viewMonth} limits={DEFAULT_CATEGORY_LIMITS} />}
+          upcoming={<>
+            <section className="section">
+              <div className="section-title">
+                <div>
+                  <h2>Assistente</h2><span className="muted">Você está falando como <strong>{activeProfile}</strong></span>
+                </div><span className="online"><i /> online</span>
+              </div>
+              <div className="chat-preview">
+                <div className="chat-profile-banner">Perfil atual: <strong>{activeProfile}</strong>. O perfil é usado quando a frase não informa outra pessoa.</div>
+                <div className="bubble assistant-bubble">{chat.at(-1)?.text}</div>
+                <QuickActions actions={[{ label: "Quanto temos?", onClick: () => send("Quanto temos?") }, { label: "Insights", onClick: () => send("Me dê insights") }, { label: "Resumo", onClick: () => send("Resumo") }, { label: "Parcelas", onClick: () => send("Parcelas") }, { label: "Quem me deve?", onClick: () => switchTab("debts") }, { label: "O que entra", onClick: () => switchTab("income") }]} />
+                <div className="input-row"><input value={text} onChange={e => setText(e.target.value)} onKeyDown={e => { if (e.key === "Enter") send(); }} placeholder="Ex.: Matheus comprou bermuda por 70" /><button type="button" className="send-button" onClick={() => send()}><Send size={17} /><span>Enviar</span></button></div>
+                <button type="button" className="open-chat" onClick={() => switchTab("chat")}>Abrir conversa completa <ChevronRight size={16} /></button>
+              </div>
+            </section>
+            <section className="section">
+              <div className="section-title"><h2>Gastos de {monthName}</h2><span className="muted">{selectedMonthExpenses.length} registros</span></div>
+              <ExpenseList expenses={selectedMonthExpenses} onEdit={openEditExpense} onDelete={deleteExpense} formatMoney={money} formatDate={shortDate} renderIcon={iconFor} />
+            </section>
+          </>}
+        />}
+
+        {tab === "chat"'''
+          if not pattern.search(text):
+              raise SystemExit('Could not locate home block')
+          text = pattern.sub(replacement, text, count=1)
+          page.write_text(text)
+
+          home = Path('features/home/NewHome.tsx')
+          h = home.read_text()
+          h = h.replace('import { Home } from "./Home";', 'import { Home } from "./Home";\nimport type { ReactNode } from "react";')
+          h = h.replace('  formatMoney: (value: number) => string;\n};', '  formatMoney: (value: number) => string;\n  limits?: ReactNode;\n  upcoming?: ReactNode;\n};')
+          h = re.sub(r'      upcoming=\{\n        <FinancialSnapshot.*?\n      \}\n', '      limits={limits}\n      upcoming={upcoming ?? (\n        <FinancialSnapshot\n          balance={balance}\n          income={income}\n          expenses={expenses}\n          formatMoney={formatMoney}\n        />\n      )}\n', h, flags=re.S)
+          home.write_text(h)
+      - name: Commit PR35 automated migration
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add app/page.tsx features/home/NewHome.tsx .github/workflows/pr35-migrate-home.yml
+          git commit -m "feat: migrate home to new layout - PR35 automated migration"
+          git push origin feature/home-new-layout-pr35
