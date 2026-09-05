@@ -444,6 +444,19 @@ export default function Page() {
   income={monthIncomeTotal}
   expenses={totalSpent}
   formatMoney={money}
+                               insights={<ExpenseSummary
+    receivableCount={monthDebts.filter(debt => debt.amount > debt.paid).length}
+    extraIncome={money(extraIncome)}
+    extraIncomeCount={selectedIncome.length}
+    totalSpent={money(totalSpent)}
+    expenseCount={monthExpenses.length}
+    installmentCount={activeInstallments.length}
+    remainingInstallments={remaining}
+    onReceivablesClick={() => switchTab("debts")}
+    onExtraIncomeClick={() => switchTab("income")}
+    onExpensesClick={() => switchTab("stats")}
+    onInstallmentsClick={() => switchTab("future")}
+  />}
   limits={<LimitUsageSection month={viewMonth} limits={DEFAULT_CATEGORY_LIMITS} />}
   upcoming={<>
     <section className="section">
