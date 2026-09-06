@@ -4,6 +4,7 @@ import { useState } from "react";
 import { Settings, Tag } from "lucide-react";
 import { MoneyInput } from "../../components/ui/MoneyInput";
 import styles from "./LimitsScreen.module.css";
+import { LimitsDialog } from "./LimitsDialog";
 
 type Item = { id: string; label: string; amount: number; spent: number };
 type Props = {
@@ -31,7 +32,10 @@ export function LimitsScreen({
     ? items.filter((item) => item.amount > 0).slice(0, 6)
     : items;
   return (
-    <section className={styles.screen} aria-label="Limites e categorias">
+    <section
+      className={`${styles.screen} ${compact ? styles.compact : styles.full}`}
+      aria-label="Limites e categorias"
+    >
       <header className={styles.header}>
         <div>
           {compact ? <h2>Limites do mês</h2> : <h1>Limites e categorias</h1>}
@@ -39,7 +43,7 @@ export function LimitsScreen({
         </div>
         <button
           type="button"
-          className="secondary-button"
+          className={styles.secondary}
           onClick={() => {
             if (compact) onConfigure();
             else
@@ -62,54 +66,55 @@ export function LimitsScreen({
         </p>
       )}
       {draft && (
-        <form
-          className={styles.editor}
-          onSubmit={(event) => {
-            event.preventDefault();
-            const values = Object.fromEntries(
-              Object.entries(draft).map(([id, value]) => [id, Number(value)]),
-            );
-            if (
-              Object.values(values).some(
-                (value) => !Number.isFinite(value) || value < 0,
+        <LimitsDialog onClose={() => setDraft(null)}>
+          <form
+            className={styles.editor}
+            onSubmit={(event) => {
+              event.preventDefault();
+              const values = Object.fromEntries(
+                Object.entries(draft).map(([id, value]) => [id, Number(value)]),
+              );
+              if (
+                Object.values(values).some(
+                  (value) => !Number.isFinite(value) || value < 0,
+                )
               )
-            )
-              return;
-            onSave?.(values);
-            setDraft(null);
-          }}
-        >
-          <h2>Configurar limites</h2>
-          <p>
-            Os limites valem para todos os meses. Use zero para deixar sem
-            limite.
-          </p>
-          <div className={styles.fields}>
-            {items.map((item) => (
-              <label className="field" key={item.id}>
-                <span>{item.label}</span>
-                <MoneyInput
-                  value={draft[item.id]}
-                  onValueChange={(value) =>
-                    setDraft({ ...draft, [item.id]: value })
-                  }
-                />
-              </label>
-            ))}
-          </div>
-          <div className={styles.actions}>
-            <button type="submit" className="primary-button">
-              Salvar limites
-            </button>
-            <button
-              type="button"
-              className="secondary-button"
-              onClick={() => setDraft(null)}
-            >
-              Cancelar
-            </button>
-          </div>
-        </form>
+                return;
+              onSave?.(values);
+              setDraft(null);
+            }}
+          >
+            <p>
+              Os limites valem para todos os meses. Use zero para deixar sem
+              limite.
+            </p>
+            <div className={styles.fields}>
+              {items.map((item) => (
+                <label className="field" key={item.id}>
+                  <span>{item.label}</span>
+                  <MoneyInput
+                    value={draft[item.id]}
+                    onValueChange={(value) =>
+                      setDraft({ ...draft, [item.id]: value })
+                    }
+                  />
+                </label>
+              ))}
+            </div>
+            <div className={styles.actions}>
+              <button type="submit" className={styles.primary}>
+                Salvar limites
+              </button>
+              <button
+                type="button"
+                className={styles.secondary}
+                onClick={() => setDraft(null)}
+              >
+                Cancelar
+              </button>
+            </div>
+          </form>
+        </LimitsDialog>
       )}
       <div className={styles.list}>
         {visible.map((item) => {
@@ -160,7 +165,7 @@ export function LimitsScreen({
       {compact && (
         <button
           type="button"
-          className="secondary-button"
+          className={styles.secondary}
           onClick={onConfigure}
         >
           Ver todos os limites e categorias
