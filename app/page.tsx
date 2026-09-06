@@ -25,6 +25,8 @@ import {
   WalletCards,
   X,
 } from "lucide-react";
+import { MoneyInput } from "../components/ui/MoneyInput";
+import { DateInput } from "../components/ui/DateInput";
 import { ExpenseList } from "../components/finance/ExpenseList";
 import { ExpenseSummary } from "../components/finance/ExpenseSummary";
 import { DebtSection } from "../components/finance/DebtSection";
@@ -333,8 +335,8 @@ export default function Page() {
     if (!receivingDebt) return;
     const open = Math.max(0, receivingDebt.amount - receivingDebt.paid);
     const amount = Number(receiveAmount.replace(",", "."));
-    if (!Number.isFinite(amount) || amount <= 0) return setToast("Informe quanto recebeu."); if (amount > open) return setToast(`O máximo que pode registrar agora é ${money(open)}.`);
-    const nextPaid = Math.min(receivingDebt.amount, receivingDebt.paid + amount);
+    if (!Number.isFinite(amount) || amount <= 0) return setToast("Informe quanto recebeu."); if (Math.round(amount * 100) > Math.round(open * 100)) return setToast(`O máximo que pode registrar agora é ${money(open)}.`);
+    const nextPaid = Math.min(receivingDebt.amount, Math.round((receivingDebt.paid + amount) * 100) / 100);
     const destination = receivingDebt.destination === "cartao" ? "cartao" : "conta";
     setDebts(cur => cur.map(d => d.id === receivingDebt.id ? { ...d, paid: nextPaid, receivedMonth: viewMonth } : d));
     setIncomeEntries(cur => [...cur, { id: Date.now(), title: `Recebimento de ${receivingDebt.person}`, amount, who: activeProfile, date: `${viewMonth}-01`, destination, note: receivingDebt.note || "Pagamento de dívida" }]);
@@ -545,7 +547,7 @@ export default function Page() {
           </button>
         </div>
         {modal === "expense" && <form onSubmit={saveExpense}><label className="field"><span>O que foi?</span><input value={form.title} onChange={e => setForm({ ...form, title: e.target.value })} placeholder="Ex.: Mercado" required /></label>
-          <div className="form-grid"><label className="field"><span>Valor</span><input inputMode="decimal" value={form.amount} onChange={e => setForm({ ...form, amount: e.target.value })} placeholder="50,00" required /></label><label className="field"><span>Data</span><input type="date" value={form.date} onChange={e => setForm({ ...form, date: e.target.value })} /></label></div>
+          <div className="form-grid"><label className="field"><span>Valor</span><MoneyInput value={form.amount} onValueChange={value => setForm({ ...form, amount: value })} placeholder="50,00" required /></label><label className="field"><span>Data</span><DateInput value={form.date} onValueChange={value => setForm({ ...form, date: value })} /></label></div>
           <div className="form-grid"><label className="field"><span>Categoria</span><select value={form.cat} onChange={e => setForm({ ...form, cat: e.target.value })}>{Object.keys(budgets).map(c => <option key={c}>{c}</option>)}</select></label><label className="field"><span>Quem</span><select value={form.who} onChange={e => setForm({ ...form, who: e.target.value as Person })}><option>Bruna</option>
             <option>Matheus</option>
             <option>Casal</option>
@@ -554,8 +556,8 @@ export default function Page() {
           </button>
         </form>}
         {modal === "installment" && <form onSubmit={saveInstallment}><label className="field"><span>Nome</span><input value={instForm.title} onChange={e => setInstForm({ ...instForm, title: e.target.value })} placeholder="Ex.: Notebook" required /></label>
-          <div className="form-grid"><label className="field"><span>Valor mensal</span><input inputMode="decimal" value={instForm.amount} onChange={e => setInstForm({ ...instForm, amount: e.target.value })} placeholder="300,00" required /></label><label className="field"><span>Total de parcelas</span><input type="number" min="1" value={instForm.total} onChange={e => setInstForm({ ...instForm, total: e.target.value })} required /></label></div>
-          <div className="form-grid"><label className="field"><span>Já pagas</span><input type="number" min="0" value={instForm.paid} onChange={e => setInstForm({ ...instForm, paid: e.target.value })} /></label><label className="field"><span>Próximo vencimento</span><input type="date" value={instForm.nextDue} onChange={e => setInstForm({ ...instForm, nextDue: e.target.value })} /></label></div>
+          <div className="form-grid"><label className="field"><span>Valor mensal</span><MoneyInput value={instForm.amount} onValueChange={value => setInstForm({ ...instForm, amount: value })} placeholder="300,00" required /></label><label className="field"><span>Total de parcelas</span><input type="number" min="1" value={instForm.total} onChange={e => setInstForm({ ...instForm, total: e.target.value })} required /></label></div>
+          <div className="form-grid"><label className="field"><span>Já pagas</span><input type="number" min="0" value={instForm.paid} onChange={e => setInstForm({ ...instForm, paid: e.target.value })} /></label><label className="field"><span>Próximo vencimento</span><DateInput value={instForm.nextDue} onValueChange={value => setInstForm({ ...instForm, nextDue: value })} /></label></div>
           <div className="form-grid"><label className="field"><span>Categoria</span><select value={instForm.category} onChange={e => setInstForm({ ...instForm, category: e.target.value })}>{Object.keys(budgets).map(c => <option key={c}>{c}</option>)}</select></label><label className="field"><span>Quem</span><select value={instForm.who} onChange={e => setInstForm({ ...instForm, who: e.target.value as Person })}><option>Bruna</option>
             <option>Matheus</option>
             <option>Casal</option>
@@ -563,7 +565,7 @@ export default function Page() {
             <Check size={17} /> Salvar parcela
           </button>
         </form>}
-        {modal === "debt" && <form onSubmit={saveDebt}><label className="field"><span>Quem deve?</span><input value={debtForm.person} onChange={e => setDebtForm({ ...debtForm, person: e.target.value })} placeholder="Ex.: João" required /></label><div className="form-grid"><label className="field"><span>Valor total</span><input inputMode="decimal" value={debtForm.amount} onChange={e => setDebtForm({ ...debtForm, amount: e.target.value })} placeholder="13.000,00" required /></label><label className="field"><span>Já recebido</span><input inputMode="decimal" value={debtForm.paid} onChange={e => setDebtForm({ ...debtForm, paid: e.target.value })} placeholder="0,00" /></label></div>
+        {modal === "debt" && <form onSubmit={saveDebt}><label className="field"><span>Quem deve?</span><input value={debtForm.person} onChange={e => setDebtForm({ ...debtForm, person: e.target.value })} placeholder="Ex.: João" required /></label><div className="form-grid"><label className="field"><span>Valor total</span><MoneyInput value={debtForm.amount} onValueChange={value => setDebtForm({ ...debtForm, amount: value })} placeholder="13.000,00" required /></label><label className="field"><span>Já recebido</span><MoneyInput maximum={Number(debtForm.amount) || 0} value={debtForm.paid} onValueChange={value => setDebtForm({ ...debtForm, paid: value })} placeholder="0,00" /></label></div>
           <div className="form-grid"><label className="field"><span>Mês</span><input type="month" value={debtForm.month} onChange={e => setDebtForm({ ...debtForm, month: e.target.value })} /></label><label className="field"><span>Quando pagar, vai para</span><select value={debtForm.destination} onChange={e => setDebtForm({ ...debtForm, destination: e.target.value as DebtDestination })}><option value="cartao">Cartão</option>
             <option value="bruna">Bruna</option>
             <option value="matheus">Matheus</option>
@@ -573,13 +575,13 @@ export default function Page() {
           </button>
         </form>}
         {modal === "receive" && receivingDebt && <form onSubmit={saveDebtReceipt}>
-          <div className="receive-summary"><span>Valor em aberto</span><strong>{money(Math.max(0, receivingDebt.amount - receivingDebt.paid))}</strong><small>{receivingDebt.person}{receivingDebt.note ? ` · ${receivingDebt.note}` : ""}</small></div><label className="field"><span>Quanto você recebeu?</span><input autoFocus inputMode="decimal" value={receiveAmount} onChange={e => setReceiveAmount(e.target.value)} placeholder="Ex.: 200,00" required /></label>
+          <div className="receive-summary"><span>Valor em aberto</span><strong>{money(Math.max(0, receivingDebt.amount - receivingDebt.paid))}</strong><small>{receivingDebt.person}{receivingDebt.note ? ` · ${receivingDebt.note}` : ""}</small></div><label className="field"><span>Quanto você recebeu?</span><MoneyInput autoFocus value={receiveAmount} maximum={Math.max(0, receivingDebt.amount - receivingDebt.paid)} onValueChange={setReceiveAmount} placeholder="Ex.: 200,00" required /></label>
           <p className="receive-help">Você pode receber uma parte agora e o restante continuará em aberto para os próximos meses.</p><button type="submit" className="primary-button">
             <Check size={17} /> Registrar recebimento
           </button>
         </form>}
         {modal === "income" && <form onSubmit={saveIncome}><label className="field"><span>Entrada</span><input value={incomeForm.title} onChange={e => setIncomeForm({ ...incomeForm, title: e.target.value })} placeholder="Ex.: Reembolso" required /></label>
-          <div className="form-grid"><label className="field"><span>Valor</span><input inputMode="decimal" value={incomeForm.amount} onChange={e => setIncomeForm({ ...incomeForm, amount: e.target.value })} placeholder="500,00" required /></label><label className="field"><span>Data</span><input type="date" value={incomeForm.date} onChange={e => setIncomeForm({ ...incomeForm, date: e.target.value })} /></label></div>
+          <div className="form-grid"><label className="field"><span>Valor</span><MoneyInput value={incomeForm.amount} onValueChange={value => setIncomeForm({ ...incomeForm, amount: value })} placeholder="500,00" required /></label><label className="field"><span>Data</span><DateInput value={incomeForm.date} onValueChange={value => setIncomeForm({ ...incomeForm, date: value })} /></label></div>
           <div className="form-grid"><label className="field"><span>Quem</span><select value={incomeForm.who} onChange={e => setIncomeForm({ ...incomeForm, who: e.target.value as Person })}><option>Bruna</option>
             <option>Matheus</option>
             <option>Casal</option>

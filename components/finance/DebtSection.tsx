@@ -1,4 +1,5 @@
 import { Pencil, Plus, Trash2, WalletCards } from "lucide-react";
+import styles from "./Receipts.module.css";
 
 type DebtItem = {
   id: number;
@@ -46,7 +47,7 @@ export function DebtSection({
   onReceive,
 }: DebtSectionProps) {
   return (
-    <section className="section">
+    <section className={`${styles.screen} ${styles.debts}`}>
       <div className="page-heading">
         <div>
           <span className="eyebrow">
@@ -66,58 +67,101 @@ export function DebtSection({
           <Plus size={17} /> Novo valor
         </button>
       </div>
-      <div className="debt-total-card">
-        <span>Valores pendentes em {monthName}</span>
-        <strong>{formatMoney(totalPending)}</strong>
-        <small>{openCount} pessoas/valores em aberto neste mês</small>
+      <div className={styles.summary}>
+        <article>
+          <span>Valores pendentes em {monthName}</span>
+          <strong>{formatMoney(totalPending)}</strong>
+          <small>{openCount} pessoas/valores em aberto neste mês</small>
+        </article>
+        <article>
+          <span>Recebido dos valores listados</span>
+          <strong>
+            {formatMoney(debts.reduce((total, debt) => total + debt.paid, 0))}
+          </strong>
+          <small>Inclui recebimentos de meses anteriores</small>
+        </article>
+        <article>
+          <span>Total dos valores listados</span>
+          <strong>
+            {formatMoney(debts.reduce((total, debt) => total + debt.amount, 0))}
+          </strong>
+          <small>{debts.length} cobranças no período selecionado</small>
+        </article>
       </div>
-      <div className="debt-list">
+      <div className={styles.list}>
+        <div className={styles.listHeading}>
+          <h2>
+            Quem me deve <small>(Extras)</small>
+          </h2>
+          <span>{openCount} em aberto</span>
+        </div>
         {debts.length ? (
           debts.map((debt) => {
             const remaining = Math.max(0, debt.amount - debt.paid);
             return (
-              <div className="debt-row" key={debt.id}>
-                <div>
+              <article className={styles.row} key={debt.id}>
+                <div className={styles.details}>
                   <strong>{debt.person}</strong>
                   <span>
                     {debt.note || "Valor a receber"} ·{" "}
                     {destinationLabel(debt.destination)} ·{" "}
                     {formatMonth(debt.month || fallbackMonth)}
                   </span>
-                  {debt.paid > 0 && (
-                    <small>
-                      Recebido {formatMoney(debt.paid)} de{" "}
-                      {formatMoney(debt.amount)} · restante{" "}
-                      {formatMoney(remaining)}
+                  <div className={styles.receiptAmounts}>
+                    <small className={styles.received}>
+                      {formatMoney(debt.paid)} recebidos
                     </small>
-                  )}
+                    <small
+                      className={
+                        remaining > 0 ? styles.pending : styles.received
+                      }
+                    >
+                      {remaining > 0
+                        ? `${formatMoney(remaining)} em aberto`
+                        : "Quitado"}
+                    </small>
+                  </div>
+                  <progress
+                    className={styles.progress}
+                    max={Math.max(debt.amount, 1)}
+                    value={Math.min(
+                      Math.max(debt.paid, 0),
+                      Math.max(debt.amount, 1),
+                    )}
+                    aria-label={`Valor recebido de ${debt.person}`}
+                  />
                 </div>
-                <strong>{formatMoney(remaining)}</strong>
-                <button
-                  type="button"
-                  className="icon-button"
-                  onClick={() => onEdit(debt)}
-                  aria-label="Editar dívida"
-                >
-                  <Pencil size={15} />
-                </button>
-                <button
-                  type="button"
-                  className="icon-button danger-icon"
-                  onClick={() => onDelete(debt.id)}
-                  aria-label="Excluir dívida"
-                >
-                  <Trash2 size={15} />
-                </button>
-                <button
-                  type="button"
-                  className="primary-button compact"
-                  onClick={() => onReceive(debt)}
-                  disabled={remaining <= 0}
-                >
-                  {remaining <= 0 ? "Recebido" : "Recebi"}
-                </button>
-              </div>
+                <div className={styles.amount}>
+                  <small>Valor total</small>
+                  <strong>{formatMoney(debt.amount)}</strong>
+                </div>
+                <div className={styles.actions}>
+                  <button
+                    type="button"
+                    className="icon-button"
+                    onClick={() => onEdit(debt)}
+                    aria-label={`Editar dívida de ${debt.person}`}
+                  >
+                    <Pencil size={15} />
+                  </button>
+                  <button
+                    type="button"
+                    className="icon-button danger-icon"
+                    onClick={() => onDelete(debt.id)}
+                    aria-label={`Excluir dívida de ${debt.person}`}
+                  >
+                    <Trash2 size={15} />
+                  </button>
+                  <button
+                    type="button"
+                    className="primary-button compact"
+                    onClick={() => onReceive(debt)}
+                    disabled={remaining <= 0}
+                  >
+                    {remaining <= 0 ? "Recebido" : "Recebi"}
+                  </button>
+                </div>
+              </article>
             );
           })
         ) : (
