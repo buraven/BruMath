@@ -1,8 +1,6 @@
 import type { ReactNode } from "react";
-import { BalanceCard } from "./components/BalanceCard/BalanceCard";
 import { FinancialSnapshot } from "./components/FinancialSnapshot/FinancialSnapshot";
-import { HomeHeader } from "./components/HomeHeader/HomeHeader";
-import { SummaryCards } from "./components/Summary/SummaryCards";
+import { DashboardMetrics } from "./components/DashboardMetrics/DashboardMetrics";
 import { Home } from "./Home";
 
 type NewHomeProps = {
@@ -10,6 +8,7 @@ type NewHomeProps = {
   monthLabel: string;
   balance: number;
   income: number;
+  extraIncome: number;
   expenses: number;
   formatMoney: (value: number) => string;
   insights?: ReactNode;
@@ -18,10 +17,11 @@ type NewHomeProps = {
 };
 
 export function NewHome({
-  profile,
-  monthLabel,
+  profile: _profile,
+  monthLabel: _monthLabel,
   balance,
   income,
+  extraIncome,
   expenses,
   formatMoney,
   insights,
@@ -30,12 +30,11 @@ export function NewHome({
 }: NewHomeProps) {
   return (
     <Home
-      header={<HomeHeader profile={profile} monthLabel={monthLabel} />}
-      balance={<BalanceCard balance={balance} income={income} expenses={expenses} formatMoney={formatMoney} />}
-      summary={<SummaryCards income={income} expenses={expenses} formatMoney={formatMoney} />}
+      metrics={<DashboardMetrics budget={income} expenses={expenses} extraIncome={extraIncome} balance={balance} formatMoney={formatMoney} />}
+      overview={<FinancialSnapshot balance={balance} income={income} expenses={expenses} formatMoney={formatMoney} />}
       insights={insights}
       limits={limits}
-      upcoming={upcoming ?? <FinancialSnapshot balance={balance} income={income} expenses={expenses} formatMoney={formatMoney} />}
+      content={upcoming}
     />
   );
 }

@@ -1,36 +1,48 @@
 .home {
   display: grid;
-  gap: var(--space-6);
+  gap: 18px;
   width: 100%;
 }
 
-.header,
-.balance,
-.summary,
+.metrics,
+.overview,
+.limits,
 .insights,
-.grid > section {
+.content {
   min-width: 0;
 }
 
-.grid {
+.dashboard {
+  display: grid;
+  grid-template-columns: minmax(0, 1.1fr) minmax(350px, .9fr);
+  gap: 18px;
+  align-items: start;
+}
+
+.content {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: var(--space-6);
+  gap: 18px;
+}
+
+.content :global(.section) {
+  margin-top: 0;
 }
 
 @media (max-width: 767px) {
   .home {
-    gap: var(--space-4);
+    gap: 14px;
   }
 
-  .grid {
+  .dashboard,
+  .content {
     grid-template-columns: 1fr;
-    gap: var(--space-4);
+    gap: 14px;
   }
 }
 
 @media (min-width: 768px) and (max-width: 1023px) {
-  .home {
-    gap: var(--space-5);
+  .dashboard {
+    grid-template-columns: 1fr;
   }
 }

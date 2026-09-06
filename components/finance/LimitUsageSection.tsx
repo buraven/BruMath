@@ -42,9 +42,9 @@ export function LimitUsageSection({ month, limits }: LimitUsageSectionProps) {
       <div className={styles.header}>
         <div>
           <span className={styles.eyebrow}>Limites</span>
-          <h2 id="limit-usage-title">Quanto ainda posso gastar?</h2>
+          <h2 id="limit-usage-title">Limites do mês</h2>
         </div>
-        <span className={styles.month}>{month}</span>
+        <span className={styles.month}>Gastos reais</span>
       </div>
 
       {loading ? (

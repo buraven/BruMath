@@ -36,6 +36,8 @@ import { DEFAULT_CATEGORY_LIMITS } from "../lib/finance/defaultLimits";
 import { NavButton } from "../components/navigation/NavButton";
 import { MonthSelector } from "../components/navigation/MonthSelector";
 import { NewHome } from "../features/home/NewHome";
+import { HomeAssistantPreview } from "../features/home/components/HomeAssistantPreview/HomeAssistantPreview";
+import { HomeExpenses } from "../features/home/components/HomeExpenses/HomeExpenses";
 
 type Person = "Bruna" | "Matheus" | "Casal";
 type Tab = "home" | "chat" | "stats" | "future" | "debts" | "income";
@@ -442,6 +444,7 @@ export default function Page() {
   monthLabel={monthName}
   balance={available}
   income={monthIncomeTotal}
+  extraIncome={extraIncome}
   expenses={totalSpent}
   formatMoney={money}
                                insights={<ExpenseSummary
@@ -459,20 +462,8 @@ export default function Page() {
   />}
   limits={<LimitUsageSection month={viewMonth} limits={DEFAULT_CATEGORY_LIMITS} />}
   upcoming={<>
-    <section className="section">
-      <div className="section-title"><div><h2>Assistente</h2><span className="muted">Você está falando como <strong>{activeProfile}</strong></span></div><span className="online"><i /> online</span></div>
-      <div className="chat-preview">
-        <div className="chat-profile-banner">Perfil atual: <strong>{activeProfile}</strong>. O perfil é usado quando a frase não informa outra pessoa.</div>
-        <div className="bubble assistant-bubble">{chat.at(-1)?.text}</div>
-        <QuickActions actions={[{ label: "Quanto temos?", onClick: () => send("Quanto temos?") }, { label: "Insights", onClick: () => send("Me dê insights") }, { label: "Resumo", onClick: () => send("Resumo") }, { label: "Parcelas", onClick: () => send("Parcelas") }, { label: "Quem me deve?", onClick: () => switchTab("debts") }, { label: "O que entra", onClick: () => switchTab("income") }]} />
-        <div className="input-row"><input value={text} onChange={e => setText(e.target.value)} onKeyDown={e => { if (e.key === "Enter") send(); }} placeholder="Ex.: Matheus comprou bermuda por 70" /><button type="button" className="send-button" onClick={() => send()}><Send size={17} /><span>Enviar</span></button></div>
-        <button type="button" className="open-chat" onClick={() => switchTab("chat")}>Abrir conversa completa <ChevronRight size={16} /></button>
-      </div>
-    </section>
-    <section className="section">
-      <div className="section-title"><h2>Gastos de {monthName}</h2><span className="muted">{selectedMonthExpenses.length} registros</span></div>
-      <ExpenseList expenses={selectedMonthExpenses} onEdit={openEditExpense} onDelete={deleteExpense} formatMoney={money} formatDate={shortDate} renderIcon={iconFor} />
-    </section>
+    <HomeAssistantPreview profile={activeProfile} latestMessage={chat.at(-1)?.text} value={text} onChange={setText} onSend={send} onOpenConversation={() => switchTab("chat")} onOpenReceivables={() => switchTab("debts")} onOpenIncome={() => switchTab("income")} />
+    <HomeExpenses monthLabel={monthName} expenses={selectedMonthExpenses} onEdit={openEditExpense} onDelete={deleteExpense} formatMoney={money} formatDate={shortDate} renderIcon={iconFor} />
   </>}
 />}
 
