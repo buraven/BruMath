@@ -2,25 +2,31 @@ import type { ReactNode } from "react";
 import styles from "./Home.module.css";
 
 type HomeProps = {
-  header: ReactNode;
-  balance: ReactNode;
-  summary?: ReactNode;
+  metrics: ReactNode;
+  overview: ReactNode;
   limits?: ReactNode;
-  upcoming?: ReactNode;
+  content?: ReactNode;
   insights?: ReactNode;
 };
 
-export function Home({ header, balance, summary, limits, upcoming, insights }: HomeProps) {
+export function Home({
+  metrics,
+  overview,
+  limits,
+  content,
+  insights,
+}: HomeProps) {
   return (
     <main className={styles.home}>
-      <section className={styles.header}>{header}</section>
-      <section className={styles.balance}>{balance}</section>
-      {summary ? <section className={styles.summary}>{summary}</section> : null}
-      <div className={styles.grid}>
-        {limits ? <section>{limits}</section> : null}
-        {upcoming ? <section>{upcoming}</section> : null}
+      <section className={styles.metrics}>{metrics}</section>
+      <div className={styles.dashboard}>
+        <section className={styles.overview}>{overview}</section>
+        {limits ? <section className={styles.limits}>{limits}</section> : null}
       </div>
-      {insights ? <section className={styles.insights}>{insights}</section> : null}
+      {content ? <section className={styles.content}>{content}</section> : null}
+      {insights ? (
+        <section className={styles.insights}>{insights}</section>
+      ) : null}
     </main>
   );
 }

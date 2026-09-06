@@ -1,59 +1,138 @@
 .card {
   display: grid;
-  gap: var(--space-4);
+  min-height: var(--size-snapshot-min-height);
+  gap: var(--space-5);
   padding: var(--space-5);
-  border: 1px solid var(--color-border);
+  border: 1px solid var(--line);
   border-radius: var(--radius-lg);
-  background: var(--color-surface);
-  color: var(--color-text);
+  background: var(--surface);
+  color: var(--text);
+  box-shadow: var(--shadow-card);
 }
 
-.header {
+.card header {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: var(--space-4);
+  gap: var(--space-3);
 }
 
-.eyebrow {
-  display: block;
-  margin-bottom: var(--space-1);
-  color: var(--color-text-muted);
-  font-size: 0.8125rem;
-}
-
-.header h2 {
+.card h2 {
   margin: 0;
-  font-size: 1.125rem;
+  font-size: 1.02rem;
+  letter-spacing: -0.03em;
 }
 
-.header strong {
-  font-size: clamp(1.5rem, 4vw, 2rem);
+.card header span {
+  color: var(--muted);
+  font-size: 0.72rem;
 }
 
-.progress {
-  height: 0.5rem;
-  overflow: hidden;
-  border-radius: 999px;
-  background: var(--color-border);
+.body {
+  display: grid;
+  grid-template-columns: minmax(180px, 0.95fr) minmax(170px, 1.05fr);
+  align-items: center;
+  gap: var(--space-5);
 }
 
-.progress span {
-  display: block;
-  height: 100%;
-  border-radius: inherit;
-  background: var(--color-primary);
+.donut {
+  display: grid;
+  width: min(100%, var(--size-snapshot-donut));
+  aspect-ratio: 1;
+  place-items: center;
+  margin: 0 auto;
+  border-radius: 50%;
+  background: conic-gradient(
+    var(--color-accent) var(--spent),
+    var(--surface-soft) 0
+  );
+  transform: rotate(-90deg);
 }
 
-.card p {
-  margin: 0;
-  color: var(--color-text-muted);
-  font-size: 0.875rem;
+.donut > div {
+  display: grid;
+  width: 68%;
+  aspect-ratio: 1;
+  place-items: center;
+  align-content: center;
+  padding: var(--space-3);
+  border: 1px solid var(--line);
+  border-radius: 50%;
+  background: var(--surface);
+  text-align: center;
+  transform: rotate(90deg);
+}
+
+.donut small,
+.donut span {
+  color: var(--muted);
+  font-size: 0.68rem;
+}
+
+.donut strong {
+  margin: var(--space-1) 0;
+  font-size: 1rem;
+  letter-spacing: -0.04em;
+}
+
+.legend {
+  display: grid;
+  gap: var(--space-3);
+}
+
+.legend div {
+  display: grid;
+  grid-template-columns: 10px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: var(--space-2);
+  color: var(--muted);
+  font-size: 0.72rem;
+}
+
+.legend i {
+  width: var(--space-2);
+  height: var(--space-2);
+  border-radius: var(--space-1);
+}
+
+.legend strong {
+  color: var(--text);
+  font-size: 0.75rem;
+}
+
+.spent {
+  background: var(--color-accent);
+}
+
+.available {
+  background: var(--color-info);
+}
+
+.income {
+  background: var(--color-secondary);
+}
+
+.card footer {
+  padding: var(--space-3);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  color: var(--muted);
+  font-size: 0.72rem;
+  text-align: center;
 }
 
 @media (max-width: 480px) {
-  .header {
-    align-items: flex-start;
-    flex-direction: column;
+  .card {
+    min-height: 0;
+    padding: var(--space-4);
+  }
+
+  .body {
+    grid-template-columns: 1fr;
+    gap: var(--space-4);
+  }
+
+  .donut {
+    width: min(100%, 190px);
   }
 }

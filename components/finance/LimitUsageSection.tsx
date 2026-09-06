@@ -18,7 +18,10 @@ export function LimitUsageSection({ month, limits }: LimitUsageSectionProps) {
   const [usages, setUsages] = useState<LimitUsage[]>([]);
   const [loading, setLoading] = useState(true);
   const repository = useMemo(() => new LocalStorageTransactionRepository(), []);
-  const configuredLimits = useMemo(() => limits.filter((limit) => limit.amount > 0), [limits]);
+  const configuredLimits = useMemo(
+    () => limits.filter((limit) => limit.amount > 0),
+    [limits],
+  );
 
   useEffect(() => {
     let cancelled = false;
@@ -42,9 +45,9 @@ export function LimitUsageSection({ month, limits }: LimitUsageSectionProps) {
       <div className={styles.header}>
         <div>
           <span className={styles.eyebrow}>Limites</span>
-          <h2 id="limit-usage-title">Quanto ainda posso gastar?</h2>
+          <h2 id="limit-usage-title">Limites do mês</h2>
         </div>
-        <span className={styles.month}>{month}</span>
+        <span className={styles.month}>Gastos reais</span>
       </div>
 
       {loading ? (
