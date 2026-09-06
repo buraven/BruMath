@@ -4,7 +4,6 @@ import { useEffect, useMemo, useRef, useState, type FormEvent, type ReactNode } 
 import {
   CalendarDays,
   Car,
-  ChartNoAxesColumn,
   Check,
   ChevronLeft,
   ChevronRight,
@@ -12,6 +11,7 @@ import {
   Home,
   MessageCircle,
   Monitor,
+  MoreHorizontal,
   Moon,
   Pencil,
   Plus,
@@ -39,6 +39,7 @@ import { MonthSelector } from "../components/navigation/MonthSelector";
 import { NewHome } from "../features/home/NewHome";
 import { HomeAssistantPreview } from "../features/home/components/HomeAssistantPreview/HomeAssistantPreview";
 import { HomeExpenses } from "../features/home/components/HomeExpenses/HomeExpenses";
+import { ExpensesScreen } from "../features/expenses/ExpensesScreen";
 
 type Person = "Bruna" | "Matheus" | "Casal";
 type Tab = NavigationTab;
@@ -179,7 +180,7 @@ export default function Page() {
   const [editingInstallment, setEditingInstallment] = useState<Installment | null>(null);
   const [editingDebt, setEditingDebt] = useState<Debt | null>(null);
   const [editingIncome, setEditingIncome] = useState<IncomeEntry | null>(null);
-  const [categoryOpen, setCategoryOpen] = useState<string | null>(null);
+  const [mobileMoreOpen, setMobileMoreOpen] = useState(false);
   const [form, setForm] = useState({ title: "", amount: "", cat: "Outros", who: "Bruna" as Person, date: viewMonth + "-01" });
   const [instForm, setInstForm] = useState({ title: "", amount: "", category: "Outros", who: "Bruna" as Person, total: "", paid: "0", nextDue: "" });
   const [debtForm, setDebtForm] = useState({ person: "Amigo", amount: "", paid: "0", destination: "bruna" as DebtDestination, note: "", month: viewMonth });
@@ -239,6 +240,10 @@ export default function Page() {
   }, [chat.length, tab]);
 
   const monthExpenses = useMemo(() => expenses.filter(e => e.date.startsWith(viewMonth)), [expenses, viewMonth]);
+  const cats = useMemo(() => Object.entries(budgets).map(([category, budget]) => {
+    const spent = monthExpenses.filter(expense => expense.cat === category).reduce((sum, expense) => sum + expense.amount, 0);
+    return { category, budget, spent, percent: budget ? Math.min(100, spent / budget * 100) : 0 };
+  }), [budgets, monthExpenses]);
   const monthIncome = useMemo(() => incomeEntries.filter(e => e.date.startsWith(viewMonth) && e.destination === "conta"), [incomeEntries, viewMonth]);
   const totalSpent = useMemo(() => monthExpenses.reduce((s, e) => s + e.amount, 0), [monthExpenses]);
   const extraIncome = useMemo(() => monthIncome.reduce((s, e) => s + e.amount, 0), [monthIncome]);
@@ -253,12 +258,6 @@ export default function Page() {
   const debtTotal = useMemo(() => monthDebts.reduce((s, d) => s + Math.max(0, d.amount - d.paid), 0), [monthDebts]);
   const activeInstallments = useMemo(() => installments.filter(i => i.paidInstallments < i.totalInstallments), [installments]); const remaining = useMemo(() => activeInstallments.reduce((s, i) => s + i.totalInstallments - i.paidInstallments, 0), [activeInstallments]);
   const futureMonthly = useMemo(() => installments.filter(i => i.paidInstallments < i.totalInstallments && i.nextDue.startsWith(viewMonth)).reduce((s, i) => s + i.amount, 0), [installments, viewMonth]);
-  const cats = useMemo(() => Object.keys(budgets).map(category => {
-    const spent = monthExpenses.filter(e => e.cat === category).reduce((s, e) => s + e.amount, 0);
-    const budget = budgets[category] || 0;
-    return { category, spent, budget, percent: budget ? Math.min(100, spent / budget * 100) : 0 };
-  }), [budgets, monthExpenses]);
-
   const resetExpenseForm = (expense?: Expense) => setForm(expense ? { title: expense.title, amount: String(expense.amount), cat: expense.cat, who: expense.who, date: expense.date } : { title: "", amount: "", cat: "Outros", who: activeProfile, date: `${viewMonth}-01` });
   const openNewExpense = () => { setQuickAddOpen(false); setEditingExpense(null); resetExpenseForm(); setModal("expense"); };
   const openNewInstallment = () => { setQuickAddOpen(false); setEditingInstallment(null); setInstForm({ title: "", amount: "", category: "Outros", who: activeProfile, total: "", paid: "0", nextDue: `${addMonths(viewMonth, 1)}-10` }); setModal("installment"); };
@@ -389,7 +388,7 @@ export default function Page() {
     push("Posso registrar gastos, consultar saldo, parcelas, orçamento, Quem me deve e O que entra. Ex.: “Matheus comprou bermuda por 70” ou “gastei 85 no mercado”.");
   };
 
-  const switchTab = (next: Tab) => { if (tab === "chat" && messagesRef.current) chatScrollTop.current = messagesRef.current.scrollTop; setQuickAddOpen(false); setTab(next); };
+  const switchTab = (next: Tab) => { if (tab === "chat" && messagesRef.current) chatScrollTop.current = messagesRef.current.scrollTop; setQuickAddOpen(false); setMobileMoreOpen(false); setTab(next); };
   const selectedMonthExpenses = monthExpenses.slice().sort((a, b) => b.date.localeCompare(a.date) || b.id - a.id);
   const selectedIncome = incomeEntries.filter(i => i.date.startsWith(viewMonth)).sort((a, b) => b.date.localeCompare(a.date) || b.id - a.id);
   const selectedDebts = monthDebts.slice().sort((a, b) => a.person.localeCompare(b.person) || b.id - a.id);
@@ -493,24 +492,7 @@ export default function Page() {
           </div>
         </section>}
 
-        {tab === "stats" && <section className="section">
-          <div className="page-heading">
-            <div><span className="eyebrow">
-              <ChartNoAxesColumn size={15} /> Categorias
-            </span>
-              <h1>Orçamento por categoria</h1>
-              <p>Clique em qualquer categoria para abrir os gastos daquele mês.</p>
-            </div>
-          </div>
-          <div className="category-grid">{cats.map(item => <button key={item.category} type="button" className={`category-card ${categoryOpen === item.category ? "open" : ""}`} onClick={() => setCategoryOpen(categoryOpen === item.category ? null : item.category)}><div className="category-head">
-            <div className="category-icon">{iconFor(item.category)}</div>
-            <div><strong>{item.category}</strong><span>{money(item.spent)} de {money(item.budget)}</span></div><b>{Math.round(item.percent)}%</b>
-          </div>
-            <div className="progress-track small">
-              <div className="progress-fill" style={{ width: `${item.percent}%` }} />
-            </div>{categoryOpen === item.category && <div className="category-detail">{monthExpenses.filter(e => e.cat === item.category).length ? monthExpenses.filter(e => e.cat === item.category).map(e => <div key={e.id}><span>{e.title} · {e.who}</span><strong>{money(e.amount)}</strong></div>) : <div><span>Nenhum gasto neste mês.</span></div>}</div>}
-          </button>)}</div>
-        </section>}
+        {tab === "stats" && <ExpensesScreen monthLabel={monthName} expenses={selectedMonthExpenses} formatMoney={money} formatDate={shortDate} renderIcon={iconFor} onCreate={openNewExpense} onEdit={openEditExpense} onDelete={deleteExpense} />}
 
         {tab === "future" &&
           <InstallmentSection monthName={monthLabelShort(viewMonth)} activeCount={activeInstallments.length} futureMonthly={futureMonthly} remainingInstallments={remaining} installments={selectedInstallments} formatMoney={money} formatDate={shortDate} renderIcon={iconFor} onCreate={openNewInstallment} onPay={payInstallment} onAdvance={chooseAdvanceInstallments} onEdit={openEditInstallment} onDelete={deleteInstallment} />}
@@ -535,19 +517,22 @@ export default function Page() {
           <Plus size={25} />}
         </button></div>
 
+      {mobileMoreOpen && <div className="mobile-more-menu" aria-label="Mais opções">
+        <button type="button" onClick={() => switchTab("stats")}>Gastos</button>
+        <button type="button" onClick={() => switchTab("debts")}>Quem me deve</button>
+        <button type="button" onClick={() => switchTab("income")}>Entradas &amp; extras</button>
+      </div>}
+
       <nav className="bottom-nav" aria-label="Navegação principal">
         <NavButton active={tab === "home"} onClick={() => switchTab("home")} icon={
           <Home size={19} />} label="Início" />
         <NavButton active={tab === "chat"} onClick={() => switchTab("chat")} icon={
           <MessageCircle size={19} />} label="Assistente" />
-        <NavButton active={tab === "stats"} onClick={() => switchTab("stats")} icon={
-          <ChartNoAxesColumn size={19} />} label="Categorias" />
+        <span className="bottom-nav-add-slot" aria-hidden="true" />
         <NavButton active={tab === "future"} onClick={() => switchTab("future")} icon={
           <CalendarDays size={19} />} label="Futuro" />
-        <NavButton active={tab === "debts"} onClick={() => switchTab("debts")} icon={
-          <WalletCards size={19} />} label="Quem me deve" />
-        <NavButton active={tab === "income"} onClick={() => switchTab("income")} icon={
-          <Sparkles size={19} />} label="O que entra" />
+        <NavButton active={tab === "stats" || tab === "debts" || tab === "income"} onClick={() => setMobileMoreOpen(open => !open)} icon={
+          <MoreHorizontal size={19} />} label="Mais" />
       </nav>
 
       {modal !== "none" && <div className="modal-backdrop" onMouseDown={e => { if (e.target === e.currentTarget) setModal("none"); }}><div className="modal-card" role="dialog" aria-modal="true">
