@@ -2,7 +2,7 @@
   display: none;
 }
 
-@media (min-width: 1024px) {
+@media (min-width: 1440px) and (hover: hover) and (pointer: fine) {
   .sidebar {
     position: fixed;
     z-index: 50;

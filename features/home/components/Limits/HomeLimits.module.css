@@ -1,0 +1,67 @@
+.card {
+  display: grid;
+  gap: var(--space-2);
+  min-width: 0;
+  padding: var(--space-4);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+}
+.card header,
+.title {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+.card h2 {
+  margin: 0;
+  font-size: 1.02rem;
+}
+.card button {
+  padding: var(--space-2);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  color: var(--text);
+  background: var(--surface-soft);
+  cursor: pointer;
+}
+.row {
+  min-width: 0;
+  font-size: 0.8rem;
+}
+.row small {
+  display: block;
+  margin-block: var(--space-1);
+  color: var(--muted);
+}
+.row progress {
+  appearance: none;
+  display: block;
+  width: 100%;
+  height: var(--space-1);
+  border: 0;
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+  color: var(--color-accent-strong);
+  background: var(--soft-track);
+}
+.row progress::-webkit-progress-bar {
+  background: var(--soft-track);
+}
+.row progress::-webkit-progress-value {
+  background: currentColor;
+}
+.row progress::-moz-progress-bar {
+  background: currentColor;
+}
+.row .warning {
+  color: var(--color-warning);
+}
+.row .danger {
+  color: var(--danger);
+}
+.all {
+  width: 100%;
+}

@@ -1,4 +1,5 @@
 .home {
+  min-width: 0;
   display: grid;
   gap: var(--space-5);
   width: 100%;
@@ -14,15 +15,53 @@
 
 .dashboard {
   display: grid;
-  grid-template-columns: minmax(0, 1.1fr) minmax(350px, 0.9fr);
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: var(--space-5);
   align-items: start;
 }
 
 .content {
+  align-items: start;
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: var(--space-5);
+}
+
+.home :global(.section-title) {
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+.home :global(.input-row) {
+  display: flex;
+  flex-wrap: wrap;
+}
+.home :global(.input-row input) {
+  min-width: 0;
+  flex: 1 1 12rem;
+}
+.insights :global(.summary-grid) {
+  display: block;
+  margin: 0;
+}
+.insights :global(.summary-grid) > div {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-3);
+}
+.insights :global(.metric-card) {
+  min-width: 0;
+  padding: var(--space-4);
+}
+.insights :global(.metric-card) strong {
+  overflow-wrap: anywhere;
+}
+.limits {
+  container-type: inline-size;
+}
+@container workspace (min-width: 1000px) {
+  .insights :global(.summary-grid) > div {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
 }
 
 .content :global(.section) {

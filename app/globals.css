@@ -1399,7 +1399,7 @@ button {
   }
 }
 
-@media (min-width: 1024px) {
+@media (min-width: 1440px) and (hover: hover) and (pointer: fine) {
   .app-shell {
     padding: var(--space-6) var(--space-6) var(--space-6) calc(var(--size-navigation-sidebar) + var(--space-8) + var(--space-6));
   }
@@ -1410,7 +1410,7 @@ button {
   }
 
   .topbar .brand-area {
-    display: none;
+    display: block;
   }
 
   .topbar-actions {
@@ -1757,6 +1757,30 @@ button {
     gap: 2px;
     padding: 5px;
   }
+}
+
+/* Home header keeps the same identity with room for profile controls. */
+.app-shell:has([data-home]) aside > div:first-child { display: none; }
+.app-shell:has([data-home]) .topbar { flex-wrap: wrap; gap: var(--space-3); }
+.app-shell:has([data-home]) .topbar-actions { flex-wrap: wrap; max-width: 100%; gap: var(--space-2); }
+.app-shell:has([data-home]) .profile-switch { flex-wrap: wrap; }
+.app-shell:has([data-home]) .profile-label { display: block; }
+@media (max-width: 1439px), (hover: none), (pointer: coarse) {
+  .app-shell:has([data-home]) {
+    height: 100dvh;
+    overflow: hidden;
+    padding-bottom: var(--home-nav-reserve, calc(88px + env(safe-area-inset-bottom)));
+  }
+  .app-shell:has([data-home]) .app-workspace {
+    height: 100%;
+    overflow-y: auto;
+    overscroll-behavior-y: contain;
+    padding-bottom: var(--space-2);
+  }
+  .app-shell { padding-bottom: calc(104px + env(safe-area-inset-bottom)); }
+  .fab-wrap { bottom: calc(max(var(--space-2), env(safe-area-inset-bottom)) + 6px); }
+  .mobile-more-menu { bottom: calc(max(var(--space-2), env(safe-area-inset-bottom)) + 80px); }
+  .bottom-nav-add-slot { min-width: 0; }
 }
 
 @media (prefers-reduced-motion: reduce) {

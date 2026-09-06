@@ -30,10 +30,11 @@ import { DateInput } from "../components/ui/DateInput";
 import { ExpenseList } from "../components/finance/ExpenseList";
 import { ExpenseSummary } from "../components/finance/ExpenseSummary";
 import { DebtSection } from "../components/finance/DebtSection";
-import { LimitUsageSection } from "../components/finance/LimitUsageSection";
+import { LimitsScreen } from "../features/limits/LimitsScreen";
+import { HomeLimits } from "../features/home/components/Limits/HomeLimits";
 import { IncomeSection } from "../components/finance/IncomeSection";
 import { QuickActions } from "../components/finance/QuickActions";
-import { DEFAULT_CATEGORY_LIMITS } from "../lib/finance/defaultLimits";
+
 import { NavButton } from "../components/navigation/NavButton";
 import { AppSidebar, type NavigationTab } from "../components/navigation/AppSidebar";
 import { MonthSelector } from "../components/navigation/MonthSelector";
@@ -246,6 +247,10 @@ export default function Page() {
     const spent = monthExpenses.filter(expense => expense.cat === category).reduce((sum, expense) => sum + expense.amount, 0);
     return { category, budget, spent, percent: budget ? Math.min(100, spent / budget * 100) : 0 };
   }), [budgets, monthExpenses]);
+  const limitItems = [
+    ...(["Bruna", "Matheus"] as const).map(person => ({ id: person, label: `Gastos de ${person}`, amount: limits[person], spent: monthExpenses.filter(expense => expense.who === person).reduce((sum, expense) => sum + expense.amount, 0) })),
+    ...cats.map(item => ({ id: `category:${item.category}`, label: item.category, amount: item.budget, spent: item.spent })),
+  ];
   const monthIncome = useMemo(() => incomeEntries.filter(e => e.date.startsWith(viewMonth) && e.destination === "conta"), [incomeEntries, viewMonth]);
   const totalSpent = useMemo(() => monthExpenses.reduce((s, e) => s + e.amount, 0), [monthExpenses]);
   const extraIncome = useMemo(() => monthIncome.reduce((s, e) => s + e.amount, 0), [monthIncome]);
@@ -464,7 +469,7 @@ export default function Page() {
     onExpensesClick={() => switchTab("stats")}
     onInstallmentsClick={() => switchTab("future")}
   />}
-  limits={<LimitUsageSection month={viewMonth} limits={DEFAULT_CATEGORY_LIMITS} />}
+  limits={<HomeLimits items={limitItems} onConfigure={() => switchTab("limits")} />}
   upcoming={<>
     <HomeAssistantPreview profile={activeProfile} latestMessage={chat.at(-1)?.text} value={text} onChange={setText} onSend={send} onOpenConversation={() => switchTab("chat")} onOpenReceivables={() => switchTab("debts")} onOpenIncome={() => switchTab("income")} />
     <HomeExpenses monthLabel={monthName} expenses={selectedMonthExpenses} onEdit={openEditExpense} onDelete={deleteExpense} formatMoney={money} formatDate={shortDate} renderIcon={iconFor} />
@@ -496,6 +501,8 @@ export default function Page() {
 
         {tab === "stats" && <ExpensesScreen monthLabel={monthName} expenses={selectedMonthExpenses} formatMoney={money} formatDate={shortDate} renderIcon={iconFor} onCreate={openNewExpense} onEdit={openEditExpense} onDelete={deleteExpense} />}
 
+        {tab === "limits" && <LimitsScreen monthLabel={monthName} items={limitItems} onConfigure={() => {}} onSave={values => { setLimits({ Bruna: values.Bruna, Matheus: values.Matheus }); setBudgets(Object.fromEntries(Object.keys(budgets).map(category => [category, values[`category:${category}`]]))); setToast("Limites atualizados 💚"); }} />}
+
         {tab === "future" && <FutureScreen monthKey={viewMonth} monthLabel={monthName} available={available} installments={selectedInstallments} formatMoney={money} formatDate={shortDate} renderIcon={iconFor} onCreate={openNewInstallment} onPay={payInstallment} onAdvance={chooseAdvanceInstallments} onEdit={openEditInstallment} onDelete={deleteInstallment} />}
 
         {tab === "debts" && <DebtSection monthName={monthName} fallbackMonth={viewMonth} totalPending={debtTotal} openCount={selectedDebts.filter(debt => debt.amount > debt.paid).length} debts={selectedDebts} formatMoney={money} formatMonth={monthLabelShort} onCreate={() => openDebt()} onEdit={openEditDebt} onDelete={deleteDebt} onReceive={openReceiveDebt} />}
@@ -520,6 +527,7 @@ export default function Page() {
 
       {mobileMoreOpen && <div className="mobile-more-menu" aria-label="Mais opções">
         <button type="button" onClick={() => switchTab("stats")}>Gastos</button>
+        <button type="button" onClick={() => switchTab("limits")}>Limites e categorias</button>
         <button type="button" onClick={() => switchTab("debts")}>Quem me deve</button>
         <button type="button" onClick={() => switchTab("income")}>Entradas &amp; extras</button>
       </div>}
@@ -532,7 +540,7 @@ export default function Page() {
         <span className="bottom-nav-add-slot" aria-hidden="true" />
         <NavButton active={tab === "future"} onClick={() => switchTab("future")} icon={
           <CalendarDays size={19} />} label="Futuro" />
-        <NavButton active={tab === "stats" || tab === "debts" || tab === "income"} onClick={() => setMobileMoreOpen(open => !open)} icon={
+        <NavButton active={tab === "stats" || tab === "debts" || tab === "income" || tab === "limits"} onClick={() => setMobileMoreOpen(open => !open)} icon={
           <MoreHorizontal size={19} />} label="Mais" />
       </nav>
 
@@ -591,9 +599,9 @@ export default function Page() {
             <Check size={17} /> Salvar entrada
           </button>
         </form>}
-        {modal === "settings" && <form onSubmit={e => { e.preventDefault(); setModal("none"); setToast("Renda e orçamento atualizados 💚"); }}><label className="field"><span>Renda mensal base</span><input type="number" step="0.01" min="0" value={income} onChange={e => setIncome(Number(e.target.value))} /></label>
-          <div className="form-grid"><label className="field"><span>Limite Bruna</span><input type="number" step="0.01" min="0" value={limits.Bruna} onChange={e => setLimits({ ...limits, Bruna: Number(e.target.value) })} /></label><label className="field"><span>Limite Matheus</span><input type="number" step="0.01" min="0" value={limits.Matheus} onChange={e => setLimits({ ...limits, Matheus: Number(e.target.value) })} /></label></div>
-          <div className="settings-grid">{Object.entries(budgets).map(([category, value]) => <label className="field" key={category}><span>Limite {category}</span><input type="number" step="0.01" min="0" value={value} onChange={e => setBudgets({ ...budgets, [category]: Number(e.target.value) })} /></label>)}</div><button type="submit" className="primary-button">
+        {modal === "settings" && <form onSubmit={e => { e.preventDefault(); setModal("none"); setToast("Renda e orçamento atualizados 💚"); }}><label className="field"><span>Renda mensal base</span><MoneyInput value={income} onValueChange={value => setIncome(Number(value))} /></label>
+          <div className="form-grid"><label className="field"><span>Limite Bruna</span><MoneyInput value={limits.Bruna} onValueChange={value => setLimits({ ...limits, Bruna: Number(value) })} /></label><label className="field"><span>Limite Matheus</span><MoneyInput value={limits.Matheus} onValueChange={value => setLimits({ ...limits, Matheus: Number(value) })} /></label></div>
+          <div className="settings-grid">{Object.entries(budgets).map(([category, value]) => <label className="field" key={category}><span>Limite {category}</span><MoneyInput value={value} onValueChange={nextValue => setBudgets({ ...budgets, [category]: Number(nextValue) })} /></label>)}</div><button type="submit" className="primary-button">
             <Check size={17} /> Salvar orçamento
           </button>
         </form>}

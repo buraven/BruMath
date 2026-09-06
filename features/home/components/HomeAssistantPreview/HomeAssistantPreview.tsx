@@ -1,5 +1,6 @@
 import { ChevronRight, Send } from "lucide-react";
 import { QuickActions } from "../../../../components/finance/QuickActions";
+import styles from "./HomeAssistantPreview.module.css";
 
 type HomeAssistantPreviewProps = {
   profile: string;
@@ -23,7 +24,7 @@ export function HomeAssistantPreview({
   onOpenIncome,
 }: HomeAssistantPreviewProps) {
   return (
-    <section className="section">
+    <section className={`section ${styles.preview}`}>
       <div className="section-title">
         <div>
           <h2>Assistente BruMath</h2>
@@ -36,17 +37,26 @@ export function HomeAssistantPreview({
         </span>
       </div>
       <div className="chat-preview">
-        <div className="bubble assistant-bubble">{latestMessage}</div>
+        <div className="bubble assistant-bubble">
+          <span className={styles.message}>{latestMessage}</span>
+        </div>
         <QuickActions
           actions={[
             { label: "Quanto temos?", onClick: () => onSend("Quanto temos?") },
             { label: "Insights", onClick: () => onSend("Me dê insights") },
-            { label: "Resumo", onClick: () => onSend("Resumo") },
-            { label: "Parcelas", onClick: () => onSend("Parcelas") },
-            { label: "Quem me deve?", onClick: onOpenReceivables },
-            { label: "O que entra", onClick: onOpenIncome },
           ]}
         />
+        <details>
+          <summary>Mais atalhos</summary>
+          <QuickActions
+            actions={[
+              { label: "Resumo", onClick: () => onSend("Resumo") },
+              { label: "Parcelas", onClick: () => onSend("Parcelas") },
+              { label: "Quem me deve?", onClick: onOpenReceivables },
+              { label: "O que entra", onClick: onOpenIncome },
+            ]}
+          />
+        </details>
         <div className="input-row">
           <input
             value={value}
