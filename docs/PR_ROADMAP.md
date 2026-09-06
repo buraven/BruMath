@@ -8,7 +8,7 @@
 - #38 integrado: Futuro e parcelas.
 - #39 integrado: dívidas, recebimentos, entradas e campos formatados.
 - #40 integrado na main (`eede6b7`).
-- #41 em implementação: fase A, UX/Chat. Fase B permanece planejada para depois.
+- #41 em implementação/revisão visual: fase A, UX/Chat e integração Home → Assistente, com sugestões persistentes. Ainda não integrado; fase B permanece planejada para depois.
 
 ## PR #40 — entrega e validação
 

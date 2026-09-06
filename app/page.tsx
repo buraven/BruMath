@@ -458,7 +458,7 @@ export default function Page() {
   />}
   limits={<HomeLimits items={limitItems} onConfigure={() => switchTab("limits")} />}
   upcoming={<>
-    <HomeAssistantPreview profile={activeProfile} latestMessage={chat.at(-1)?.text} value={text} onChange={setText} onSend={send} onOpenConversation={() => switchTab("chat")} onOpenReceivables={() => switchTab("debts")} onOpenIncome={() => switchTab("income")} />
+    <HomeAssistantPreview profile={activeProfile} latestMessage={chat.length === 1 ? `Oi, ${activeProfile} 💚 O que vamos organizar hoje?` : chat.at(-1)?.text} value={text} onChange={setText} onSend={preset => { if (!(preset ?? text).trim()) return; send(preset); chatScrollTop.current = Number.MAX_SAFE_INTEGER; switchTab("chat"); }} onOpenConversation={() => switchTab("chat")} onOpenReceivables={() => switchTab("debts")} onOpenIncome={() => switchTab("income")} />
     <HomeExpenses monthLabel={monthName} expenses={selectedMonthExpenses} onEdit={openEditExpense} onDelete={deleteExpense} formatMoney={money} formatDate={shortDate} renderIcon={iconFor} />
   </>}
 />}

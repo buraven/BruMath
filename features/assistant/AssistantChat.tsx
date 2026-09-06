@@ -40,11 +40,11 @@ export function AssistantChat({
 }: Props) {
   const panel = useRef<HTMLElement>(null);
   const previousCount = useRef(messages.length);
-  const started = messages.some((message) => message.role === "user");
   useLayoutEffect(() => {
     const element = panel.current;
     const nav = document.querySelector<HTMLElement>(".bottom-nav");
     if (!element) return;
+    window.scrollTo(0, 0);
     const measure = () => {
       const viewportBottom = window.visualViewport
         ? window.visualViewport.height + window.visualViewport.offsetTop
@@ -52,22 +52,34 @@ export function AssistantChat({
       const navigationTop =
         nav && getComputedStyle(nav).display !== "none"
           ? nav.getBoundingClientRect().top
-          : viewportBottom - 88;
-      element.style.height = `${Math.max(0, Math.min(viewportBottom, navigationTop) - element.getBoundingClientRect().top - 8)}px`;
+          : (document
+              .querySelector<HTMLElement>(".fab-wrap")
+              ?.getBoundingClientRect().top ?? viewportBottom);
+      const gap =
+        Number.parseFloat(
+          getComputedStyle(element).getPropertyValue("--space-2"),
+        ) || 8;
+      element.style.height = `${Math.max(0, Math.min(viewportBottom, navigationTop) - element.getBoundingClientRect().top - gap)}px`;
     };
     measure();
     const observer = new ResizeObserver(measure);
     if (nav) observer.observe(nav);
     const header = document.querySelector(".topbar");
     if (header) observer.observe(header);
+    const month = document.querySelector(".page")?.firstElementChild;
+    if (month) observer.observe(month);
+    const frame = requestAnimationFrame(measure);
     window.addEventListener("resize", measure);
     window.visualViewport?.addEventListener("resize", measure);
+    window.visualViewport?.addEventListener("scroll", measure);
     const list = messagesRef.current;
     if (list) list.scrollTop = scrollPosition.current;
     return () => {
       observer.disconnect();
+      cancelAnimationFrame(frame);
       window.removeEventListener("resize", measure);
       window.visualViewport?.removeEventListener("resize", measure);
+      window.visualViewport?.removeEventListener("scroll", measure);
     };
   }, [messagesRef, scrollPosition]);
   useLayoutEffect(() => {
@@ -118,15 +130,13 @@ export function AssistantChat({
         ))}
       </div>
       <footer className={styles.footer}>
-        {!started && (
-          <div className={styles.suggestions}>
-            {suggestions.map(([label, command]) => (
-              <button type="button" key={label} onClick={() => onSend(command)}>
-                {label}
-              </button>
-            ))}
-          </div>
-        )}
+        <div className={styles.suggestions} aria-label="Sugestões de perguntas">
+          {suggestions.map(([label, command]) => (
+            <button type="button" key={label} onClick={() => onSend(command)}>
+              {label}
+            </button>
+          ))}
+        </div>
         <form
           className={styles.composer}
           onSubmit={(event) => {
