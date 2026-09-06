@@ -36,7 +36,15 @@
 | #44 | `chore/legacy-architecture-cleanup-pr44` | Remover a arquitetura visual antiga que não for mais usada, sem alterar comportamento.                                                                                     | —                                                             |
 | #45 | `chore/final-qa-pr45`                    | QA de fluxos, correções finais e preparação para produção.                                                                                                                 | Todos                                                         |
 
-## Agora: PR #39
+## Agora: PR #40
+
+PR #39 integrado na main (`d925f0d`). O #40 adiciona a tela de limites e
+categorias, configuração com valores formatados e alertas de consumo. A Home
+passa a usar os mesmos limites salvos e gastos do mês que a tela completa.
+Os limites são globais; os gastos são filtrados pelo mês selecionado.
+Após o #40, seguir para o #41: assistente financeiro.
+
+### Entrega anterior: PR #39
 
 Valores a receber e entradas/extras seguem os cards dos mockups oficiais:
 

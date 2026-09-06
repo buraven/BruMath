@@ -1,0 +1,120 @@
+.screen {
+  min-width: 0;
+  display: grid;
+  gap: var(--space-4);
+  padding: var(--space-5);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+  background: var(--surface-card-gradient);
+}
+.header,
+.title,
+.actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+}
+.header h1,
+.header h2,
+.editor h2 {
+  margin: 0;
+}
+.header h2,
+.editor h2 {
+  font-size: 1.1rem;
+}
+.header p,
+.content p,
+.editor p {
+  color: var(--muted);
+  margin: var(--space-2) 0;
+  font-size: 0.8rem;
+}
+.notice {
+  padding: var(--space-4);
+  margin: 0;
+  background: var(--surface-soft);
+  border-radius: var(--radius-md);
+  color: var(--soft-text);
+  line-height: 1.6;
+}
+.item {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-3);
+  padding-block: var(--space-4);
+  border-bottom: 1px solid var(--line);
+}
+.item > svg {
+  flex-shrink: 0;
+  color: var(--color-accent-strong);
+}
+.content {
+  min-width: 0;
+  flex: 1;
+  overflow-wrap: anywhere;
+}
+.content progress {
+  appearance: none;
+  display: block;
+  width: 100%;
+  height: var(--space-2);
+  margin-block: var(--space-2);
+  border: 0;
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+  background: var(--soft-track);
+}
+.content progress::-webkit-progress-bar {
+  background: var(--soft-track);
+}
+.content progress::-webkit-progress-value {
+  background: currentColor;
+}
+.content progress::-moz-progress-bar {
+  background: currentColor;
+}
+.normal {
+  color: var(--color-accent-strong);
+}
+.warning {
+  color: var(--color-warning);
+}
+.danger {
+  color: var(--danger);
+}
+.editor {
+  padding: var(--space-4);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md);
+}
+.fields {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-3);
+}
+.fields > label {
+  min-width: 0;
+}
+.fields input {
+  width: 100%;
+  min-width: 0;
+}
+.actions {
+  justify-content: flex-start;
+}
+@container workspace (max-width: 600px) {
+  .fields {
+    grid-template-columns: 1fr;
+  }
+  .screen {
+    padding: var(--space-4);
+  }
+}
+@media (max-width: 600px) {
+  .fields {
+    grid-template-columns: 1fr;
+  }
+}
