@@ -83,6 +83,23 @@
   grid-template-columns: minmax(0, 1.5fr) minmax(230px, 0.7fr);
   gap: var(--space-5);
 }
+
+/* The workspace can be narrow even on a desktop when the side navigation is visible. */
+@container workspace (max-width: 860px) {
+  .summary {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .columns {
+    grid-template-columns: 1fr;
+  }
+}
+
+@container workspace (max-width: 560px) {
+  .summary {
+    grid-template-columns: 1fr;
+  }
+}
 .commitments,
 .installments {
   overflow: hidden;
