@@ -1,6 +1,7 @@
 .card {
   display: grid;
-  min-height: var(--size-snapshot-min-height);
+  min-height: 0;
+  container-type: inline-size;
   gap: var(--space-5);
   padding: var(--space-5);
   border: 1px solid var(--line);
@@ -30,9 +31,25 @@
 
 .body {
   display: grid;
-  grid-template-columns: minmax(180px, 0.95fr) minmax(170px, 1.05fr);
+  grid-template-columns: minmax(0, 0.95fr) minmax(0, 1.05fr);
   align-items: center;
   gap: var(--space-5);
+}
+
+@container (max-width: 440px) {
+  .card .body {
+    grid-template-columns: 1fr;
+    gap: var(--space-3);
+  }
+  .card .donut {
+    width: min(100%, 180px);
+  }
+  .card .legend div {
+    grid-template-columns: var(--space-2) minmax(0, 1fr);
+  }
+  .legend strong {
+    grid-column: 2;
+  }
 }
 
 .donut {

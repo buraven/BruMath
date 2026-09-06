@@ -1,0 +1,22 @@
+.preview {
+  min-width: 0;
+}
+.preview :global(.chat-preview) {
+  padding: var(--space-3);
+  gap: var(--space-2);
+}
+.message {
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  padding: var(--space-3);
+}
+.preview summary {
+  cursor: pointer;
+  color: var(--muted);
+  font-size: 0.75rem;
+}
+.preview :global(.section-title) {
+  margin-bottom: var(--space-2);
+}

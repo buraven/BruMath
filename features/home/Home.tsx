@@ -17,7 +17,7 @@ export function Home({
   insights,
 }: HomeProps) {
   return (
-    <main className={styles.home}>
+    <div className={styles.home} data-home>
       <section className={styles.metrics}>{metrics}</section>
       <div className={styles.dashboard}>
         <section className={styles.overview}>{overview}</section>
@@ -27,6 +27,6 @@ export function Home({
       {insights ? (
         <section className={styles.insights}>{insights}</section>
       ) : null}
-    </main>
+    </div>
   );
 }

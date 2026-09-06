@@ -31,6 +31,7 @@ import { ExpenseList } from "../components/finance/ExpenseList";
 import { ExpenseSummary } from "../components/finance/ExpenseSummary";
 import { DebtSection } from "../components/finance/DebtSection";
 import { LimitsScreen } from "../features/limits/LimitsScreen";
+import { HomeLimits } from "../features/home/components/Limits/HomeLimits";
 import { IncomeSection } from "../components/finance/IncomeSection";
 import { QuickActions } from "../components/finance/QuickActions";
 
@@ -468,7 +469,7 @@ export default function Page() {
     onExpensesClick={() => switchTab("stats")}
     onInstallmentsClick={() => switchTab("future")}
   />}
-  limits={<LimitsScreen compact monthLabel={monthName} items={limitItems} onConfigure={() => switchTab("limits")} />}
+  limits={<HomeLimits items={limitItems} onConfigure={() => switchTab("limits")} />}
   upcoming={<>
     <HomeAssistantPreview profile={activeProfile} latestMessage={chat.at(-1)?.text} value={text} onChange={setText} onSend={send} onOpenConversation={() => switchTab("chat")} onOpenReceivables={() => switchTab("debts")} onOpenIncome={() => switchTab("income")} />
     <HomeExpenses monthLabel={monthName} expenses={selectedMonthExpenses} onEdit={openEditExpense} onDelete={deleteExpense} formatMoney={money} formatDate={shortDate} renderIcon={iconFor} />
