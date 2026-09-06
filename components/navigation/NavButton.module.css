@@ -10,8 +10,20 @@
   justify-content: center;
   gap: 3px;
   cursor: pointer;
-  font-size: .61rem;
+  font-size: 0.61rem;
   font-weight: 600;
+}
+
+.sidebar {
+  width: 100%;
+  min-height: 46px;
+  justify-content: flex-start;
+  flex-direction: row;
+  gap: var(--space-3);
+  padding: 0 var(--space-3);
+  border-radius: var(--radius-md);
+  font-size: 0.78rem;
+  text-align: left;
 }
 
 .button span {
@@ -21,14 +33,27 @@
   white-space: nowrap;
 }
 
-.button:hover { background: var(--surface-soft); }
-.button.active { background: var(--nav-active-bg); color: var(--nav-active-text); font-weight: 800; }
+.button:hover {
+  background: var(--surface-soft);
+}
+.button.active {
+  background: var(--nav-active-bg);
+  color: var(--nav-active-text);
+  font-weight: 800;
+}
 
 @media (max-width: 760px) {
-  .button { font-size: .56rem; }
-  .button svg { width: 18px; height: 18px; }
+  .button {
+    font-size: 0.56rem;
+  }
+  .button svg {
+    width: 18px;
+    height: 18px;
+  }
 }
 
 @media (max-width: 380px) {
-  .button { font-size: .5rem; }
+  .button {
+    font-size: 0.5rem;
+  }
 }
