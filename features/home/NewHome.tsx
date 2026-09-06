@@ -30,8 +30,23 @@ export function NewHome({
 }: NewHomeProps) {
   return (
     <Home
-      metrics={<DashboardMetrics budget={income} expenses={expenses} extraIncome={extraIncome} balance={balance} formatMoney={formatMoney} />}
-      overview={<FinancialSnapshot balance={balance} income={income} expenses={expenses} formatMoney={formatMoney} />}
+      metrics={
+        <DashboardMetrics
+          budget={income}
+          expenses={expenses}
+          extraIncome={extraIncome}
+          balance={balance}
+          formatMoney={formatMoney}
+        />
+      }
+      overview={
+        <FinancialSnapshot
+          balance={balance}
+          income={income}
+          expenses={expenses}
+          formatMoney={formatMoney}
+        />
+      }
       insights={insights}
       limits={limits}
       content={upcoming}

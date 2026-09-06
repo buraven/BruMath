@@ -18,7 +18,10 @@ export function LimitUsageSection({ month, limits }: LimitUsageSectionProps) {
   const [usages, setUsages] = useState<LimitUsage[]>([]);
   const [loading, setLoading] = useState(true);
   const repository = useMemo(() => new LocalStorageTransactionRepository(), []);
-  const configuredLimits = useMemo(() => limits.filter((limit) => limit.amount > 0), [limits]);
+  const configuredLimits = useMemo(
+    () => limits.filter((limit) => limit.amount > 0),
+    [limits],
+  );
 
   useEffect(() => {
     let cancelled = false;

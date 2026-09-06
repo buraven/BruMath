@@ -1,9 +1,138 @@
-.card { display: grid; gap: 18px; min-height: 360px; padding: 20px; border: 1px solid var(--line); border-radius: 18px; background: var(--surface); color: var(--text); box-shadow: 0 10px 30px rgba(0, 0, 0, .08); }
-.card header { display: flex; align-items: center; justify-content: space-between; gap: 12px; }.card h2 { margin: 0; font-size: 1.02rem; letter-spacing: -.03em; }.card header span { color: var(--muted); font-size: .72rem; }
-.body { display: grid; grid-template-columns: minmax(180px, .95fr) minmax(170px, 1.05fr); gap: 20px; align-items: center; }
-.donut { display: grid; width: min(100%, 220px); aspect-ratio: 1; place-items: center; margin: 0 auto; border-radius: 50%; background: conic-gradient(var(--accent) var(--spent), var(--surface-soft) 0); transform: rotate(-90deg); }
-.donut > div { display: grid; width: 68%; aspect-ratio: 1; place-items: center; align-content: center; padding: 14px; border: 1px solid var(--line); border-radius: 50%; background: var(--surface); text-align: center; transform: rotate(90deg); }
-.donut small,.donut span { color: var(--muted); font-size: .68rem; }.donut strong { margin: 5px 0; font-size: 1rem; letter-spacing: -.04em; }
-.legend { display: grid; gap: 14px; }.legend div { display: grid; grid-template-columns: 10px minmax(0, 1fr) auto; align-items: center; gap: 8px; color: var(--muted); font-size: .72rem; }.legend i { width: 9px; height: 9px; border-radius: 3px; }.legend strong { color: var(--text); font-size: .75rem; }.spent { background: var(--accent); }.available { background: #30a9e9; }.income { background: #a970ee; }
-.card footer { padding: 12px 14px; border: 1px solid var(--line); border-radius: 11px; color: var(--muted); font-size: .72rem; text-align: center; }
-@media (max-width: 480px) { .card { min-height: 0; padding: 16px; }.body { grid-template-columns: 1fr; gap: 16px; }.donut { width: min(100%, 190px); } }
+.card {
+  display: grid;
+  min-height: var(--size-snapshot-min-height);
+  gap: var(--space-5);
+  padding: var(--space-5);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+  color: var(--text);
+  box-shadow: var(--shadow-card);
+}
+
+.card header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+
+.card h2 {
+  margin: 0;
+  font-size: 1.02rem;
+  letter-spacing: -0.03em;
+}
+
+.card header span {
+  color: var(--muted);
+  font-size: 0.72rem;
+}
+
+.body {
+  display: grid;
+  grid-template-columns: minmax(180px, 0.95fr) minmax(170px, 1.05fr);
+  align-items: center;
+  gap: var(--space-5);
+}
+
+.donut {
+  display: grid;
+  width: min(100%, var(--size-snapshot-donut));
+  aspect-ratio: 1;
+  place-items: center;
+  margin: 0 auto;
+  border-radius: 50%;
+  background: conic-gradient(
+    var(--color-accent) var(--spent),
+    var(--surface-soft) 0
+  );
+  transform: rotate(-90deg);
+}
+
+.donut > div {
+  display: grid;
+  width: 68%;
+  aspect-ratio: 1;
+  place-items: center;
+  align-content: center;
+  padding: var(--space-3);
+  border: 1px solid var(--line);
+  border-radius: 50%;
+  background: var(--surface);
+  text-align: center;
+  transform: rotate(90deg);
+}
+
+.donut small,
+.donut span {
+  color: var(--muted);
+  font-size: 0.68rem;
+}
+
+.donut strong {
+  margin: var(--space-1) 0;
+  font-size: 1rem;
+  letter-spacing: -0.04em;
+}
+
+.legend {
+  display: grid;
+  gap: var(--space-3);
+}
+
+.legend div {
+  display: grid;
+  grid-template-columns: 10px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: var(--space-2);
+  color: var(--muted);
+  font-size: 0.72rem;
+}
+
+.legend i {
+  width: var(--space-2);
+  height: var(--space-2);
+  border-radius: var(--space-1);
+}
+
+.legend strong {
+  color: var(--text);
+  font-size: 0.75rem;
+}
+
+.spent {
+  background: var(--color-accent);
+}
+
+.available {
+  background: var(--color-info);
+}
+
+.income {
+  background: var(--color-secondary);
+}
+
+.card footer {
+  padding: var(--space-3);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  color: var(--muted);
+  font-size: 0.72rem;
+  text-align: center;
+}
+
+@media (max-width: 480px) {
+  .card {
+    min-height: 0;
+    padding: var(--space-4);
+  }
+
+  .body {
+    grid-template-columns: 1fr;
+    gap: var(--space-4);
+  }
+
+  .donut {
+    width: min(100%, 190px);
+  }
+}

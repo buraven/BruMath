@@ -235,7 +235,7 @@ export default function Page() {
     if (tab !== "chat" || !messagesRef.current) return;
     const frame = requestAnimationFrame(() => { if (messagesRef.current) messagesRef.current.scrollTop = messagesRef.current.scrollHeight; });
     return () => cancelAnimationFrame(frame);
-  }, [chat.length]);
+  }, [chat.length, tab]);
 
   const monthExpenses = useMemo(() => expenses.filter(e => e.date.startsWith(viewMonth)), [expenses, viewMonth]);
   const monthIncome = useMemo(() => incomeEntries.filter(e => e.date.startsWith(viewMonth) && e.destination === "conta"), [incomeEntries, viewMonth]);

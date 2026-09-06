@@ -9,7 +9,13 @@ type HomeProps = {
   insights?: ReactNode;
 };
 
-export function Home({ metrics, overview, limits, content, insights }: HomeProps) {
+export function Home({
+  metrics,
+  overview,
+  limits,
+  content,
+  insights,
+}: HomeProps) {
   return (
     <main className={styles.home}>
       <section className={styles.metrics}>{metrics}</section>
@@ -18,7 +24,9 @@ export function Home({ metrics, overview, limits, content, insights }: HomeProps
         {limits ? <section className={styles.limits}>{limits}</section> : null}
       </div>
       {content ? <section className={styles.content}>{content}</section> : null}
-      {insights ? <section className={styles.insights}>{insights}</section> : null}
+      {insights ? (
+        <section className={styles.insights}>{insights}</section>
+      ) : null}
     </main>
   );
 }
