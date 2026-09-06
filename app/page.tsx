@@ -42,6 +42,7 @@ import { NewHome } from "../features/home/NewHome";
 import { HomeAssistantPreview } from "../features/home/components/HomeAssistantPreview/HomeAssistantPreview";
 import { HomeExpenses } from "../features/home/components/HomeExpenses/HomeExpenses";
 import { ExpensesScreen } from "../features/expenses/ExpensesScreen";
+import { AssistantChat } from "../features/assistant/AssistantChat";
 import { FutureScreen } from "../features/future/FutureScreen";
 
 type Person = "Bruna" | "Matheus" | "Casal";
@@ -227,20 +228,6 @@ export default function Page() {
     const timer = window.setTimeout(() => setToast(""), 2300);
     return () => window.clearTimeout(timer);
   }, [toast]);
-
-  useEffect(() => {
-    if (tab !== "chat" || !messagesRef.current) return;
-    const frame = requestAnimationFrame(() => {
-      if (messagesRef.current) messagesRef.current.scrollTop = chatScrollTop.current || messagesRef.current.scrollHeight;
-    });
-    return () => cancelAnimationFrame(frame);
-  }, [tab]);
-
-  useEffect(() => {
-    if (tab !== "chat" || !messagesRef.current) return;
-    const frame = requestAnimationFrame(() => { if (messagesRef.current) messagesRef.current.scrollTop = messagesRef.current.scrollHeight; });
-    return () => cancelAnimationFrame(frame);
-  }, [chat.length, tab]);
 
   const monthExpenses = useMemo(() => expenses.filter(e => e.date.startsWith(viewMonth)), [expenses, viewMonth]);
   const cats = useMemo(() => Object.entries(budgets).map(([category, budget]) => {
@@ -476,28 +463,7 @@ export default function Page() {
   </>}
 />}
 
-        {tab === "chat" && <section className="chat-page">
-          <div className="page-heading">
-            <div><span className="eyebrow">
-              <MessageCircle size={15} /> Assistente
-            </span>
-              <h1>Conversa com o BruMath</h1>
-              <p>Perfil atual: <strong>{activeProfile}</strong>. A conversa fica preservada ao trocar de aba.</p>
-            </div>
-          </div>
-          <div className="full-chat">
-            <div className="messages" ref={messagesRef} onScroll={e => { chatScrollTop.current = e.currentTarget.scrollTop; }}>{chat.map(message => <div className={`message ${message.role}`} key={message.id}>
-              <div className="message-avatar">{message.role === "assistant" ? "💚" : activeProfile.slice(0, 2).toUpperCase()}</div>
-              <div className="message-content">{message.text}</div>
-            </div>)}</div>
-            <div className="chat-composer">
-              <div className="chat-profile-banner">Falando como <strong>{activeProfile}</strong></div>
-              <QuickActions actions={[{ label: "Quanto temos?", onClick: () => send("Quanto temos?") }, { label: "Insights", onClick: () => send("Me dê insights") }, { label: "Resumo", onClick: () => send("Resumo") }, { label: "Parcelas", onClick: () => send("Parcelas") }, { label: "Quem me deve?", onClick: () => switchTab("debts") }]} /><div className="input-row"><input value={text} onChange={e => setText(e.target.value)} onKeyDown={e => { if (e.key === "Enter") send(); }} placeholder="Digite uma mensagem..." /><button type="button" className="send-button" onClick={() => send()}>
-                <Send size={17} /><span>Enviar</span>
-              </button></div>
-            </div>
-          </div>
-        </section>}
+        {tab === "chat" && <AssistantChat profile={activeProfile} monthLabel={monthName} messages={chat} value={text} onChange={setText} onSend={send} messagesRef={messagesRef} scrollPosition={chatScrollTop} />}
 
         {tab === "stats" && <ExpensesScreen monthLabel={monthName} expenses={selectedMonthExpenses} formatMoney={money} formatDate={shortDate} renderIcon={iconFor} onCreate={openNewExpense} onEdit={openEditExpense} onDelete={deleteExpense} />}
 

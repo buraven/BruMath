@@ -24,6 +24,7 @@
   position: static;
   background: var(--surface);
 }
+:global(.app-shell):has([data-assistant-chat]) .bar { position: static; margin-bottom: var(--space-2); }
 
 .current span {
   display: block;

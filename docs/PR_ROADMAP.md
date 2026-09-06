@@ -7,7 +7,8 @@
 - #37 integrado: gastos e responsividade.
 - #38 integrado: Futuro e parcelas.
 - #39 integrado: dívidas, recebimentos, entradas e campos formatados.
-- #40: implementação concluída; pronto para revisão/merge após conferência do preview final, ainda não integrado.
+- #40 integrado na main (`eede6b7`).
+- #41 em implementação: fase A, UX/Chat. Fase B permanece planejada para depois.
 
 ## PR #40 — entrega e validação
 
@@ -32,7 +33,7 @@ commit antes do merge. Emulação Chromium não substitui Safari/safe-area no iP
 
 ### #41 — Assistente financeiro
 
-Branch: `feature/financial-assistant-pr41`. Ainda não iniciado. Duas fases
+Branch: `feature/financial-assistant-pr41`. Em implementação. Duas fases
 conceituais no planejamento:
 
 **A — UX/Chat:** seguir os mockups oficiais; conversa ocupando a área útil,
