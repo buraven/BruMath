@@ -37,8 +37,8 @@ export function HomeAssistantPreview({
         </span>
       </div>
       <div className="chat-preview">
-        <div className={`bubble assistant-bubble ${styles.message}`}>
-          {latestMessage}
+        <div className="bubble assistant-bubble">
+          <span className={styles.message}>{latestMessage}</span>
         </div>
         <QuickActions
           actions={[

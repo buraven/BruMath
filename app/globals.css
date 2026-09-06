@@ -1760,11 +1760,23 @@ button {
 }
 
 /* Home header keeps the same identity with room for profile controls. */
+.app-shell:has([data-home]) aside > div:first-child { display: none; }
 .app-shell:has([data-home]) .topbar { flex-wrap: wrap; gap: var(--space-3); }
 .app-shell:has([data-home]) .topbar-actions { flex-wrap: wrap; max-width: 100%; gap: var(--space-2); }
 .app-shell:has([data-home]) .profile-switch { flex-wrap: wrap; }
 .app-shell:has([data-home]) .profile-label { display: block; }
 @media (max-width: 1439px), (hover: none), (pointer: coarse) {
+  .app-shell:has([data-home]) {
+    height: 100dvh;
+    overflow: hidden;
+    padding-bottom: var(--home-nav-reserve, calc(88px + env(safe-area-inset-bottom)));
+  }
+  .app-shell:has([data-home]) .app-workspace {
+    height: 100%;
+    overflow-y: auto;
+    overscroll-behavior-y: contain;
+    padding-bottom: var(--space-2);
+  }
   .app-shell { padding-bottom: calc(104px + env(safe-area-inset-bottom)); }
   .fab-wrap { bottom: calc(max(var(--space-2), env(safe-area-inset-bottom)) + 6px); }
   .mobile-more-menu { bottom: calc(max(var(--space-2), env(safe-area-inset-bottom)) + 80px); }

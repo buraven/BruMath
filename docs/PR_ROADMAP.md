@@ -1,57 +1,87 @@
-# Roadmap de evolução visual — BruMath
+# Roadmap de evolução do BruMath
 
 ## Estado atual
 
-- PR #35 foi integrado à `main` em 6 de setembro de 2026.
-- PRs #36, #37 e #38 integrados; PR #39 em implementação sobre o merge `2716edd`.
-- A Home usa a estrutura em `features/home` e os mockups oficiais vivem em
-  `assets/mockups`.
-- Tokens, ESLint e Prettier estão configurados. Mudanças novas devem reutilizar
-  tokens em vez de introduzir cores, sombras ou espaçamentos soltos em classes.
-- Cada PR deve preservar regras financeiras, dados em `localStorage`, edição,
-  exclusão, recebimentos parciais, seletor de mês e tema.
+- #35 integrado: Home e mockups oficiais.
+- #36 integrado: navegação.
+- #37 integrado: gastos e responsividade.
+- #38 integrado: Futuro e parcelas.
+- #39 integrado: dívidas, recebimentos, entradas e campos formatados.
+- #40: implementação concluída; pronto para revisão/merge após conferência do preview final, ainda não integrado.
 
-## Como vamos trabalhar
+## PR #40 — entrega e validação
 
-1. Um PR por tela ou experiência visual completa.
-2. Primeiro reproduzir a composição do mockup; depois refinar componentes.
-3. Não alterar regra financeira por causa de uma mudança visual, salvo quando o
-   escopo do PR declarar isso explicitamente.
-4. Antes do merge: lint, formatação, revisão do diff e teste no preview da
-   Vercel em desktop e mobile.
-5. A branch acompanha o PR: `feature/<assunto>-prNN`.
+Branch: `feature/limits-layout-pr40`, baseada no merge do #39 (`d925f0d`).
+
+Tela de limites e categorias, popup de configuração com salvar/cancelar, consumo
+mensal e alertas. Home integrada aos limites salvos, resumo com Bruna, Matheus e
+até três categorias prioritárias. Acabamentos autorizados de Home, navegação,
+identidade, assistente compacto e espaçamento/cores de entradas e recebimentos.
+Configuração de limites global; gastos filtrados pelo mês selecionado.
+Nenhuma migração de dados ou mudança de modelos nesta finalização.
+
+Lint aprovado. Verificação local de tablet portrait/landscape, desktop e mobile,
+além de salvar/cancelar/Escape no popup. O typecheck permanece com dois erros
+**preexistentes**, presentes na base em `lib/finance/limitsService.test.ts`:
+TS2307 (dependência `vitest` ausente) e TS2345 (`owner` inferido como `string`,
+incompatível com `LimitOwner`). Não são regressões do #40 e não foram corrigidos.
+Isso não equivale a typecheck global aprovado. Conferir preview Vercel do último
+commit antes do merge. Emulação Chromium não substitui Safari/safe-area no iPad real.
 
 ## Próximos PRs
 
-| PR  | Branch                                   | Escopo visual e funcional                                                                                                                                                  | Referência principal                                          |
-| --- | ---------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------- |
-| #36 | `feature/navigation-pr36`                | Casca de navegação: barra lateral em tablet/desktop, navegação inferior no mobile, ação `+` central e transição entre as telas existentes. Sem mudar cálculos financeiros. | `01-home-tablet-mobile.png`, `02-dashboard-tablet-mobile.png` |
-| #37 | `feature/expenses-layout-pr37`           | Tela de lançamentos/gastos: lista, agrupamentos, filtros, edição e exclusão no padrão visual novo.                                                                         | `07-faturas.png` (padrão de lista)                            |
-| #38 | `feature/future-layout-pr38`             | Futuro: parcelas, contas e próximos compromissos, com visão de impacto no saldo.                                                                                           | `06-calendario.png`                                           |
-| #39 | `feature/debts-layout-pr39`              | Valores a receber, recebimentos parciais e entradas/extras no padrão novo.                                                                                                 | `01-home-tablet-mobile.png`, `03-home-dark-mobile.png`        |
-| #40 | `feature/limits-layout-pr40`             | Limites e categorias: configuração, consumo por categoria e alertas.                                                                                                       | `01-home-tablet-mobile.png`, `04-home-dark-dashboard.png`     |
-| #41 | `feature/financial-assistant-pr41`       | Assistente financeiro: conversa, sugestões, atalhos e insights no padrão dos mockups.                                                                                      | `02-dashboard-tablet-mobile.png`, `03-home-dark-mobile.png`   |
-| #42 | `feature/preferences-pr42`               | Perfil, tema e preferências, mantendo as escolhas existentes.                                                                                                              | `01-home-tablet-mobile.png`                                   |
-| #43 | `feature/responsive-qa-pr43`             | Ajuste final de responsividade para iPhone, tablet/iPad e desktop.                                                                                                         | Todos os mockups de Home                                      |
-| #44 | `chore/legacy-architecture-cleanup-pr44` | Remover a arquitetura visual antiga que não for mais usada, sem alterar comportamento.                                                                                     | —                                                             |
-| #45 | `chore/final-qa-pr45`                    | QA de fluxos, correções finais e preparação para produção.                                                                                                                 | Todos                                                         |
+### #41 — Assistente financeiro
 
-## Agora: PR #40
+Branch: `feature/financial-assistant-pr41`. Ainda não iniciado. Duas fases
+conceituais no planejamento:
 
-PR #39 integrado na main (`d925f0d`). O #40 adiciona a tela de limites e
-categorias, configuração com valores formatados e alertas de consumo. A Home
-passa a usar os mesmos limites salvos e gastos do mês que a tela completa.
-Os limites são globais; os gastos são filtrados pelo mês selecionado.
-Após o #40, seguir para o #41: assistente financeiro.
+**A — UX/Chat:** seguir os mockups oficiais; conversa ocupando a área útil,
+mensagens do BruMath à esquerda e usuário à direita, composer fixo, auto-scroll,
+sugestões contextuais, preview/insights em formato de mensagem e nenhuma
+sobreposição da navegação. Não implementar nova arquitetura de IA nesta fase visual.
 
-### Entrega anterior: PR #39
+**B — Cérebro/Inteligência:** depois de consolidar o modelo financeiro, evoluir
+linguagem natural, contexto conversacional, consultas aos dados reais, simulações,
+ações com confirmação e insights proativos. Declarar explicitamente o escopo
+funcional dessa evolução antes de implementá-la.
 
-Valores a receber e entradas/extras seguem os cards dos mockups oficiais:
+Regras conceituais futuras:
 
-- resumo de pendências, recebimentos acumulados e total das cobranças listadas;
-- valor total, recebido, saldo em aberto e progresso por cobrança;
-- entradas com data, pessoa, destino, valor e ações de edição/exclusão;
-- tokens compartilhados e composição adaptada à largura disponível;
-- preservar callbacks, recebimentos parciais, filtro mensal e persistência.
+- Home = radar; Assistente = conversa, explicação e ação.
+- Insights importantes podem aparecer na Home e virar mensagens/contexto no Assistente, sem simples duplicação.
+- Perguntas e simulações nunca alteram dados.
+- Toda ação que altera dados exige confirmação antes de salvar.
+- Perfil ativo Bruna/Matheus/Casal fornece contexto padrão, mas linguagem natural pode sobrescrever. Em ambiguidade relevante, perguntar.
+- Separar responsável pelo gasto de quem pagou: gasto do casal pago por uma pessoa não deve consumir limite pessoal indevidamente. É planejamento futuro, não alteração de modelo no #40.
 
-Depois da aprovação do #39, o próximo é o #40: limites e categorias.
+### #42 — Preferências
+
+Branch: `feature/preferences-pr42`. Manter perfil, tema e preferências
+existentes, seguindo mockups e tokens. Não misturar com QA responsivo global.
+
+### #43 — Responsive QA
+
+Branch: `feature/responsive-qa-pr43`. Pente-fino global de iPhone, iPad/tablet e
+desktop em todas as telas: breakpoints, bottom navigation, sidebar, safe-area,
+sticky elements, grids e overflows. Não transformar PRs anteriores em refactors
+responsivos intermináveis.
+
+### #44 — Legacy cleanup
+
+Branch: `chore/legacy-architecture-cleanup-pr44`. Remover somente arquitetura
+visual antiga realmente não utilizada, sem mudar comportamento.
+
+### #45 — Final QA
+
+Branch: `chore/final-qa-pr45`. Validar fluxos completos, regressões, regras
+financeiras, persistência, responsividade final e preparação para produção.
+
+## Regras de trabalho
+
+- Mockups em `assets/mockups` são a principal referência visual.
+- Um PR por tela/experiência completa.
+- Mudanças funcionais novas devem ser declaradas explicitamente no escopo do PR.
+- Reutilizar tokens existentes e preservar regras financeiras e dados.
+- Antes do merge: revisar diff, lint/formatação/typecheck/build conforme aplicável e preview Vercel do último commit.
+- Separar problemas preexistentes de bloqueadores introduzidos pelo PR.
+- Não iniciar o próximo PR nem fazer merge sem a decisão da usuária.

@@ -20,6 +20,11 @@
   min-width: 0;
 }
 
+:global(.app-shell):has([data-home]) .bar {
+  position: static;
+  background: var(--surface);
+}
+
 .current span {
   display: block;
   color: var(--muted);
