@@ -86,6 +86,8 @@ button {
 
 .app-workspace {
   min-width: 0;
+  container-name: workspace;
+  container-type: inline-size;
 }
 
 .topbar {
@@ -1239,20 +1241,21 @@ button {
 .fab-wrap {
   position: fixed;
   left: 50%;
-  bottom: max(var(--space-8), env(safe-area-inset-bottom));
+  bottom: max(calc(var(--space-3) + var(--space-4)), env(safe-area-inset-bottom));
   z-index: 40;
   display: flex;
   flex-direction: column;
-  align-items: flex-end;
-  gap: 10px;
+  align-items: center;
+  gap: var(--space-3);
   transform: translateX(-50%);
 }
 
 .floating-add {
-  width: 56px;
-  height: 56px;
+  width: var(--size-floating-action);
+  height: var(--size-floating-action);
   border: 0;
-  border-radius: 18px;
+  border: 4px solid var(--bg);
+  border-radius: 50%;
   background: var(--accent);
   color: #273017;
   box-shadow: 0 12px 28px rgba(45, 63, 19, .2);
@@ -1306,14 +1309,14 @@ button {
   position: fixed;
   z-index: 35;
   left: 50%;
-  bottom: max(8px, env(safe-area-inset-bottom));
+  bottom: max(var(--space-2), env(safe-area-inset-bottom));
   transform: translateX(-50%);
-  width: min(920px, calc(100% - 24px));
-  min-height: 70px;
-  padding: 7px;
+  width: min(680px, calc(100% - var(--space-4)));
+  min-height: 72px;
+  padding: var(--space-2) var(--space-3);
   display: grid;
-  grid-template-columns: repeat(6, minmax(0, 1fr));
-  gap: 4px;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: var(--space-1);
   border: 1px solid var(--nav-border);
   border-radius: 21px;
   background: var(--nav-bg);
@@ -1348,6 +1351,43 @@ button {
   background: var(--nav-active-bg);
   color: var(--nav-active-text);
   font-weight: 800;
+}
+
+.bottom-nav-add-slot {
+  min-width: var(--size-floating-action);
+}
+
+.mobile-more-menu {
+  position: fixed;
+  z-index: 34;
+  left: 50%;
+  bottom: calc(var(--size-floating-action) + var(--space-6) + env(safe-area-inset-bottom));
+  width: min(320px, calc(100% - var(--space-6)));
+  padding: var(--space-2);
+  display: grid;
+  gap: var(--space-1);
+  border: 1px solid var(--nav-border);
+  border-radius: var(--radius-lg);
+  background: var(--nav-bg);
+  box-shadow: var(--shadow);
+  transform: translateX(-50%);
+}
+
+.mobile-more-menu button {
+  min-height: 42px;
+  border: 0;
+  border-radius: var(--radius-md);
+  background: transparent;
+  color: var(--text);
+  cursor: pointer;
+  font-size: .78rem;
+  font-weight: 700;
+  text-align: left;
+  padding: 0 var(--space-3);
+}
+
+.mobile-more-menu button:hover {
+  background: var(--nav-active-bg);
 }
 
 @media (min-width: 900px) {
@@ -1390,10 +1430,15 @@ button {
     bottom: var(--space-6);
     left: auto;
     transform: none;
+    align-items: flex-end;
   }
 
   .fab-wrap .quick-add-menu {
     margin-bottom: 0;
+  }
+
+  .mobile-more-menu {
+    display: none;
   }
 }
 
@@ -1520,8 +1565,8 @@ button {
   }
 
   .bottom-nav {
-    width: calc(100% - 12px);
-    min-height: 66px;
+    width: calc(100% - var(--space-4));
+    min-height: 72px;
     border-radius: 18px;
   }
 
@@ -1535,13 +1580,12 @@ button {
   }
 
   .fab-wrap {
-    bottom: max(var(--space-8), env(safe-area-inset-bottom));
+    bottom: max(calc(var(--space-3) + var(--space-4)), env(safe-area-inset-bottom));
   }
 
   .floating-add {
-    width: 53px;
-    height: 53px;
-    border-radius: 17px;
+    width: var(--size-floating-action);
+    height: var(--size-floating-action);
   }
 
   .category-grid,

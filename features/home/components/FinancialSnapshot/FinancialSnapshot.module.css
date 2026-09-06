@@ -136,3 +136,14 @@
     width: min(100%, 190px);
   }
 }
+
+@container workspace (max-width: 620px) {
+  .card {
+    min-height: 0;
+  }
+
+  .body {
+    grid-template-columns: 1fr;
+    gap: var(--space-4);
+  }
+}

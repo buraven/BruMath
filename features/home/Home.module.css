@@ -46,3 +46,11 @@
     grid-template-columns: 1fr;
   }
 }
+
+@container workspace (max-width: 860px) {
+  .dashboard,
+  .content {
+    grid-template-columns: 1fr;
+    gap: var(--space-4);
+  }
+}

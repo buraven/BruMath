@@ -49,6 +49,7 @@
   --size-snapshot-min-height: 360px;
   --size-snapshot-donut: 220px;
   --size-navigation-sidebar: 238px;
+  --size-floating-action: 60px;
 }
 
 [data-theme="dark"] {

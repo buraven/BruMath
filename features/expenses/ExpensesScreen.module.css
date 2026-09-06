@@ -1,0 +1,257 @@
+.screen {
+  display: grid;
+  gap: var(--space-5);
+  padding: var(--space-5) 0;
+}
+
+.header,
+.summary,
+.toolbar,
+.group > header,
+.row,
+.actions {
+  display: flex;
+  align-items: center;
+}
+
+.header {
+  justify-content: space-between;
+  gap: var(--space-5);
+}
+
+.eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  color: var(--soft-text);
+  font-size: 0.73rem;
+  font-weight: 700;
+}
+
+.header h1 {
+  margin: var(--space-1) 0 0;
+  font-size: clamp(1.55rem, 3vw, 2.25rem);
+  letter-spacing: -0.04em;
+  text-transform: capitalize;
+}
+
+.header p {
+  max-width: 660px;
+  margin: var(--space-2) 0 0;
+  color: var(--muted);
+  font-size: 0.84rem;
+  line-height: 1.55;
+}
+
+.summary {
+  justify-content: space-between;
+  gap: var(--space-4);
+  padding: var(--space-5);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+  background: var(--surface-card-gradient);
+  box-shadow: var(--shadow-card);
+}
+
+.summary span,
+.summary small {
+  display: block;
+  color: var(--muted);
+  font-size: 0.74rem;
+}
+
+.summary strong {
+  display: block;
+  margin: var(--space-1) 0;
+  font-size: clamp(1.4rem, 3vw, 1.9rem);
+  letter-spacing: -0.05em;
+}
+
+.summary .month {
+  padding: var(--space-2) var(--space-3);
+  border-radius: 999px;
+  background: var(--color-accent-soft);
+  color: var(--text);
+  font-weight: 700;
+  text-transform: capitalize;
+}
+
+.toolbar {
+  flex-wrap: wrap;
+  gap: var(--space-3);
+}
+
+.search {
+  display: flex;
+  min-width: min(100%, 280px);
+  flex: 1 1 280px;
+  align-items: center;
+  gap: var(--space-2);
+  padding: 0 var(--space-3);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md);
+  background: var(--input-bg);
+  color: var(--icon-text);
+}
+
+.search input {
+  width: 100%;
+  height: 44px;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  color: var(--text);
+}
+
+.filters {
+  display: flex;
+  max-width: 100%;
+  gap: var(--space-2);
+  overflow-x: auto;
+  padding-bottom: var(--space-1);
+}
+
+.filters button {
+  flex: 0 0 auto;
+  min-height: 38px;
+  padding: 0 var(--space-3);
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--surface);
+  color: var(--muted);
+  cursor: pointer;
+  font-size: 0.72rem;
+  font-weight: 700;
+}
+
+.filters button:hover,
+.filters .activeFilter {
+  border-color: var(--accent-strong);
+  background: var(--color-accent-soft);
+  color: var(--text);
+}
+
+.list {
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+  box-shadow: var(--shadow-card);
+}
+
+.group + .group {
+  border-top: 1px solid var(--line);
+}
+
+.group > header {
+  gap: var(--space-2);
+  padding: var(--space-3) var(--space-4);
+  background: var(--surface-soft);
+}
+
+.categoryIcon,
+.rowIcon {
+  display: grid;
+  flex: 0 0 auto;
+  place-items: center;
+  color: var(--icon-text);
+}
+
+.categoryIcon {
+  width: var(--space-6);
+  height: var(--space-6);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface-subtle);
+}
+
+.group > header strong {
+  font-size: 0.8rem;
+}
+
+.group > header small {
+  margin-left: auto;
+  color: var(--muted);
+  font-size: 0.72rem;
+  font-weight: 700;
+}
+
+.row {
+  min-height: 68px;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-4);
+  border-top: 1px solid var(--line);
+}
+
+.rowIcon {
+  width: 40px;
+  height: 40px;
+  border-radius: var(--radius-md);
+  background: var(--surface-soft);
+}
+
+.description {
+  min-width: 0;
+  flex: 1;
+}
+
+.description strong,
+.description span {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.description strong {
+  font-size: 0.82rem;
+}
+
+.description span {
+  margin-top: var(--space-1);
+  color: var(--muted);
+  font-size: 0.7rem;
+}
+
+.amount {
+  white-space: nowrap;
+  font-size: 0.8rem;
+}
+
+.actions {
+  gap: var(--space-1);
+}
+
+@media (max-width: 640px) {
+  .screen {
+    gap: var(--space-4);
+    padding-top: var(--space-4);
+  }
+
+  .header {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .header .primary-button {
+    width: 100%;
+  }
+
+  .summary {
+    padding: var(--space-4);
+  }
+
+  .toolbar {
+    display: grid;
+  }
+
+  .row {
+    display: grid;
+    grid-template-columns: 40px minmax(0, 1fr) auto;
+    gap: var(--space-2);
+  }
+
+  .actions {
+    grid-column: 2 / 4;
+    justify-content: flex-end;
+  }
+}
