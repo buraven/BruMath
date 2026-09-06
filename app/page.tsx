@@ -30,7 +30,6 @@ import { ExpenseSummary } from "../components/finance/ExpenseSummary";
 import { DebtSection } from "../components/finance/DebtSection";
 import { LimitUsageSection } from "../components/finance/LimitUsageSection";
 import { IncomeSection } from "../components/finance/IncomeSection";
-import { InstallmentSection } from "../components/finance/InstallmentSection";
 import { QuickActions } from "../components/finance/QuickActions";
 import { DEFAULT_CATEGORY_LIMITS } from "../lib/finance/defaultLimits";
 import { NavButton } from "../components/navigation/NavButton";
@@ -40,6 +39,7 @@ import { NewHome } from "../features/home/NewHome";
 import { HomeAssistantPreview } from "../features/home/components/HomeAssistantPreview/HomeAssistantPreview";
 import { HomeExpenses } from "../features/home/components/HomeExpenses/HomeExpenses";
 import { ExpensesScreen } from "../features/expenses/ExpensesScreen";
+import { FutureScreen } from "../features/future/FutureScreen";
 
 type Person = "Bruna" | "Matheus" | "Casal";
 type Tab = NavigationTab;
@@ -494,8 +494,7 @@ export default function Page() {
 
         {tab === "stats" && <ExpensesScreen monthLabel={monthName} expenses={selectedMonthExpenses} formatMoney={money} formatDate={shortDate} renderIcon={iconFor} onCreate={openNewExpense} onEdit={openEditExpense} onDelete={deleteExpense} />}
 
-        {tab === "future" &&
-          <InstallmentSection monthName={monthLabelShort(viewMonth)} activeCount={activeInstallments.length} futureMonthly={futureMonthly} remainingInstallments={remaining} installments={selectedInstallments} formatMoney={money} formatDate={shortDate} renderIcon={iconFor} onCreate={openNewInstallment} onPay={payInstallment} onAdvance={chooseAdvanceInstallments} onEdit={openEditInstallment} onDelete={deleteInstallment} />}
+        {tab === "future" && <FutureScreen monthKey={viewMonth} monthLabel={monthName} available={available} installments={selectedInstallments} formatMoney={money} formatDate={shortDate} renderIcon={iconFor} onCreate={openNewInstallment} onPay={payInstallment} onAdvance={chooseAdvanceInstallments} onEdit={openEditInstallment} onDelete={deleteInstallment} />}
 
         {tab === "debts" && <DebtSection monthName={monthName} fallbackMonth={viewMonth} totalPending={debtTotal} openCount={selectedDebts.filter(debt => debt.amount > debt.paid).length} debts={selectedDebts} formatMoney={money} formatMonth={monthLabelShort} onCreate={() => openDebt()} onEdit={openEditDebt} onDelete={deleteDebt} onReceive={openReceiveDebt} />}
 
