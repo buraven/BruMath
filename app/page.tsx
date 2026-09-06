@@ -34,13 +34,14 @@ import { InstallmentSection } from "../components/finance/InstallmentSection";
 import { QuickActions } from "../components/finance/QuickActions";
 import { DEFAULT_CATEGORY_LIMITS } from "../lib/finance/defaultLimits";
 import { NavButton } from "../components/navigation/NavButton";
+import { AppSidebar, type NavigationTab } from "../components/navigation/AppSidebar";
 import { MonthSelector } from "../components/navigation/MonthSelector";
 import { NewHome } from "../features/home/NewHome";
 import { HomeAssistantPreview } from "../features/home/components/HomeAssistantPreview/HomeAssistantPreview";
 import { HomeExpenses } from "../features/home/components/HomeExpenses/HomeExpenses";
 
 type Person = "Bruna" | "Matheus" | "Casal";
-type Tab = "home" | "chat" | "stats" | "future" | "debts" | "income";
+type Tab = NavigationTab;
 type ThemeMode = "light" | "dark" | "system";
 type DebtDestination = "cartao" | "bruna" | "matheus" | "casal";
 
@@ -398,6 +399,8 @@ export default function Page() {
   return (
     <div className="app-shell">
       {toast && <div className="toast">{toast}</div>}
+      <AppSidebar activeTab={tab} onNavigate={switchTab} />
+      <div className="app-workspace">
       <header className="topbar">
         <div className="brand-area">
           <div className="brand">Bru<span>Math</span> 💚</div>
@@ -517,6 +520,7 @@ export default function Page() {
         {tab === "income" &&
           <IncomeSection monthName={monthName} income={income} extraIncome={extraIncome} totalAvailable={monthIncomeTotal} entries={selectedIncome} formatMoney={money} onCreate={openNewIncome} onEdit={openEditIncome} onDelete={deleteIncome} />}
       </main>
+      </div>
 
       <div className="fab-wrap">{quickAddOpen && <div className="quick-add-menu"><button type="button" onClick={openNewExpense}>
         <Receipt size={17} /> Gasto

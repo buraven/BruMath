@@ -84,6 +84,10 @@ button {
   padding-bottom: 116px;
 }
 
+.app-workspace {
+  min-width: 0;
+}
+
 .topbar {
   width: min(var(--max), calc(100% - 32px));
   margin: 0 auto;
@@ -1234,13 +1238,14 @@ button {
 
 .fab-wrap {
   position: fixed;
-  right: max(24px, calc((100vw - var(--max))/2 + 24px));
-  bottom: 102px;
+  left: 50%;
+  bottom: max(var(--space-8), env(safe-area-inset-bottom));
   z-index: 40;
   display: flex;
   flex-direction: column;
   align-items: flex-end;
   gap: 10px;
+  transform: translateX(-50%);
 }
 
 .floating-add {
@@ -1270,6 +1275,10 @@ button {
   border-radius: 17px;
   background: var(--surface);
   box-shadow: 0 18px 42px rgba(0, 0, 0, .16);
+}
+
+.fab-wrap .quick-add-menu {
+  margin-bottom: var(--space-3);
 }
 
 .quick-add-menu button {
@@ -1347,6 +1356,44 @@ button {
     grid-template-columns: minmax(0, 1fr) minmax(280px, .8fr);
     align-items: center;
     gap: 38px;
+  }
+}
+
+@media (min-width: 1024px) {
+  .app-shell {
+    padding: var(--space-6) var(--space-6) var(--space-6) calc(var(--size-navigation-sidebar) + var(--space-8) + var(--space-6));
+  }
+
+  .topbar {
+    width: min(var(--max), 100%);
+    padding-top: 0;
+  }
+
+  .topbar .brand-area {
+    display: none;
+  }
+
+  .topbar-actions {
+    margin-left: auto;
+  }
+
+  .page {
+    width: min(var(--max), 100%);
+  }
+
+  .bottom-nav {
+    display: none;
+  }
+
+  .fab-wrap {
+    right: max(var(--space-6), calc((100vw - var(--max)) / 2 + var(--space-6)));
+    bottom: var(--space-6);
+    left: auto;
+    transform: none;
+  }
+
+  .fab-wrap .quick-add-menu {
+    margin-bottom: 0;
   }
 }
 
@@ -1488,8 +1535,7 @@ button {
   }
 
   .fab-wrap {
-    right: 15px;
-    bottom: 89px;
+    bottom: max(var(--space-8), env(safe-area-inset-bottom));
   }
 
   .floating-add {

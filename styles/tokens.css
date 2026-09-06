@@ -48,6 +48,7 @@
   --size-metric-card-min-height: 132px;
   --size-snapshot-min-height: 360px;
   --size-snapshot-donut: 220px;
+  --size-navigation-sidebar: 238px;
 }
 
 [data-theme="dark"] {
