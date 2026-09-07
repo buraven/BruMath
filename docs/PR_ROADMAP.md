@@ -12,7 +12,7 @@
 - #42 integrado: Preferências.
 - #43 integrado: QA responsivo global.
 - #44 integrado: estabilização visual e limpeza conservadora da arquitetura legada.
-- #45 em finalização: QA de regressão, fluxos, persistência, responsividade e readiness de produção concluído; pronto para revisão/merge.
+- #45 integrado: QA final de regressão, fluxos, persistência, responsividade e readiness de produção.
 
 ## PR #40 — entrega e validação
 
@@ -88,7 +88,141 @@ permanecem preservados.
 
 Branch: `chore/final-qa-pr45`. QA de fluxos completos, regressões, regras
 financeiras, persistência, responsividade final e preparação para produção.
-Pronto para revisão/merge; a sequência visual e estrutural #35–#45 está concluída.
+Integrado; a sequência visual e estrutural #35–#45 está concluída.
+
+## FASE 2 — Inteligência Financeira
+
+### Objetivo
+
+Evoluir o Assistente BruMath para uma conversa financeira confiável. O LLM interpreta
+linguagem e redige respostas; o BruMath continua sendo a fonte de verdade para
+consultas, cálculos, validações e mutações. Valores financeiros não devem ser
+inventados nem calculados livremente pelo modelo quando houver uma fonte
+determinística disponível.
+
+### Princípios e boundaries
+
+- **UI / Chat:** renderiza mensagens, sugestões, estados de confirmação e resultados;
+  não consulta `localStorage` nem calcula finanças.
+- **Assistant Engine:** recebe uma mensagem e um contexto de sessão mínimo, escolhe o
+  caminho determinístico ou o provider futuro e devolve uma resposta estruturada.
+- **Financial Context:** monta somente o recorte de dados necessário para a pergunta,
+  usando serviços financeiros. Não serializar toda a base para o modelo.
+- **Intent / interpretação:** transforma texto em intenção, entidades e ambiguidades;
+  o LLM futuro é plugável aqui, sem acesso direto a dados ou mutações.
+- **Tools:** consultas determinísticas, tipadas e com retorno estruturado. O modelo
+  pode solicitar uma tool, mas não reconstrói totais por texto.
+- **Actions:** propostas estruturadas de mutação. Não executam nada até passar pela
+  camada de confirmação explícita da UI.
+- **Financial Services e Persistence:** permanecem donos das regras, validações e
+  compatibilidade de `brumath-data`. O Engine acessa contratos/repositórios, não o
+  `localStorage` ou estado React diretamente.
+- **Guardrails:** cada trecho de resposta deve poder ser classificado como `fact`
+  (dado), `calculation` (serviço determinístico), `simulation` (sem persistência) ou
+  `inference` (interpretação/recomendação). `inference` nunca é apresentada como fato.
+- **LLM Provider:** adapter futuro opcional, proibido de receber APIs de persistência ou
+  callbacks de mutação.
+
+### Contexto, perfil e conversa
+
+O contexto padrão contém perfil ativo, mês selecionado e referência curta de conversa.
+Perfil explícito no texto pode sobrescrever o padrão — por exemplo, uma pergunta sobre
+Matheus com perfil Bruna consulta Matheus. Quando pessoa, mês, categoria ou ação forem
+materialmente ambíguos, o Engine pede esclarecimento.
+
+O contexto financeiro será consultado sob demanda: renda base, entradas extras, gastos,
+gastos por categoria/pessoa, limites pessoais/categoria, saldo, parcelas e compromissos,
+valores a receber e recebimentos. Histórico conversacional deve ser limitado e resumido;
+não enviar mensagens ilimitadas ao provider.
+
+Responsável pelo gasto e pagador são conceitos futuros distintos. O modelo atual tem
+somente `who`/proprietário; a evolução deverá introduzir esse segundo atributo via
+migração compatível, sem reinterpretar os dados já salvos.
+
+### Tools, actions e confirmação
+
+Tools futuras devem usar nomes e contratos coerentes com os serviços reais, tais como
+`getFinancialSummary`, `getExpenses`, `getExpensesByCategory`, `getLimits`,
+`getRemainingLimit`, `getInstallments`, `getUpcomingInstallments`, `getReceivables`,
+`getIncome` e `simulateInstallmentAdvance`. Cada uma retorna dados estruturados,
+proveniência e escopo de perfil/mês.
+
+Perguntas e simulações não persistem nada. Uma ação futura seguirá sempre:
+
+`mensagem → interpretação → proposta tipada → preview → confirmação explícita → execução determinística → resultado`.
+
+Exemplos: criar/editar/excluir gasto ou entrada, registrar recebimento, pagar ou
+adiantar parcela. O provider nunca chama uma ação financeira diretamente.
+
+### Token, custo e RAG
+
+Adotar `deterministic-first`: respostas simples podem ser produzidas sem LLM; perguntas
+complexas usam tool calling, contexto sob demanda e structured outputs. O desenho prevê
+resumo de conversa, limite de histórico, cache apenas de consultas seguras e futura
+seleção de modelo por complexidade. Não antecipar otimizações antes de medir.
+
+RAG não é fonte de dados financeiros estruturados. Pode servir futuramente para
+documentação, políticas, educação financeira ou conteúdo não estruturado, nunca para
+saldo, gasto, limite, parcela, vencimento, dívida ou entrada.
+
+### Roadmap da Fase 2
+
+| PR  | Branch                                     | Entrega                                                            |
+| --- | ------------------------------------------ | ------------------------------------------------------------------ |
+| #46 | `feature/assistant-engine-foundation-pr46` | Contratos e boundaries do Assistant Engine, sem LLM.               |
+| #47 | `feature/financial-context-engine-pr47`    | Contexto financeiro estruturado e consultas confiáveis.            |
+| #48 | `feature/assistant-tools-actions-pr48`     | Tools determinísticas, propostas de action e fluxo de confirmação. |
+| #49 | `feature/conversational-ai-pr49`           | Provider LLM, intent e structured outputs.                         |
+| #50 | `feature/financial-guardrails-pr50`        | Provenance, validação e anti-alucinação financeira.                |
+| #51 | `feature/conversation-context-pr51`        | Follow-ups, referências conversacionais e memória curta.           |
+| #52 | `chore/token-cost-optimization-pr52`       | Seleção de contexto, cache, resumos e roteamento de modelo.        |
+| #53 | `feature/proactive-insights-pr53`          | Motor de insights compartilhado entre Home e Assistente.           |
+
+### PR #46 — Assistant Engine Foundation
+
+**Objetivo:** criar uma fundação testável sem mudar a UI atual, adicionar provider de IA
+ou executar ações financeiras por conversa.
+
+**Módulos planejados:**
+
+- `features/assistant/engine/contracts`: tipos para `AssistantRequest`,
+  `AssistantResponse`, mensagem normalizada, intenção, `ToolRequest`, `ToolResult`,
+  `ActionProposal`, `Clarification` e proveniência.
+- `features/assistant/engine/AssistantEngine`: orquestrador puro que recebe request e
+  dependências por interface; inicialmente pode encaminhar apenas o comportamento
+  determinístico já existente, sem alterar a resposta visual.
+- `features/assistant/engine/FinancialContextProvider`: contrato de leitura por escopo
+  de perfil/mês; implementação real fica para #47.
+- `features/assistant/engine/ToolRegistry`: contrato para tools tipadas, sem acesso a
+  UI, `localStorage` ou callbacks React.
+- `features/assistant/engine/ActionGateway`: contrato para criar propostas, nunca para
+  executar sem confirmação. A execução real fica para #48.
+- `features/assistant/engine/ProviderAdapter`: porta opcional para LLM, ainda sem SDK,
+  chave, rede ou implementação concreta.
+
+**Dependências permitidas:** tipos financeiros estáveis, serviços financeiros puros e
+interfaces de repositório. **Proibidas:** imports de `app/page.tsx`, componentes React,
+CSS, `window`, `localStorage`, provider concreto, API key e callbacks de `setState`.
+
+**Integração com a UI:** a tela converte estado atual em `AssistantRequest` e chama uma
+fachada; recebe `AssistantResponse` estruturada para renderizar texto, tool provenance,
+pedido de esclarecimento ou proposta de confirmação. A UI continua dona do modal e da
+confirmação visual.
+
+**Testes isolados:** unit tests de contratos, resolução de intenção determinística,
+rejeição de mutações sem confirmação e mocks de `FinancialContextProvider`,
+`ToolRegistry`, `ActionGateway` e `ProviderAdapter`. Nenhum teste dependerá de React ou
+`localStorage`.
+
+### Critérios gerais de conclusão da Fase 2
+
+- Toda resposta financeira traz origem compatível com dado, cálculo, simulação ou
+  inferência.
+- Nenhuma mutação ocorre sem preview e confirmação explícita.
+- Tools produzem resultados determinísticos e tipados.
+- Contexto enviado ao provider é mínimo e auditável.
+- Dados existentes permanecem compatíveis.
+- Perguntas ambíguas são esclarecidas, não adivinhadas.
 
 ## Regras de trabalho
 
