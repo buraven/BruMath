@@ -204,10 +204,14 @@ ou executar ações financeiras por conversa.
 interfaces de repositório. **Proibidas:** imports de `app/page.tsx`, componentes React,
 CSS, `window`, `localStorage`, provider concreto, API key e callbacks de `setState`.
 
-**Integração com a UI:** a tela converte estado atual em `AssistantRequest` e chama uma
-fachada; recebe `AssistantResponse` estruturada para renderizar texto, tool provenance,
-pedido de esclarecimento ou proposta de confirmação. A UI continua dona do modal e da
-confirmação visual.
+**Integração futura com a UI:** a tela converterá estado atual em `AssistantRequest` e
+chamará uma fachada; receberá `AssistantResponse` estruturada para renderizar texto, tool
+provenance, pedido de esclarecimento ou proposta de confirmação. A UI continua dona do
+modal e da confirmação visual.
+
+**Estado atual:** o Assistente visível no app ainda usa o fluxo legado de `app/page.tsx`.
+A nova Assistant Engine e o Financial Context permanecem desacoplados da UI até as etapas
+de integração previstas; não existem dois fluxos concorrentes de resposta.
 
 **Testes isolados:** unit tests de contratos, resolução de intenção determinística,
 rejeição de mutações sem confirmação e mocks de `FinancialContextProvider`,

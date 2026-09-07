@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import type { FinancialDataSnapshot } from "./FinancialDataSource";
+import { LocalStorageFinancialDataSource } from "./LocalStorageFinancialDataSource";
 import { createFinancialContextProvider } from "./createFinancialContextProvider";
 
 const snapshot: FinancialDataSnapshot = {
@@ -237,4 +238,69 @@ test("returns a zero-activity month with deterministic totals", async () => {
   assert.deepEqual(context.value.expenses, []);
   assert.deepEqual(context.value.income, []);
   assert.equal(context.value.installments.length, 2);
+});
+
+test("does not mix selected months or invent a missing category", async () => {
+  const august = await provider.getContext({
+    profile: "Bruna",
+    month: "2026-08",
+  });
+  const missingCategory = await provider.getContext({
+    profile: "Bruna",
+    month: "2026-09",
+    category: "Inexistente",
+  });
+
+  assert.equal(august.value.summary.expenses, 999);
+  assert.equal(august.value.summary.extraIncome, 500);
+  assert.deepEqual(missingCategory.value.expenses, []);
+  assert.deepEqual(missingCategory.value.limits, []);
+});
+
+test("uses the data source as read-only input", async () => {
+  const sourceSnapshot = structuredClone(snapshot);
+  let reads = 0;
+  const readOnlyProvider = createFinancialContextProvider({
+    async read() {
+      reads += 1;
+      return snapshot;
+    },
+  });
+
+  await Promise.all([
+    readOnlyProvider.getContext({ profile: "Casal", month: "2026-09" }),
+    readOnlyProvider.getLimits({ profile: "Bruna", month: "2026-09" }),
+    readOnlyProvider.getExpenses({ profile: "Matheus", month: "2026-09" }),
+  ]);
+
+  assert.equal(reads, 3);
+  assert.deepEqual(snapshot, sourceSnapshot);
+});
+
+test("reads the persisted snapshot without writing to localStorage", async () => {
+  const originalWindow = Object.getOwnPropertyDescriptor(globalThis, "window");
+  let writes = 0;
+  Object.defineProperty(globalThis, "window", {
+    configurable: true,
+    value: {
+      localStorage: {
+        getItem: () => JSON.stringify(snapshot),
+        setItem: () => {
+          writes += 1;
+        },
+      },
+    },
+  });
+
+  try {
+    const stored = await new LocalStorageFinancialDataSource().read();
+    assert.equal(stored.expenses.length, snapshot.expenses.length);
+    assert.equal(writes, 0);
+  } finally {
+    if (originalWindow) {
+      Object.defineProperty(globalThis, "window", originalWindow);
+    } else {
+      Reflect.deleteProperty(globalThis, "window");
+    }
+  }
 });
