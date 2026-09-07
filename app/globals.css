@@ -1703,9 +1703,22 @@ button {
 }
 
 @media (max-width: 520px) {
+  .topbar {
+    flex-wrap: wrap;
+  }
+
+  .brand-area,
+  .topbar-actions {
+    width: 100%;
+  }
+
   .topbar-actions {
     max-width: none;
-    flex: 1;
+    justify-content: space-between;
+  }
+
+  .app-shell:has([data-home]) .topbar .profile-label {
+    display: none;
   }
 
   .profile-switch {

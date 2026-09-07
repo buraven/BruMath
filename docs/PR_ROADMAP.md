@@ -9,7 +9,8 @@
 - #39 integrado: dívidas, recebimentos, entradas e campos formatados.
 - #40 integrado na main (`eede6b7`).
 - #41 integrado: fase A, UX/Chat e integração Home → Assistente, com sugestões persistentes. Fase B permanece planejada para depois.
-- #42 em implementação: Preferências.
+- #42 integrado: Preferências.
+- #43 em implementação: QA responsivo global.
 
 ## PR #40 — entrega e validação
 
@@ -58,12 +59,12 @@ Regras conceituais futuras:
 
 ### #42 — Preferências
 
-Branch: `feature/preferences-pr42`. Em implementação. Manter perfil, tema e preferências
+Branch: `feature/preferences-pr42`. Integrado. Mantém perfil, tema e preferências
 existentes, seguindo mockups e tokens. Não misturar com QA responsivo global.
 
 ### #43 — Responsive QA
 
-Branch: `feature/responsive-qa-pr43`. Pente-fino global de iPhone, iPad/tablet e
+Branch: `feature/responsive-qa-pr43`. Em implementação. Pente-fino global de iPhone, iPad/tablet e
 desktop em todas as telas: breakpoints, bottom navigation, sidebar, safe-area,
 sticky elements, grids e overflows. Não transformar PRs anteriores em refactors
 responsivos intermináveis.
