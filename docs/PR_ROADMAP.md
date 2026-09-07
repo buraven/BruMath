@@ -11,7 +11,8 @@
 - #41 integrado: fase A, UX/Chat e integração Home → Assistente, com sugestões persistentes. Fase B permanece planejada para depois.
 - #42 integrado: Preferências.
 - #43 integrado: QA responsivo global.
-- #44 em finalização: Fase 1 de correções persistentes de UX/layout e fidelidade aos mockups concluída; Fase 2 de limpeza conservadora da arquitetura legada concluída e pronta para revisão/merge.
+- #44 integrado: estabilização visual e limpeza conservadora da arquitetura legada.
+- #45 em finalização: QA de regressão, fluxos, persistência, responsividade e readiness de produção concluído; pronto para revisão/merge.
 
 ## PR #40 — entrega e validação
 
@@ -85,8 +86,9 @@ permanecem preservados.
 
 ### #45 — Final QA
 
-Branch: `chore/final-qa-pr45`. Validar fluxos completos, regressões, regras
+Branch: `chore/final-qa-pr45`. QA de fluxos completos, regressões, regras
 financeiras, persistência, responsividade final e preparação para produção.
+Pronto para revisão/merge; a sequência visual e estrutural #35–#45 está concluída.
 
 ## Regras de trabalho
 
