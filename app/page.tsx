@@ -4,6 +4,8 @@ import { useEffect, useMemo, useRef, useState, type FormEvent, type ReactNode } 
 import { ViewportNavigation } from "../components/navigation/ViewportNavigation";
 import {
   CalendarDays,
+  BriefcaseBusiness,
+  Bus,
   Car,
   Check,
   ChevronLeft,
@@ -16,14 +18,16 @@ import {
   Moon,
   Pencil,
   Plus,
+  PawPrint,
   Receipt,
   Settings2,
   Send,
-  ShoppingCart,
   Sparkles,
   Sun,
   Tag,
   Trash2,
+  UserRound,
+  Utensils,
   WalletCards,
   X,
 } from "lucide-react";
@@ -142,17 +146,15 @@ function categoryFromText(text: string) {
 }
 
 function iconFor(category: string) {
-  if (category === "Carro") return
-  <Car size={19} />;
-  if (category === "Pets") return <Tag size={19} />;
-  if (category === "Alimentação" || category === "Trabalho") return
-  <ShoppingCart size={19} />;
-  if (category === "Casa") return
-  <Home size={19} />;
-  if (category === "Assinaturas") return
-  <CreditCard size={19} />;
-  return
-  <Tag size={19} />;
+  if (category === "Carro") return <Car size={19} />;
+  if (category === "Pets") return <PawPrint size={19} />;
+  if (category === "Alimentação") return <Utensils size={19} />;
+  if (category === "Trabalho") return <BriefcaseBusiness size={19} />;
+  if (category === "Transporte") return <Bus size={19} />;
+  if (category === "Casa") return <Home size={19} />;
+  if (category === "Assinaturas") return <CreditCard size={19} />;
+  if (category === "Pessoal") return <UserRound size={19} />;
+  return <Tag size={19} />;
 }
 
 function cleanExpenseTitle(text: string) {
@@ -241,6 +243,15 @@ export default function Page() {
     const timer = window.setTimeout(() => setToast(""), 2300);
     return () => window.clearTimeout(timer);
   }, [toast]);
+
+  useEffect(() => {
+    if (modal === "none" && !confirmation) return;
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = previousOverflow;
+    };
+  }, [modal, confirmation]);
 
   const monthExpenses = useMemo(() => expenses.filter(e => e.date.startsWith(viewMonth)), [expenses, viewMonth]);
   const cats = useMemo(() => Object.entries(budgets).map(([category, budget]) => {
@@ -632,7 +643,7 @@ export default function Page() {
       {confirmation && <div className="modal-backdrop" onMouseDown={event => { if (event.target === event.currentTarget) setConfirmation(null); }}><div className="modal-card" role="dialog" aria-modal="true" aria-labelledby="confirmation-title">
         <div className="modal-header"><div><span className="eyebrow"><Receipt size={15} /> BruMath</span><h2 id="confirmation-title">{confirmation.title}</h2></div><button type="button" className="icon-button" onClick={() => setConfirmation(null)} aria-label="Fechar confirmação"><X size={18} /></button></div>
         <p className="confirmation-copy">{confirmation.description}</p>
-        <div className="modal-actions"><button type="button" className="secondary-button" onClick={() => setConfirmation(null)}>Cancelar</button><button type="button" className={`primary-button ${confirmation.destructive ? "danger-button" : ""}`} onClick={() => { confirmation.onConfirm(); setConfirmation(null); }}>{confirmation.confirmLabel}</button></div>
+        <div className="modal-actions"><button type="button" className="secondary-button" onClick={() => setConfirmation(null)}>Cancelar</button><button type="button" className={`primary-button ${confirmation.destructive ? "danger-button" : ""}`} onClick={() => { confirmation.onConfirm(); setConfirmation(null); }}>{confirmation.destructive && <Trash2 size={17} />}{confirmation.confirmLabel}</button></div>
       </div></div>}
     </>
   );

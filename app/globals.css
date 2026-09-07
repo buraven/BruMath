@@ -1330,9 +1330,13 @@ button {
   line-height: 1.6;
 }
 
-.danger-button {
+.modal-actions .primary-button.danger-button {
   background: var(--danger);
-  color: var(--action-text);
+  color: #fff;
+}
+
+.modal-actions .primary-button.danger-button:hover {
+  filter: brightness(.92);
 }
 
 .bottom-nav {
