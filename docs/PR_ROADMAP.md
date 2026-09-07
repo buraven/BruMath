@@ -11,7 +11,7 @@
 - #41 integrado: fase A, UX/Chat e integração Home → Assistente, com sugestões persistentes. Fase B permanece planejada para depois.
 - #42 integrado: Preferências.
 - #43 integrado: QA responsivo global.
-- #44 em andamento: Fase 1 de correções persistentes de UX/layout e fidelidade aos mockups. A Fase 2 de limpeza da arquitetura legada ainda não foi iniciada.
+- #44 em finalização: Fase 1 de correções persistentes de UX/layout e fidelidade aos mockups concluída; Fase 2 de limpeza conservadora da arquitetura legada concluída e pronta para revisão/merge.
 
 ## PR #40 — entrega e validação
 
@@ -78,9 +78,10 @@ Branch: `chore/legacy-architecture-cleanup-pr44`.
 validação em Vercel e iPad, usando `assets/mockups` como referência e preservando
 regras financeiras e dados.
 
-**Fase 2 — legacy architecture cleanup:** remover somente arquitetura visual antiga
-realmente não utilizada, sem mudar comportamento. Não iniciar antes da validação da
-Fase 1.
+**Fase 2 — legacy architecture cleanup (concluída, pronta para merge):** remoção
+conservadora de componentes, estilos e exports visuais comprovadamente sem uso,
+sem mudar comportamento. Serviços financeiros, persistência e componentes ativos
+permanecem preservados.
 
 ### #45 — Final QA
 
