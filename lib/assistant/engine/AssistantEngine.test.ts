@@ -14,18 +14,60 @@ import {
 } from "..";
 
 const financialContext: FinancialContextProvider = {
-  getSummary: async () => ({
-    baseIncome: 1000,
-    extraIncome: 0,
-    expenses: 100,
-    available: 900,
-    receivablesOutstanding: 0,
+  getContext: async () => ({
+    value: {
+      summary: {
+        baseIncome: 1000,
+        extraIncome: 0,
+        expenses: 100,
+        available: 900,
+        receivablesOutstanding: 0,
+      },
+      expenses: [],
+      limits: [],
+      installments: [],
+      receivables: [],
+      income: [],
+    },
+    scope: { profile: "Bruna", month: "2026-09" },
+    provenance: [],
   }),
-  getExpenses: async () => [],
-  getLimits: async () => [],
-  getInstallments: async () => [],
-  getReceivables: async () => [],
-  getIncome: async () => [],
+  getSummary: async () => ({
+    value: {
+      baseIncome: 1000,
+      extraIncome: 0,
+      expenses: 100,
+      available: 900,
+      receivablesOutstanding: 0,
+    },
+    scope: { profile: "Bruna", month: "2026-09" },
+    provenance: [],
+  }),
+  getExpenses: async () => ({
+    value: [],
+    scope: { profile: "Bruna", month: "2026-09" },
+    provenance: [],
+  }),
+  getLimits: async () => ({
+    value: [],
+    scope: { profile: "Bruna", month: "2026-09" },
+    provenance: [],
+  }),
+  getInstallments: async () => ({
+    value: [],
+    scope: { profile: "Bruna", month: "2026-09" },
+    provenance: [],
+  }),
+  getReceivables: async () => ({
+    value: [],
+    scope: { profile: "Bruna", month: "2026-09" },
+    provenance: [],
+  }),
+  getIncome: async () => ({
+    value: [],
+    scope: { profile: "Bruna", month: "2026-09" },
+    provenance: [],
+  }),
 };
 
 const actionGateway: ActionGateway = {

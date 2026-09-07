@@ -1,9 +1,20 @@
 import type { CategoryLimit } from "../../finance/limits";
-import type { AssistantMonth, AssistantProfile } from "../contracts";
+import type {
+  AssistantMonth,
+  AssistantProfile,
+  ResponseProvenance,
+} from "../contracts";
 
 export type FinancialScope = {
   profile: AssistantProfile;
   month: AssistantMonth;
+  category?: string;
+};
+
+export type FinancialContextResult<T> = {
+  value: T;
+  scope: FinancialScope;
+  provenance: readonly ResponseProvenance[];
 };
 
 export type FinancialSummary = {
@@ -27,16 +38,20 @@ export type LimitContextItem = CategoryLimit & {
   spent: number;
   remaining: number;
   percentage: number;
+  exceeded: boolean;
+  kind: "personal" | "category";
 };
 
 export type InstallmentContextItem = {
   id: string;
   title: string;
+  category: string;
   amount: number;
   owner: AssistantProfile;
   payer?: AssistantProfile;
   remainingInstallments: number;
   nextDue: string;
+  dueInSelectedMonth: boolean;
 };
 
 export type ReceivableContextItem = {
@@ -44,7 +59,7 @@ export type ReceivableContextItem = {
   person: string;
   outstanding: number;
   received: number;
-  destination: "conta" | "cartao";
+  destination: "cartao" | AssistantProfile;
 };
 
 export type IncomeContextItem = {
@@ -56,15 +71,35 @@ export type IncomeContextItem = {
   destination: "conta" | "cartao";
 };
 
+export type FinancialContext = {
+  summary: FinancialSummary;
+  expenses: readonly ExpenseContextItem[];
+  limits: readonly LimitContextItem[];
+  installments: readonly InstallmentContextItem[];
+  receivables: readonly ReceivableContextItem[];
+  income: readonly IncomeContextItem[];
+};
+
 export interface FinancialContextProvider {
-  getSummary(scope: FinancialScope): Promise<FinancialSummary>;
-  getExpenses(scope: FinancialScope): Promise<readonly ExpenseContextItem[]>;
-  getLimits(scope: FinancialScope): Promise<readonly LimitContextItem[]>;
+  getContext(
+    scope: FinancialScope,
+  ): Promise<FinancialContextResult<FinancialContext>>;
+  getSummary(
+    scope: FinancialScope,
+  ): Promise<FinancialContextResult<FinancialSummary>>;
+  getExpenses(
+    scope: FinancialScope,
+  ): Promise<FinancialContextResult<readonly ExpenseContextItem[]>>;
+  getLimits(
+    scope: FinancialScope,
+  ): Promise<FinancialContextResult<readonly LimitContextItem[]>>;
   getInstallments(
     scope: FinancialScope,
-  ): Promise<readonly InstallmentContextItem[]>;
+  ): Promise<FinancialContextResult<readonly InstallmentContextItem[]>>;
   getReceivables(
     scope: FinancialScope,
-  ): Promise<readonly ReceivableContextItem[]>;
-  getIncome(scope: FinancialScope): Promise<readonly IncomeContextItem[]>;
+  ): Promise<FinancialContextResult<readonly ReceivableContextItem[]>>;
+  getIncome(
+    scope: FinancialScope,
+  ): Promise<FinancialContextResult<readonly IncomeContextItem[]>>;
 }
