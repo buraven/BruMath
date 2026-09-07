@@ -61,6 +61,13 @@ type Installment = {
 type Debt = { id: number; person: string; amount: number; destination: DebtDestination; note: string; paid: number; month: string; receivedMonth?: string };
 type IncomeEntry = { id: number; title: string; amount: number; who: Person; date: string; destination: "conta" | "cartao"; note: string };
 type ChatMessage = { id: number; role: "assistant" | "user"; text: string };
+type Confirmation = {
+  title: string;
+  description: string;
+  confirmLabel: string;
+  destructive?: boolean;
+  onConfirm: () => void;
+};
 
 const DEFAULT_BUDGETS: Record<string, number> = {
   Casa: 2500, Carro: 3000, Assinaturas: 500, Pets: 650, Alimentação: 1400,
@@ -183,6 +190,7 @@ export default function Page() {
   const [modal, setModal] = useState<"none" | "expense" | "installment" | "debt" | "income" | "receive" | "advance" | "settings">("none");
   const [advancingInstallment, setAdvancingInstallment] = useState<Installment | null>(null);
   const [advanceCount, setAdvanceCount] = useState("1");
+  const [confirmation, setConfirmation] = useState<Confirmation | null>(null);
   const [receivingDebt, setReceivingDebt] = useState<Debt | null>(null);
   const [receiveAmount, setReceiveAmount] = useState("");
   const [editingExpense, setEditingExpense] = useState<Expense | null>(null);
@@ -290,10 +298,26 @@ export default function Page() {
   const openEditInstallment = (item: Installment) => { setInstForm({ title: item.title, amount: String(item.amount), category: item.category, who: item.who, total: String(item.totalInstallments), paid: String(item.paidInstallments), nextDue: item.nextDue }); setEditingInstallment(item); setModal("installment"); };
   const openEditIncome = (item: IncomeEntry) => { setIncomeForm({ title: item.title, amount: String(item.amount), who: item.who, date: item.date, destination: item.destination, note: item.note }); setEditingIncome(item); setModal("income"); };
   const openEditDebt = (debt: Debt) => { openDebt(debt); };
-  const deleteExpense = (id: number) => { setExpenses(cur => cur.filter(e => e.id !== id)); setToast("Gasto excluído"); };
-  const deleteInstallment = (id: number) => { setInstallments(cur => cur.filter(i => i.id !== id)); setToast("Parcela excluída"); };
-  const deleteDebt = (id: number) => { setDebts(cur => cur.filter(d => d.id !== id)); setToast("Dívida excluída"); };
-  const deleteIncome = (id: number) => { setIncomeEntries(cur => cur.filter(i => i.id !== id)); setToast("Entrada excluída"); };
+  const deleteExpense = (id: number) => {
+    const item = expenses.find(expense => expense.id === id);
+    if (!item) return;
+    setConfirmation({ title: "Excluir gasto", description: `“${item.title}” será removido permanentemente.`, confirmLabel: "Excluir gasto", destructive: true, onConfirm: () => { setExpenses(cur => cur.filter(expense => expense.id !== id)); setToast("Gasto excluído"); } });
+  };
+  const deleteInstallment = (id: number) => {
+    const item = installments.find(installment => installment.id === id);
+    if (!item) return;
+    setConfirmation({ title: "Excluir parcelamento", description: `“${item.title}” será removido permanentemente.`, confirmLabel: "Excluir parcelamento", destructive: true, onConfirm: () => { setInstallments(cur => cur.filter(installment => installment.id !== id)); setToast("Parcela excluída"); } });
+  };
+  const deleteDebt = (id: number) => {
+    const item = debts.find(debt => debt.id === id);
+    if (!item) return;
+    setConfirmation({ title: "Excluir valor a receber", description: `“${item.person}” será removido permanentemente.`, confirmLabel: "Excluir valor", destructive: true, onConfirm: () => { setDebts(cur => cur.filter(debt => debt.id !== id)); setToast("Dívida excluída"); } });
+  };
+  const deleteIncome = (id: number) => {
+    const item = incomeEntries.find(entry => entry.id === id);
+    if (!item) return;
+    setConfirmation({ title: "Excluir entrada", description: `“${item.title}” será removida permanentemente.`, confirmLabel: "Excluir entrada", destructive: true, onConfirm: () => { setIncomeEntries(cur => cur.filter(entry => entry.id !== id)); setToast("Entrada excluída"); } });
+  };
 
   const payInstallment = (id: number, count: number) => {
     setInstallments(cur => cur.map(item => {
@@ -312,6 +336,12 @@ export default function Page() {
     setAdvancingInstallment(item);
     setAdvanceCount(left > 2 ? "2" : "1");
     setModal("advance");
+  };
+
+  const chooseQuitInstallment = (item: Installment) => {
+    const left = item.totalInstallments - item.paidInstallments;
+    if (!left) return;
+    setConfirmation({ title: "Quitar parcelamento", description: `“${item.title}” tem ${left} parcela${left === 1 ? "" : "s"} restante${left === 1 ? "" : "s"}. Todas serão quitadas.`, confirmLabel: "Confirmar quitação", onConfirm: () => payInstallment(item.id, left) });
   };
 
   const saveAdvanceInstallments = (event: FormEvent) => {
@@ -484,7 +514,7 @@ export default function Page() {
 
         {tab === "limits" && <LimitsScreen monthLabel={monthName} items={limitItems} onConfigure={() => {}} onSave={values => { setLimits({ Bruna: values.Bruna, Matheus: values.Matheus }); setBudgets(Object.fromEntries(Object.keys(budgets).map(category => [category, values[`category:${category}`]]))); setToast("Limites atualizados 💚"); }} />}
 
-        {tab === "future" && <FutureScreen monthKey={viewMonth} monthLabel={monthName} available={available} installments={selectedInstallments} formatMoney={money} formatDate={shortDate} renderIcon={iconFor} onCreate={openNewInstallment} onPay={payInstallment} onAdvance={chooseAdvanceInstallments} onEdit={openEditInstallment} onDelete={deleteInstallment} />}
+        {tab === "future" && <FutureScreen monthKey={viewMonth} monthLabel={monthName} available={available} installments={selectedInstallments} formatMoney={money} formatDate={shortDate} renderIcon={iconFor} onCreate={openNewInstallment} onPay={payInstallment} onAdvance={chooseAdvanceInstallments} onQuit={chooseQuitInstallment} onEdit={openEditInstallment} onDelete={deleteInstallment} />}
 
         {tab === "debts" && <DebtSection monthName={monthName} fallbackMonth={viewMonth} totalPending={debtTotal} openCount={selectedDebts.filter(debt => debt.amount > debt.paid).length} debts={selectedDebts} formatMoney={money} formatMonth={monthLabelShort} onCreate={() => openDebt()} onEdit={openEditDebt} onDelete={deleteDebt} onReceive={openReceiveDebt} />}
 
@@ -599,6 +629,11 @@ export default function Page() {
         </form>}
       </div>
       </div>}
+      {confirmation && <div className="modal-backdrop" onMouseDown={event => { if (event.target === event.currentTarget) setConfirmation(null); }}><div className="modal-card" role="dialog" aria-modal="true" aria-labelledby="confirmation-title">
+        <div className="modal-header"><div><span className="eyebrow"><Receipt size={15} /> BruMath</span><h2 id="confirmation-title">{confirmation.title}</h2></div><button type="button" className="icon-button" onClick={() => setConfirmation(null)} aria-label="Fechar confirmação"><X size={18} /></button></div>
+        <p className="confirmation-copy">{confirmation.description}</p>
+        <div className="modal-actions"><button type="button" className="secondary-button" onClick={() => setConfirmation(null)}>Cancelar</button><button type="button" className={`primary-button ${confirmation.destructive ? "danger-button" : ""}`} onClick={() => { confirmation.onConfirm(); setConfirmation(null); }}>{confirmation.confirmLabel}</button></div>
+      </div></div>}
     </>
   );
 }

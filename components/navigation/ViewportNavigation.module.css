@@ -7,8 +7,7 @@
 }
 
 .viewport > :global(.bottom-nav),
-.viewport > :global(.fab-wrap),
-.viewport > :global(.mobile-more-menu) {
+.viewport > :global(.fab-wrap) {
   position: absolute;
   pointer-events: auto;
 }
