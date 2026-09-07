@@ -17,6 +17,7 @@ import {
   Pencil,
   Plus,
   Receipt,
+  Settings2,
   Send,
   ShoppingCart,
   Sparkles,
@@ -45,6 +46,7 @@ import { HomeExpenses } from "../features/home/components/HomeExpenses/HomeExpen
 import { ExpensesScreen } from "../features/expenses/ExpensesScreen";
 import { AssistantChat } from "../features/assistant/AssistantChat";
 import { FutureScreen } from "../features/future/FutureScreen";
+import { PreferencesScreen } from "../features/preferences/PreferencesScreen";
 
 type Person = "Bruna" | "Matheus" | "Casal";
 type Tab = NavigationTab;
@@ -477,6 +479,8 @@ export default function Page() {
 
         {tab === "income" &&
           <IncomeSection monthName={monthName} income={income} extraIncome={extraIncome} totalAvailable={monthIncomeTotal} entries={selectedIncome} formatMoney={money} onCreate={openNewIncome} onEdit={openEditIncome} onDelete={deleteIncome} />}
+
+        {tab === "preferences" && <PreferencesScreen profile={activeProfile} theme={theme} onProfileChange={setActiveProfile} onThemeChange={applyTheme} />}
       </main>
       </div>
 
@@ -500,6 +504,7 @@ export default function Page() {
         <button type="button" onClick={() => switchTab("limits")}>Limites e categorias</button>
         <button type="button" onClick={() => switchTab("debts")}>Quem me deve</button>
         <button type="button" onClick={() => switchTab("income")}>Entradas &amp; extras</button>
+        <button type="button" onClick={() => switchTab("preferences")}><Settings2 size={17} /> Preferências</button>
       </div>}
 
       <nav className="bottom-nav" aria-label="Navegação principal">
@@ -510,7 +515,7 @@ export default function Page() {
         <span className="bottom-nav-add-slot" aria-hidden="true" />
         <NavButton active={tab === "future"} onClick={() => switchTab("future")} icon={
           <CalendarDays size={19} />} label="Futuro" />
-        <NavButton active={tab === "stats" || tab === "debts" || tab === "income" || tab === "limits"} onClick={() => setMobileMoreOpen(open => !open)} icon={
+        <NavButton active={tab === "stats" || tab === "debts" || tab === "income" || tab === "limits" || tab === "preferences"} onClick={() => setMobileMoreOpen(open => !open)} icon={
           <MoreHorizontal size={19} />} label="Mais" />
       </nav>
       </ViewportNavigation>

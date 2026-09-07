@@ -8,7 +8,8 @@
 - #38 integrado: Futuro e parcelas.
 - #39 integrado: dívidas, recebimentos, entradas e campos formatados.
 - #40 integrado na main (`eede6b7`).
-- #41 finalizado e pronto para merge: fase A, UX/Chat e integração Home → Assistente, com sugestões persistentes. Ainda não integrado; fase B permanece planejada para depois.
+- #41 integrado: fase A, UX/Chat e integração Home → Assistente, com sugestões persistentes. Fase B permanece planejada para depois.
+- #42 em implementação: Preferências.
 
 ## PR #40 — entrega e validação
 
@@ -33,7 +34,7 @@ commit antes do merge. Emulação Chromium não substitui Safari/safe-area no iP
 
 ### #41 — Assistente financeiro
 
-Branch: `feature/financial-assistant-pr41`. Finalizado e pronto para merge; ainda não integrado. Duas fases
+Branch: `feature/financial-assistant-pr41`. Integrado. Duas fases
 conceituais no planejamento:
 
 **A — UX/Chat (concluída no #41):** seguindo os mockups oficiais; conversa ocupando a área útil,
@@ -57,7 +58,7 @@ Regras conceituais futuras:
 
 ### #42 — Preferências
 
-Branch: `feature/preferences-pr42`. Manter perfil, tema e preferências
+Branch: `feature/preferences-pr42`. Em implementação. Manter perfil, tema e preferências
 existentes, seguindo mockups e tokens. Não misturar com QA responsivo global.
 
 ### #43 — Responsive QA
