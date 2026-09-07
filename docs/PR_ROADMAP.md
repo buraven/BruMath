@@ -167,16 +167,16 @@ saldo, gasto, limite, parcela, vencimento, dívida ou entrada.
 
 ### Roadmap da Fase 2
 
-| PR  | Branch                                     | Entrega                                                            |
-| --- | ------------------------------------------ | ------------------------------------------------------------------ |
-| #46 | `feature/assistant-engine-foundation-pr46` | Contratos e boundaries do Assistant Engine, sem LLM.               |
-| #47 | `feature/financial-context-engine-pr47`    | Contexto financeiro estruturado e consultas confiáveis.            |
-| #48 | `feature/assistant-tools-actions-pr48`     | Tools determinísticas, propostas de action e fluxo de confirmação. |
-| #49 | `feature/conversational-ai-pr49`           | Provider LLM, intent e structured outputs.                         |
-| #50 | `feature/financial-guardrails-pr50`        | Provenance, validação e anti-alucinação financeira.                |
-| #51 | `feature/conversation-context-pr51`        | Follow-ups, referências conversacionais e memória curta.           |
-| #52 | `chore/token-cost-optimization-pr52`       | Seleção de contexto, cache, resumos e roteamento de modelo.        |
-| #53 | `feature/proactive-insights-pr53`          | Motor de insights compartilhado entre Home e Assistente.           |
+| PR  | Branch                                  | Entrega                                                                                     |
+| --- | --------------------------------------- | ------------------------------------------------------------------------------------------- |
+| #46 | `feature/assistant-engine-pr46`         | Contratos e boundaries do Assistant Engine, sem LLM. **Integrado.**                         |
+| #47 | `feature/financial-context-engine-pr47` | Contexto financeiro estruturado e consultas confiáveis. **Concluído, pronto para revisão.** |
+| #48 | `feature/assistant-tools-actions-pr48`  | Tools determinísticas, propostas de action e fluxo de confirmação.                          |
+| #49 | `feature/conversational-ai-pr49`        | Provider LLM, intent e structured outputs.                                                  |
+| #50 | `feature/financial-guardrails-pr50`     | Provenance, validação e anti-alucinação financeira.                                         |
+| #51 | `feature/conversation-context-pr51`     | Follow-ups, referências conversacionais e memória curta.                                    |
+| #52 | `chore/token-cost-optimization-pr52`    | Seleção de contexto, cache, resumos e roteamento de modelo.                                 |
+| #53 | `feature/proactive-insights-pr53`       | Motor de insights compartilhado entre Home e Assistente.                                    |
 
 ### PR #46 — Assistant Engine Foundation
 
@@ -204,10 +204,14 @@ ou executar ações financeiras por conversa.
 interfaces de repositório. **Proibidas:** imports de `app/page.tsx`, componentes React,
 CSS, `window`, `localStorage`, provider concreto, API key e callbacks de `setState`.
 
-**Integração com a UI:** a tela converte estado atual em `AssistantRequest` e chama uma
-fachada; recebe `AssistantResponse` estruturada para renderizar texto, tool provenance,
-pedido de esclarecimento ou proposta de confirmação. A UI continua dona do modal e da
-confirmação visual.
+**Integração futura com a UI:** a tela converterá estado atual em `AssistantRequest` e
+chamará uma fachada; receberá `AssistantResponse` estruturada para renderizar texto, tool
+provenance, pedido de esclarecimento ou proposta de confirmação. A UI continua dona do
+modal e da confirmação visual.
+
+**Estado atual:** o Assistente visível no app ainda usa o fluxo legado de `app/page.tsx`.
+A nova Assistant Engine e o Financial Context permanecem desacoplados da UI até as etapas
+de integração previstas; não existem dois fluxos concorrentes de resposta.
 
 **Testes isolados:** unit tests de contratos, resolução de intenção determinística,
 rejeição de mutações sem confirmação e mocks de `FinancialContextProvider`,
