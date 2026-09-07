@@ -3,6 +3,7 @@ import {
   Receipt,
   Home,
   MessageCircle,
+  Settings2,
   Sparkles,
   WalletCards,
 } from "lucide-react";
@@ -16,7 +17,8 @@ export type NavigationTab =
   | "stats"
   | "future"
   | "debts"
-  | "income";
+  | "income"
+  | "preferences";
 
 type AppSidebarProps = {
   activeTab: NavigationTab;
@@ -31,6 +33,7 @@ const items = [
   { tab: "future", label: "Futuro", icon: <CalendarDays size={18} /> },
   { tab: "debts", label: "Quem me deve", icon: <WalletCards size={18} /> },
   { tab: "income", label: "Entradas & extras", icon: <Sparkles size={18} /> },
+  { tab: "preferences", label: "Preferências", icon: <Settings2 size={18} /> },
 ] as const;
 
 export function AppSidebar({ activeTab, onNavigate }: AppSidebarProps) {
