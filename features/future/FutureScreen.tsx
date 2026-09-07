@@ -2,9 +2,12 @@
 
 import {
   CalendarDays,
+  CheckCircle2,
   ChevronRight,
+  FastForward,
   Pencil,
   Plus,
+  CircleDollarSign,
   ReceiptText,
   Trash2,
 } from "lucide-react";
@@ -33,6 +36,7 @@ type FutureScreenProps = {
   onCreate: () => void;
   onPay: (id: number, count: number) => void;
   onAdvance: (installment: Installment) => void;
+  onQuit: (installment: Installment) => void;
   onEdit: (installment: Installment) => void;
   onDelete: (id: number) => void;
 };
@@ -48,6 +52,7 @@ export function FutureScreen({
   onCreate,
   onPay,
   onAdvance,
+  onQuit,
   onEdit,
   onDelete,
 }: FutureScreenProps) {
@@ -198,20 +203,17 @@ export function FutureScreen({
                     </div>
                     <div className={styles.actions}>
                       <button type="button" onClick={() => onPay(item.id, 1)}>
-                        Pagar 1
+                        <CircleDollarSign size={14} /> Pagar 1
                       </button>
                       <button
                         type="button"
                         disabled={left < 2}
                         onClick={() => onAdvance(item)}
                       >
-                        Adiantar
+                        <FastForward size={14} /> Adiantar
                       </button>
-                      <button
-                        type="button"
-                        onClick={() => onPay(item.id, left)}
-                      >
-                        Quitar
+                      <button type="button" onClick={() => onQuit(item)}>
+                        <CheckCircle2 size={14} /> Quitar
                       </button>
                       <button
                         type="button"

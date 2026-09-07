@@ -10,7 +10,8 @@
 - #40 integrado na main (`eede6b7`).
 - #41 integrado: fase A, UX/Chat e integração Home → Assistente, com sugestões persistentes. Fase B permanece planejada para depois.
 - #42 integrado: Preferências.
-- #43 em implementação: QA responsivo global.
+- #43 integrado: QA responsivo global.
+- #44 em finalização: Fase 1 de correções persistentes de UX/layout e fidelidade aos mockups concluída; Fase 2 de limpeza conservadora da arquitetura legada concluída e pronta para revisão/merge.
 
 ## PR #40 — entrega e validação
 
@@ -64,15 +65,23 @@ existentes, seguindo mockups e tokens. Não misturar com QA responsivo global.
 
 ### #43 — Responsive QA
 
-Branch: `feature/responsive-qa-pr43`. Em implementação. Pente-fino global de iPhone, iPad/tablet e
+Branch: `feature/responsive-qa-pr43`. Integrado. Pente-fino global de iPhone, iPad/tablet e
 desktop em todas as telas: breakpoints, bottom navigation, sidebar, safe-area,
 sticky elements, grids e overflows. Não transformar PRs anteriores em refactors
 responsivos intermináveis.
 
-### #44 — Legacy cleanup
+### #44 — Estabilização visual e limpeza legada
 
-Branch: `chore/legacy-architecture-cleanup-pr44`. Remover somente arquitetura
-visual antiga realmente não utilizada, sem mudar comportamento.
+Branch: `chore/legacy-architecture-cleanup-pr44`.
+
+**Fase 1 — correções/fidelidade visual:** estabilizar UX/layout persistentes após
+validação em Vercel e iPad, usando `assets/mockups` como referência e preservando
+regras financeiras e dados.
+
+**Fase 2 — legacy architecture cleanup (concluída, pronta para merge):** remoção
+conservadora de componentes, estilos e exports visuais comprovadamente sem uso,
+sem mudar comportamento. Serviços financeiros, persistência e componentes ativos
+permanecem preservados.
 
 ### #45 — Final QA
 

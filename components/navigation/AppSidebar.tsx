@@ -1,5 +1,6 @@
 import {
   CalendarDays,
+  Tags,
   Receipt,
   Home,
   MessageCircle,
@@ -29,7 +30,7 @@ const items = [
   { tab: "home", label: "Início", icon: <Home size={18} /> },
   { tab: "chat", label: "Assistente", icon: <MessageCircle size={18} /> },
   { tab: "stats", label: "Gastos", icon: <Receipt size={18} /> },
-  { tab: "limits", label: "Limites e categorias", icon: <Receipt size={18} /> },
+  { tab: "limits", label: "Limites e categorias", icon: <Tags size={18} /> },
   { tab: "future", label: "Futuro", icon: <CalendarDays size={18} /> },
   { tab: "debts", label: "Quem me deve", icon: <WalletCards size={18} /> },
   { tab: "income", label: "Entradas & extras", icon: <Sparkles size={18} /> },

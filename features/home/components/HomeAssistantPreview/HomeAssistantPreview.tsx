@@ -9,8 +9,6 @@ type HomeAssistantPreviewProps = {
   onChange: (value: string) => void;
   onSend: (preset?: string) => void;
   onOpenConversation: () => void;
-  onOpenReceivables: () => void;
-  onOpenIncome: () => void;
 };
 
 export function HomeAssistantPreview({
@@ -20,8 +18,6 @@ export function HomeAssistantPreview({
   onChange,
   onSend,
   onOpenConversation,
-  onOpenReceivables,
-  onOpenIncome,
 }: HomeAssistantPreviewProps) {
   return (
     <section className={`section ${styles.preview}`}>
@@ -52,8 +48,8 @@ export function HomeAssistantPreview({
             actions={[
               { label: "Resumo", onClick: () => onSend("Resumo") },
               { label: "Parcelas", onClick: () => onSend("Parcelas") },
-              { label: "Quem me deve?", onClick: onOpenReceivables },
-              { label: "O que entra", onClick: onOpenIncome },
+              { label: "Quem me deve?", onClick: () => onSend("Quem me deve?") },
+              { label: "O que entra", onClick: () => onSend("O que entra") },
             ]}
           />
         </details>
