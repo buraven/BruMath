@@ -1,0 +1,172 @@
+.chat {
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  grid-template-columns: minmax(0, 1fr);
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+}
+.header {
+  padding-block: var(--space-2);
+  border-bottom: 1px solid var(--line);
+}
+.header h1 {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin: 0;
+  font-size: 1rem;
+}
+.header p {
+  margin: var(--space-1) 0 0;
+  font-size: 0.75rem;
+  color: var(--muted);
+}
+.messages {
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-start;
+  gap: var(--space-4);
+  padding: var(--space-4) var(--space-1);
+}
+.assistant,
+.user {
+  flex: 0 0 auto;
+  max-width: min(85%, 42rem);
+  min-width: 0;
+}
+.assistant {
+  align-self: flex-start;
+}
+.user {
+  align-self: flex-end;
+}
+.author {
+  display: block;
+  font-size: 0.7rem;
+  color: var(--muted);
+  margin-bottom: var(--space-1);
+}
+.user .author {
+  text-align: right;
+}
+.bubble {
+  padding: var(--space-3) var(--space-4);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+  background: var(--surface-soft);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  line-height: 1.6;
+  font-size: 0.9rem;
+}
+.user .bubble {
+  background: var(--color-accent-soft);
+  border-color: var(--color-accent-strong);
+}
+.footer {
+  padding-block: var(--space-2);
+  background: var(--bg);
+  border-top: 1px solid var(--line);
+  min-width: 0;
+}
+.suggestions {
+  display: flex;
+  flex-wrap: nowrap;
+  overflow-x: auto;
+  min-width: 0;
+  gap: var(--space-2);
+  justify-content: flex-start;
+  padding: var(--space-1) var(--space-1) var(--space-3);
+  scroll-padding-inline: var(--space-1);
+  overscroll-behavior-x: contain;
+}
+.suggestions button {
+  flex: 0 0 auto;
+  min-height: calc(var(--space-6) + var(--space-5));
+  font: inherit;
+  font-size: 0.75rem;
+  color: var(--soft-text);
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md);
+  padding: var(--space-2) var(--space-3);
+  cursor: pointer;
+}
+.composer {
+  display: flex;
+  align-items: flex-end;
+  gap: var(--space-2);
+  padding: var(--space-2);
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+}
+.composer:focus-within {
+  border-color: var(--color-accent-strong);
+}
+.composer textarea {
+  flex: 1;
+  min-width: 0;
+  resize: none;
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--text);
+  font: inherit;
+  line-height: 1.5;
+  padding: var(--space-2);
+}
+.composer button {
+  flex-shrink: 0;
+  padding: var(--space-3);
+  display: grid;
+  place-items: center;
+  border: 0;
+  border-radius: var(--radius-md);
+  background: var(--color-accent);
+  color: var(--dark);
+  cursor: pointer;
+}
+.composer button:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+.confirmation {
+  padding: var(--space-4);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+}
+.confirmation h3 {
+  margin-top: 0;
+}
+.confirmationActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+.confirmationActions button {
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  background: var(--surface-soft);
+  color: var(--text);
+  cursor: pointer;
+}
+@media (max-width: 600px) {
+  .suggestions {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+  }
+  .suggestions button {
+    flex: 0 0 auto;
+  }
+  .assistant,
+  .user {
+    max-width: 92%;
+  }
+}

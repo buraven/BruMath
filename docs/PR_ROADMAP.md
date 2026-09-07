@@ -7,7 +7,8 @@
 - #37 integrado: gastos e responsividade.
 - #38 integrado: Futuro e parcelas.
 - #39 integrado: dívidas, recebimentos, entradas e campos formatados.
-- #40: implementação concluída; pronto para revisão/merge após conferência do preview final, ainda não integrado.
+- #40 integrado na main (`eede6b7`).
+- #41 finalizado e pronto para merge: fase A, UX/Chat e integração Home → Assistente, com sugestões persistentes. Ainda não integrado; fase B permanece planejada para depois.
 
 ## PR #40 — entrega e validação
 
@@ -32,10 +33,10 @@ commit antes do merge. Emulação Chromium não substitui Safari/safe-area no iP
 
 ### #41 — Assistente financeiro
 
-Branch: `feature/financial-assistant-pr41`. Ainda não iniciado. Duas fases
+Branch: `feature/financial-assistant-pr41`. Finalizado e pronto para merge; ainda não integrado. Duas fases
 conceituais no planejamento:
 
-**A — UX/Chat:** seguir os mockups oficiais; conversa ocupando a área útil,
+**A — UX/Chat (concluída no #41):** seguindo os mockups oficiais; conversa ocupando a área útil,
 mensagens do BruMath à esquerda e usuário à direita, composer fixo, auto-scroll,
 sugestões contextuais, preview/insights em formato de mensagem e nenhuma
 sobreposição da navegação. Não implementar nova arquitetura de IA nesta fase visual.

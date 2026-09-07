@@ -1760,6 +1760,9 @@ button {
 }
 
 /* Home header keeps the same identity with room for profile controls. */
+.app-shell:has([data-assistant-chat]) { height: 100dvh; overflow: hidden; padding-bottom: 0; }
+.app-shell:has([data-assistant-chat]) .topbar { flex-wrap: wrap; gap: var(--space-2); padding-block: var(--space-3); }
+.app-shell:has([data-assistant-chat]) .topbar-actions { flex-wrap: wrap; max-width: 100%; }
 .app-shell:has([data-home]) aside > div:first-child { display: none; }
 .app-shell:has([data-home]) .topbar { flex-wrap: wrap; gap: var(--space-3); }
 .app-shell:has([data-home]) .topbar-actions { flex-wrap: wrap; max-width: 100%; gap: var(--space-2); }
