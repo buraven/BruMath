@@ -29,6 +29,7 @@
   --shadow: 0 12px 40px rgba(31, 42, 34, .08);
   --radius: 22px;
   --max: 1180px;
+  --bottom-nav-reserve: calc(72px + max(var(--space-2), env(safe-area-inset-bottom)) + var(--space-4));
 }
 
 html {
@@ -81,7 +82,7 @@ button {
 
 .app-shell {
   min-height: 100dvh;
-  padding-bottom: 116px;
+  padding-bottom: var(--bottom-nav-reserve);
 }
 
 .app-workspace {
@@ -1305,6 +1306,24 @@ button {
   background: var(--surface-soft);
 }
 
+.modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  margin-top: var(--space-4);
+}
+
+.secondary-button {
+  min-height: 42px;
+  padding: 0 var(--space-4);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md);
+  background: var(--surface);
+  color: var(--text);
+  cursor: pointer;
+}
+
 .bottom-nav {
   position: fixed;
   z-index: 35;
@@ -1361,7 +1380,7 @@ button {
   position: fixed;
   z-index: 34;
   left: 50%;
-  bottom: calc(var(--size-floating-action) + var(--space-6) + env(safe-area-inset-bottom));
+  bottom: calc(var(--bottom-nav-reserve) - var(--space-2));
   width: min(320px, calc(100% - var(--space-6)));
   padding: var(--space-2);
   display: grid;
@@ -1375,6 +1394,9 @@ button {
 
 .mobile-more-menu button {
   min-height: 42px;
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
   border: 0;
   border-radius: var(--radius-md);
   background: transparent;
@@ -1463,7 +1485,7 @@ button {
 
 @media (max-width: 760px) {
   .app-shell {
-    padding-bottom: 116px;
+    padding-bottom: var(--bottom-nav-reserve);
   }
 
   .topbar {
@@ -1773,7 +1795,6 @@ button {
 }
 
 /* Home header keeps the same identity with room for profile controls. */
-.app-shell:has([data-assistant-chat]) { height: 100dvh; overflow: hidden; padding-bottom: 0; }
 .app-shell:has([data-assistant-chat]) .topbar { flex-wrap: wrap; gap: var(--space-2); padding-block: var(--space-3); }
 .app-shell:has([data-assistant-chat]) .topbar-actions { flex-wrap: wrap; max-width: 100%; }
 .app-shell:has([data-home]) aside > div:first-child { display: none; }
@@ -1782,18 +1803,7 @@ button {
 .app-shell:has([data-home]) .profile-switch { flex-wrap: wrap; }
 .app-shell:has([data-home]) .profile-label { display: block; }
 @media (max-width: 1439px), (hover: none), (pointer: coarse) {
-  .app-shell:has([data-home]) {
-    height: 100dvh;
-    overflow: hidden;
-    padding-bottom: var(--home-nav-reserve, calc(88px + env(safe-area-inset-bottom)));
-  }
-  .app-shell:has([data-home]) .app-workspace {
-    height: 100%;
-    overflow-y: auto;
-    overscroll-behavior-y: contain;
-    padding-bottom: var(--space-2);
-  }
-  .app-shell { padding-bottom: calc(104px + env(safe-area-inset-bottom)); }
+  .app-shell { padding-bottom: var(--bottom-nav-reserve); }
   .fab-wrap { bottom: calc(max(var(--space-2), env(safe-area-inset-bottom)) + 6px); }
   .mobile-more-menu { bottom: calc(max(var(--space-2), env(safe-area-inset-bottom)) + 80px); }
   .bottom-nav-add-slot { min-width: 0; }

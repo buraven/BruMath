@@ -137,7 +137,7 @@ function categoryFromText(text: string) {
 function iconFor(category: string) {
   if (category === "Carro") return
   <Car size={19} />;
-  if (category === "Pets") return <span className="emoji-icon">🐱</span>;
+  if (category === "Pets") return <Tag size={19} />;
   if (category === "Alimentação" || category === "Trabalho") return
   <ShoppingCart size={19} />;
   if (category === "Casa") return
@@ -180,7 +180,9 @@ export default function Page() {
   const [limits, setLimits] = useState({ Bruna: 350, Matheus: 350 });
   const [text, setText] = useState("");
   const [toast, setToast] = useState("");
-  const [modal, setModal] = useState<"none" | "expense" | "installment" | "debt" | "income" | "receive" | "settings">("none");
+  const [modal, setModal] = useState<"none" | "expense" | "installment" | "debt" | "income" | "receive" | "advance" | "settings">("none");
+  const [advancingInstallment, setAdvancingInstallment] = useState<Installment | null>(null);
+  const [advanceCount, setAdvanceCount] = useState("1");
   const [receivingDebt, setReceivingDebt] = useState<Debt | null>(null);
   const [receiveAmount, setReceiveAmount] = useState("");
   const [editingExpense, setEditingExpense] = useState<Expense | null>(null);
@@ -307,14 +309,23 @@ export default function Page() {
   const chooseAdvanceInstallments = (item: Installment) => {
     const left = item.totalInstallments - item.paidInstallments;
     if (!left) return;
-    const raw = window.prompt(`Quantas parcelas de "${item.title}" você quer adiantar?\nDigite de 1 a ${left}.`, left > 2 ? "2" : "1");
-    if (raw === null) return;
-    const count = Number(raw);
+    setAdvancingInstallment(item);
+    setAdvanceCount(left > 2 ? "2" : "1");
+    setModal("advance");
+  };
+
+  const saveAdvanceInstallments = (event: FormEvent) => {
+    event.preventDefault();
+    if (!advancingInstallment) return;
+    const left = advancingInstallment.totalInstallments - advancingInstallment.paidInstallments;
+    const count = Number(advanceCount);
     if (!Number.isInteger(count) || count < 1 || count > left) {
       setToast(`Digite uma quantidade entre 1 e ${left}.`);
       return;
     }
-    payInstallment(item.id, count);
+    payInstallment(advancingInstallment.id, count);
+    setAdvancingInstallment(null);
+    setModal("none");
   };
 
   const openReceiveDebt = (debt: Debt) => {
@@ -427,7 +438,7 @@ export default function Page() {
       </header>
 
       <main className="page">
-        <MonthSelector
+        {tab !== "preferences" && <MonthSelector
           monthLabel={monthName}
           isPreviousActive={viewMonth === addMonths(dateKey(), -1)}
           isCurrentActive={viewMonth === dateKey()}
@@ -437,7 +448,7 @@ export default function Page() {
           onNext={() => setViewMonth(addMonths(dateKey(), 1))}
           onStepPrevious={() => setViewMonth(addMonths(viewMonth, -1))}
           onStepNext={() => setViewMonth(addMonths(viewMonth, 1))}
-        />
+        />}
 
         {tab === "home" && <NewHome
   profile={activeProfile}
@@ -462,7 +473,7 @@ export default function Page() {
   />}
   limits={<HomeLimits items={limitItems} onConfigure={() => switchTab("limits")} />}
   upcoming={<>
-    <HomeAssistantPreview profile={activeProfile} latestMessage={chat.length === 1 ? `Oi, ${activeProfile} 💚 O que vamos organizar hoje?` : chat.at(-1)?.text} value={text} onChange={setText} onSend={preset => { if (!(preset ?? text).trim()) return; send(preset); chatScrollTop.current = Number.MAX_SAFE_INTEGER; switchTab("chat"); }} onOpenConversation={() => switchTab("chat")} onOpenReceivables={() => switchTab("debts")} onOpenIncome={() => switchTab("income")} />
+    <HomeAssistantPreview profile={activeProfile} latestMessage={chat.length === 1 ? `Oi, ${activeProfile} 💚 O que vamos organizar hoje?` : chat.at(-1)?.text} value={text} onChange={setText} onSend={preset => { if (!(preset ?? text).trim()) return; send(preset); }} onOpenConversation={() => switchTab("chat")} />
     <HomeExpenses monthLabel={monthName} expenses={selectedMonthExpenses} onEdit={openEditExpense} onDelete={deleteExpense} formatMoney={money} formatDate={shortDate} renderIcon={iconFor} />
   </>}
 />}
@@ -500,10 +511,10 @@ export default function Page() {
         </button></div>
 
       {mobileMoreOpen && <div className="mobile-more-menu" aria-label="Mais opções">
-        <button type="button" onClick={() => switchTab("stats")}>Gastos</button>
-        <button type="button" onClick={() => switchTab("limits")}>Limites e categorias</button>
-        <button type="button" onClick={() => switchTab("debts")}>Quem me deve</button>
-        <button type="button" onClick={() => switchTab("income")}>Entradas &amp; extras</button>
+        <button type="button" onClick={() => switchTab("stats")}><Receipt size={17} /> Gastos</button>
+        <button type="button" onClick={() => switchTab("limits")}><Tag size={17} /> Limites e categorias</button>
+        <button type="button" onClick={() => switchTab("debts")}><WalletCards size={17} /> Quem me deve</button>
+        <button type="button" onClick={() => switchTab("income")}><Sparkles size={17} /> Entradas &amp; extras</button>
         <button type="button" onClick={() => switchTab("preferences")}><Settings2 size={17} /> Preferências</button>
       </div>}
 
@@ -525,8 +536,8 @@ export default function Page() {
           <div><span className="eyebrow">
             <Receipt size={15} /> BruMath
           </span>
-            <h2>{modal === "expense" ? (editingExpense ? "Editar gasto" : "Adicionar gasto") : modal === "installment" ? (editingInstallment ? "Editar parcela" : "Nova parcela") : modal === "debt" ? (editingDebt ? "Editar quem me deve" : "Adicionar quem me deve") : modal === "income" ? (editingIncome ? "Editar entrada" : "Nova entrada") : modal === "receive" ? "Registrar recebimento" : "Renda e orçamento"}</h2>
-          </div><button type="button" className="icon-button" onClick={() => setModal("none")}>
+            <h2>{modal === "expense" ? (editingExpense ? "Editar gasto" : "Adicionar gasto") : modal === "installment" ? (editingInstallment ? "Editar parcela" : "Nova parcela") : modal === "debt" ? (editingDebt ? "Editar quem me deve" : "Adicionar quem me deve") : modal === "income" ? (editingIncome ? "Editar entrada" : "Nova entrada") : modal === "receive" ? "Registrar recebimento" : modal === "advance" ? "Adiantar parcelas" : "Renda e orçamento"}</h2>
+          </div><button type="button" className="icon-button" onClick={() => { setAdvancingInstallment(null); setModal("none"); }}>
             <X size={18} />
           </button>
         </div>
@@ -563,6 +574,11 @@ export default function Page() {
           <p className="receive-help">Você pode receber uma parte agora e o restante continuará em aberto para os próximos meses.</p><button type="submit" className="primary-button">
             <Check size={17} /> Registrar recebimento
           </button>
+        </form>}
+        {modal === "advance" && advancingInstallment && <form onSubmit={saveAdvanceInstallments}>
+          <div className="receive-summary"><span>Parcela</span><strong>{advancingInstallment.title}</strong><small>Você pode adiantar até {advancingInstallment.totalInstallments - advancingInstallment.paidInstallments} parcelas.</small></div>
+          <label className="field"><span>Quantas parcelas deseja adiantar?</span><input autoFocus type="number" min="1" max={advancingInstallment.totalInstallments - advancingInstallment.paidInstallments} value={advanceCount} onChange={event => setAdvanceCount(event.target.value)} required /></label>
+          <div className="modal-actions"><button type="button" className="secondary-button" onClick={() => { setAdvancingInstallment(null); setModal("none"); }}>Cancelar</button><button type="submit" className="primary-button"><Check size={17} /> Confirmar adianto</button></div>
         </form>}
         {modal === "income" && <form onSubmit={saveIncome}><label className="field"><span>Entrada</span><input value={incomeForm.title} onChange={e => setIncomeForm({ ...incomeForm, title: e.target.value })} placeholder="Ex.: Reembolso" required /></label>
           <div className="form-grid"><label className="field"><span>Valor</span><MoneyInput value={incomeForm.amount} onValueChange={value => setIncomeForm({ ...incomeForm, amount: value })} placeholder="500,00" required /></label><label className="field"><span>Data</span><DateInput value={incomeForm.date} onValueChange={value => setIncomeForm({ ...incomeForm, date: value })} /></label></div>

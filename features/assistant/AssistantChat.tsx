@@ -38,50 +38,10 @@ export function AssistantChat({
   messagesRef,
   scrollPosition,
 }: Props) {
-  const panel = useRef<HTMLElement>(null);
   const previousCount = useRef(messages.length);
   useLayoutEffect(() => {
-    const element = panel.current;
-    const nav = document.querySelector<HTMLElement>(".bottom-nav");
-    if (!element) return;
-    window.scrollTo(0, 0);
-    const measure = () => {
-      const viewportBottom = window.visualViewport
-        ? window.visualViewport.height + window.visualViewport.offsetTop
-        : window.innerHeight;
-      const navigationTop =
-        nav && getComputedStyle(nav).display !== "none"
-          ? nav.getBoundingClientRect().top
-          : (document
-              .querySelector<HTMLElement>(".fab-wrap")
-              ?.getBoundingClientRect().top ?? viewportBottom);
-      const gap =
-        Number.parseFloat(
-          getComputedStyle(element).getPropertyValue("--space-2"),
-        ) || 8;
-      element.style.height = `${Math.max(0, Math.min(viewportBottom, navigationTop) - element.getBoundingClientRect().top - gap)}px`;
-    };
-    measure();
-    const observer = new ResizeObserver(measure);
-    if (nav) observer.observe(nav);
-    if (nav?.parentElement) observer.observe(nav.parentElement);
-    const header = document.querySelector(".topbar");
-    if (header) observer.observe(header);
-    const month = document.querySelector(".page")?.firstElementChild;
-    if (month) observer.observe(month);
-    const frame = requestAnimationFrame(measure);
-    window.addEventListener("resize", measure);
-    window.visualViewport?.addEventListener("resize", measure);
-    window.visualViewport?.addEventListener("scroll", measure);
     const list = messagesRef.current;
     if (list) list.scrollTop = scrollPosition.current;
-    return () => {
-      observer.disconnect();
-      cancelAnimationFrame(frame);
-      window.removeEventListener("resize", measure);
-      window.visualViewport?.removeEventListener("resize", measure);
-      window.visualViewport?.removeEventListener("scroll", measure);
-    };
   }, [messagesRef, scrollPosition]);
   useLayoutEffect(() => {
     if (previousCount.current !== messages.length && messagesRef.current) {
@@ -91,7 +51,6 @@ export function AssistantChat({
   }, [messages.length, messagesRef]);
   return (
     <section
-      ref={panel}
       className={styles.chat}
       data-assistant-chat
       aria-label="Assistente financeiro"
