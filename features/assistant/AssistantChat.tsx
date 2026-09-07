@@ -64,6 +64,7 @@ export function AssistantChat({
     measure();
     const observer = new ResizeObserver(measure);
     if (nav) observer.observe(nav);
+    if (nav?.parentElement) observer.observe(nav.parentElement);
     const header = document.querySelector(".topbar");
     if (header) observer.observe(header);
     const month = document.querySelector(".page")?.firstElementChild;

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState, type FormEvent, type ReactNode } from "react";
+import { ViewportNavigation } from "../components/navigation/ViewportNavigation";
 import {
   CalendarDays,
   Car,
@@ -390,6 +391,7 @@ export default function Page() {
   const monthName = monthLabel(viewMonth);
 
   return (
+    <>
     <div className="app-shell">
       {toast && <div className="toast">{toast}</div>}
       <AppSidebar activeTab={tab} onNavigate={switchTab} />
@@ -478,6 +480,8 @@ export default function Page() {
       </main>
       </div>
 
+      </div>
+      <ViewportNavigation>
       <div className="fab-wrap">{quickAddOpen && <div className="quick-add-menu"><button type="button" onClick={openNewExpense}>
         <Receipt size={17} /> Gasto
       </button><button type="button" onClick={openNewInstallment}>
@@ -509,6 +513,7 @@ export default function Page() {
         <NavButton active={tab === "stats" || tab === "debts" || tab === "income" || tab === "limits"} onClick={() => setMobileMoreOpen(open => !open)} icon={
           <MoreHorizontal size={19} />} label="Mais" />
       </nav>
+      </ViewportNavigation>
 
       {modal !== "none" && <div className="modal-backdrop" onMouseDown={e => { if (e.target === e.currentTarget) setModal("none"); }}><div className="modal-card" role="dialog" aria-modal="true">
         <div className="modal-header">
@@ -573,6 +578,6 @@ export default function Page() {
         </form>}
       </div>
       </div>}
-    </div>
+    </>
   );
 }
