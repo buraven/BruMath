@@ -1812,6 +1812,16 @@ button {
 /* Home header keeps the same identity with room for profile controls. */
 .app-shell:has([data-assistant-chat]) .topbar { flex-wrap: wrap; gap: var(--space-2); padding-block: var(--space-3); }
 .app-shell:has([data-assistant-chat]) .topbar-actions { flex-wrap: wrap; max-width: 100%; }
+.app-shell:has([data-assistant-chat]) .app-workspace {
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  block-size: calc(100dvh - var(--bottom-nav-reserve));
+}
+.app-shell:has([data-assistant-chat]) .page {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
 .app-shell:has([data-home]) aside > div:first-child { display: none; }
 .app-shell:has([data-home]) .topbar { flex-wrap: wrap; gap: var(--space-3); }
 .app-shell:has([data-home]) .topbar-actions { flex-wrap: wrap; max-width: 100%; gap: var(--space-2); }
@@ -1822,6 +1832,12 @@ button {
   .fab-wrap { bottom: calc(max(var(--space-2), env(safe-area-inset-bottom)) + 6px); }
   .mobile-more-menu { bottom: calc(max(var(--space-2), env(safe-area-inset-bottom)) + 80px); }
   .bottom-nav-add-slot { min-width: 0; }
+}
+
+@media (min-width: 1440px) and (hover: hover) and (pointer: fine) {
+  .app-shell:has([data-assistant-chat]) .app-workspace {
+    block-size: calc(100dvh - (var(--space-6) * 2));
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {
