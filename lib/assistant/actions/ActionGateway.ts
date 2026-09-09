@@ -4,14 +4,15 @@ const confirmedActionMarker: unique symbol = Symbol("confirmedAssistantAction");
 
 export type ConfirmationReceipt = {
   id: string;
+  proposalId: string;
   confirmedAt: string;
 };
 
-export type ConfirmedAction = {
+export type ConfirmedAction = Readonly<{
   proposal: AssistantActionProposal;
   confirmation: ConfirmationReceipt;
   readonly [confirmedActionMarker]: true;
-};
+}>;
 
 export type ActionResult =
   | { ok: true; message: string; referenceId?: string }
@@ -34,11 +35,24 @@ export function confirmAction(
   proposal: AssistantActionProposal,
   confirmation: ConfirmationReceipt,
 ): ConfirmedAction {
-  return {
-    proposal,
-    confirmation,
+  if (confirmation.proposalId !== proposal.id) {
+    throw new Error("A confirmação não corresponde à proposta de ação.");
+  }
+
+  return freezeActionSnapshot({
+    proposal: structuredClone(proposal),
+    confirmation: structuredClone(confirmation),
     [confirmedActionMarker]: true,
-  };
+  });
+}
+
+function freezeActionSnapshot<T>(value: T): T {
+  if (!value || typeof value !== "object") return value;
+
+  for (const nestedValue of Object.values(value as object)) {
+    freezeActionSnapshot(nestedValue);
+  }
+  return Object.freeze(value);
 }
 
 export function isConfirmedAction(value: unknown): value is ConfirmedAction {

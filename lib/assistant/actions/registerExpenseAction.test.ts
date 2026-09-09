@@ -74,6 +74,7 @@ test("persists exactly the confirmed register-expense payload once", async () =>
   const pending = proposal();
   const confirmed = confirmAction(pending, {
     id: "confirmation:100",
+    proposalId: pending.id,
     confirmedAt: "2026-09-08T12:00:00.000Z",
   });
 
@@ -105,6 +106,7 @@ test("does not report persistence errors as success", async () => {
   ]);
   const confirmed = confirmAction(proposal(), {
     id: "confirmation:failed",
+    proposalId: "proposal:register-expense:expense:100",
     confirmedAt: "2026-09-08T12:00:00.000Z",
   });
 
@@ -116,4 +118,32 @@ test("does not report persistence errors as success", async () => {
     message: "Não foi possível executar a ação confirmada.",
   });
   assert.equal(saved.length, 0);
+});
+
+test("binds confirmation to an immutable proposal snapshot", async () => {
+  const { repository, saved } = createRepository();
+  const gateway = createActionGateway([
+    createRegisterExpenseAction(repository),
+  ]);
+  const pending = proposal();
+
+  assert.throws(() =>
+    confirmAction(pending, {
+      id: "confirmation:wrong-proposal",
+      proposalId: "proposal:other",
+      confirmedAt: "2026-09-08T12:00:00.000Z",
+    }),
+  );
+
+  const confirmed = confirmAction(pending, {
+    id: "confirmation:snapshot",
+    proposalId: pending.id,
+    confirmedAt: "2026-09-08T12:00:00.000Z",
+  });
+  pending.payload.amount = 999;
+
+  const result = await gateway.execute(confirmed);
+
+  assert.equal(result.ok, true);
+  assert.equal(saved[0]?.amount, 85);
 });

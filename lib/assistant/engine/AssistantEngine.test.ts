@@ -152,6 +152,7 @@ test("prevents an action proposal from being executed before confirmation", asyn
 
   const confirmed = confirmAction(proposal, {
     id: "confirmation-1",
+    proposalId: proposal.id,
     confirmedAt: "2026-09-07T12:00:00.000Z",
   });
 

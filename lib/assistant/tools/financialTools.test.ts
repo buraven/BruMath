@@ -252,4 +252,5 @@ test("registers the deterministic financial capabilities once", () => {
       "getExtraIncome",
     ],
   );
+  assert.throws(() => registry.require("missingTool"), /not found/);
 });

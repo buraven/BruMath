@@ -142,19 +142,16 @@ const getCategorySpending: ReadOnlyTool<
     const category = input.category?.trim();
     if (!category) return invalidInput("Informe uma categoria para consultar.");
 
-    const expenses = await context.financialContext.getExpenses({
+    const financialContext = await context.financialContext.getContext({
       ...context.scope,
       category,
     });
     return success("getCategorySpending", {
-      ...expenses,
+      ...financialContext,
       value: {
         category,
-        total: expenses.value.reduce(
-          (total, expense) => total + expense.amount,
-          0,
-        ),
-        expenses: expenses.value,
+        total: financialContext.value.summary.expenses,
+        expenses: financialContext.value.expenses,
       },
     });
   },
@@ -243,14 +240,16 @@ const getExtraIncome: ReadOnlyTool<
       "Consulta entradas extras que entram em conta no período atual.",
   },
   async execute(_, context) {
-    const income = await context.financialContext.getIncome(context.scope);
-    const entries = income.value.filter(
+    const financialContext = await context.financialContext.getContext(
+      context.scope,
+    );
+    const entries = financialContext.value.income.filter(
       (entry) => entry.destination === "conta",
     );
     return success("getExtraIncome", {
-      ...income,
+      ...financialContext,
       value: {
-        total: entries.reduce((total, entry) => total + entry.amount, 0),
+        total: financialContext.value.summary.extraIncome,
         entries,
       },
     });
