@@ -4,7 +4,9 @@ import type {
   ConversationApiRequest,
   ConversationApiResponse,
   ConversationPlan,
+  ConversationToolResult,
 } from "../conversation/contracts";
+import type { ConversationProviderAdapter } from "./ConversationProviderAdapter.server";
 import type { FinancialToolName } from "../tools/financialTools";
 
 const toolNames = new Set<FinancialToolName>([
@@ -196,5 +198,63 @@ export async function generateConversationPlan(
       message:
         "Não foi possível falar com o Assistente agora. Tente novamente em instantes.",
     };
+  }
+}
+
+/** Preserved alternate provider. It is selected only with AI_PROVIDER=openai. */
+export class OpenAIProviderAdapter implements ConversationProviderAdapter {
+  generatePlan(
+    request: ConversationApiRequest,
+  ): Promise<ConversationApiResponse> {
+    return generateConversationPlan(request);
+  }
+
+  async generateExplanation(
+    request: ConversationApiRequest,
+    toolResults: readonly ConversationToolResult[],
+  ): Promise<ConversationApiResponse> {
+    const apiKey = process.env.OPENAI_API_KEY;
+    if (!apiKey) {
+      return {
+        ok: false,
+        code: "unavailable",
+        message:
+          "O Assistente com IA ainda não está configurado neste ambiente.",
+      };
+    }
+    const model = process.env.OPENAI_MODEL || "gpt-5-mini";
+    try {
+      const client = new OpenAI({ apiKey, timeout: 15_000, maxRetries: 1 });
+      const response = await client.responses.create({
+        model,
+        instructions:
+          "Responda em português do Brasil com base exclusivamente nos resultados financeiros determinísticos fornecidos. Não invente números e diferencie recomendações de fatos.",
+        input: `Perfil: ${request.activeProfile}. Mês: ${request.selectedMonth}. Pergunta: ${request.message}\nResultados autorizados: ${JSON.stringify(toolResults)}`,
+      });
+      const message = response.output_text.trim();
+      return message
+        ? { ok: true, plan: textPlan(message) }
+        : {
+            ok: false,
+            code: "invalid-response",
+            message:
+              "Não recebi uma análise válida do Assistente. Tente novamente.",
+          };
+    } catch (error) {
+      const apiError = error instanceof OpenAI.APIError ? error : undefined;
+      console.error("assistant_provider_failed", {
+        provider: "openai",
+        model,
+        status: apiError?.status,
+        code: apiError?.code,
+        type: apiError?.type,
+      });
+      return {
+        ok: false,
+        code: "provider-failed",
+        message:
+          "Não foi possível falar com o Assistente agora. Tente novamente em instantes.",
+      };
+    }
   }
 }

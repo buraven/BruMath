@@ -24,12 +24,26 @@ export type ConversationPlan =
       toolName: FinancialToolName;
       input: ConversationToolInput;
     }
+  | {
+      kind: "tool-calls";
+      calls: readonly {
+        toolName: FinancialToolName;
+        input: ConversationToolInput;
+      }[];
+    }
   | { kind: "register-expense"; input: RegisterExpensePlan };
+
+export type ConversationToolResult = {
+  toolName: FinancialToolName;
+  data: unknown;
+  scope: ConversationToolInput & { profile: AssistantProfile; month: string };
+  provenance: readonly { kind: string; label: string; source?: string }[];
+};
 
 export type ConversationApiRequest = Pick<
   AssistantRequest,
   "message" | "activeProfile" | "selectedMonth"
->;
+> & { toolResults?: readonly ConversationToolResult[] };
 
 export type ConversationApiResponse =
   | { ok: true; plan: ConversationPlan }

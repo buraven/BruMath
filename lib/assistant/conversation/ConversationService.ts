@@ -5,7 +5,11 @@ import {
   createFinancialToolRegistry,
   type FinancialToolName,
 } from "../tools/financialTools";
-import type { ConversationApiResponse, ConversationPlan } from "./contracts";
+import type {
+  ConversationApiResponse,
+  ConversationPlan,
+  ConversationToolResult,
+} from "./contracts";
 
 const toolNames = new Set<FinancialToolName>([
   "getFinancialSummary",
@@ -68,6 +72,7 @@ export async function requestConversationPlan(request: {
   message: string;
   activeProfile: AssistantProfile;
   selectedMonth: string;
+  toolResults?: readonly ConversationToolResult[];
 }): Promise<ConversationApiResponse> {
   const response = await fetch("/api/assistant", {
     method: "POST",
@@ -90,44 +95,56 @@ export async function requestConversationPlan(request: {
 export async function resolveConversationPlan(
   plan: ConversationPlan,
   defaults: { activeProfile: AssistantProfile; selectedMonth: string },
-): Promise<{ kind: "message"; message: string } | ConversationPlan> {
-  if (plan.kind !== "tool-call") return plan;
-  if (!toolNames.has(plan.toolName)) {
+): Promise<
+  | { kind: "message"; message: string }
+  | { kind: "tool-results"; results: readonly ConversationToolResult[] }
+  | ConversationPlan
+> {
+  if (plan.kind !== "tool-call" && plan.kind !== "tool-calls") return plan;
+  const calls = plan.kind === "tool-call" ? [plan] : plan.calls;
+  if (calls.some((call) => !toolNames.has(call.toolName))) {
     return {
       kind: "message",
       message: "Não reconheci essa consulta financeira.",
     };
   }
-
-  const profile = isProfile(plan.input.profile)
-    ? plan.input.profile
-    : defaults.activeProfile;
-  const month = isMonth(plan.input.month)
-    ? plan.input.month
-    : defaults.selectedMonth;
-  const category =
-    typeof plan.input.category === "string" && plan.input.category.trim()
-      ? plan.input.category.trim()
-      : undefined;
   const registry = createFinancialToolRegistry();
-  const tool = registry.require(plan.toolName);
-  const result = await tool.execute(
-    {
-      ...(category ? { category } : {}),
-      ...(typeof plan.input.dueInSelectedMonth === "boolean"
-        ? { dueInSelectedMonth: plan.input.dueInSelectedMonth }
-        : {}),
-    },
-    {
-      scope: { profile, month, ...(category ? { category } : {}) },
-      financialContext: createFinancialContextProvider(
-        new LocalStorageFinancialDataSource(),
-      ),
-    },
+  const financialContext = createFinancialContextProvider(
+    new LocalStorageFinancialDataSource(),
   );
-  if (!result.ok) return { kind: "message", message: result.message };
+  const results = await Promise.all(
+    calls.map(async (call) => {
+      const profile = isProfile(call.input.profile)
+        ? call.input.profile
+        : defaults.activeProfile;
+      const month = isMonth(call.input.month)
+        ? call.input.month
+        : defaults.selectedMonth;
+      const category =
+        typeof call.input.category === "string" && call.input.category.trim()
+          ? call.input.category.trim()
+          : undefined;
+      return registry.require(call.toolName).execute(
+        {
+          ...(category ? { category } : {}),
+          ...(typeof call.input.dueInSelectedMonth === "boolean"
+            ? { dueInSelectedMonth: call.input.dueInSelectedMonth }
+            : {}),
+        },
+        {
+          scope: { profile, month, ...(category ? { category } : {}) },
+          financialContext,
+        },
+      );
+    }),
+  );
+  const failure = results.find((result) => !result.ok);
+  if (failure && !failure.ok)
+    return { kind: "message", message: failure.message };
   return {
-    kind: "message",
-    message: formatToolResult(plan.toolName, result.value),
+    kind: "tool-results",
+    results: results.map(
+      (result) => (result as { ok: true; value: ConversationToolResult }).value,
+    ),
   };
 }

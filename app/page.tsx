@@ -411,6 +411,11 @@ export default function Page() {
       const response = await requestConversationPlan({ message: value, activeProfile, selectedMonth: viewMonth });
       if (!response.ok) { completePending(response.message); return; }
       const plan = await resolveConversationPlan(response.plan, { activeProfile, selectedMonth: viewMonth });
+      if (plan.kind === "tool-results") {
+        const explanation = await requestConversationPlan({ message: value, activeProfile, selectedMonth: viewMonth, toolResults: plan.results });
+        completePending(explanation.ok ? explanation.plan.kind === "message" ? explanation.plan.message : "Não consegui concluir essa análise. Tente novamente." : explanation.message);
+        return;
+      }
       if (plan.kind === "register-expense") {
         const expenseId = Date.now();
         const proposal = createRegisterExpenseProposal({ id: `expense:${expenseId}`, description: plan.input.description, amount: plan.input.amount, category: plan.input.category, owner: plan.input.owner ?? activeProfile, date: plan.input.date ?? `${viewMonth}-01` });
