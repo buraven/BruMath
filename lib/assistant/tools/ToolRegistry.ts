@@ -31,6 +31,7 @@ export interface ReadOnlyTool<TInput = unknown, TOutput = unknown> {
 
 export interface ToolRegistry {
   get(name: string): ReadOnlyTool | undefined;
+  require(name: string): ReadOnlyTool;
   list(): readonly ToolDefinition[];
 }
 
@@ -48,6 +49,11 @@ export function createToolRegistry(
 
   return {
     get: (name) => registered.get(name),
+    require: (name) => {
+      const tool = registered.get(name);
+      if (!tool) throw new Error(`Assistant tool not found: ${name}`);
+      return tool;
+    },
     list: () => [...registered.values()].map((tool) => tool.definition),
   };
 }

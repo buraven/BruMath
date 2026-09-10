@@ -123,6 +123,16 @@ determinística disponível.
 - **LLM Provider:** adapter futuro opcional, proibido de receber APIs de persistência ou
   callbacks de mutação.
 
+### Princípio de persistência
+
+`UI → Assistant Engine → Tools / Actions → Financial Context → FinancialDataSource → Persistence`
+
+Hoje, a implementação concreta é `LocalStorageFinancialDataSource → brumath-data`.
+Futuramente, a mesma fronteira permitirá `SupabaseFinancialDataSource →
+Supabase/PostgreSQL`. Assistant Engine, Tools e UI não devem depender diretamente de
+nenhuma dessas implementações de persistência; os PRs #49–#53 não devem introduzir novo
+acoplamento ao `localStorage`.
+
 ### Contexto, perfil e conversa
 
 O contexto padrão contém perfil ativo, mês selecionado e referência curta de conversa.
@@ -167,18 +177,25 @@ saldo, gasto, limite, parcela, vencimento, dívida ou entrada.
 
 ### Roadmap da Fase 2
 
-| PR  | Branch                                  | Entrega                                                                                     |
-| --- | --------------------------------------- | ------------------------------------------------------------------------------------------- |
-| #46 | `feature/assistant-engine-pr46`         | Contratos e boundaries do Assistant Engine, sem LLM. **Integrado.**                         |
-| #47 | `feature/financial-context-engine-pr47` | Contexto financeiro estruturado e consultas confiáveis. **Concluído, pronto para revisão.** |
-| #48 | `feature/assistant-tools-actions-pr48`  | Tools determinísticas, propostas de action e fluxo de confirmação.                          |
-| #49 | `feature/conversational-ai-pr49`        | Provider LLM, intent e structured outputs.                                                  |
-| #50 | `feature/financial-guardrails-pr50`     | Provenance, validação e anti-alucinação financeira.                                         |
-| #51 | `feature/conversation-context-pr51`     | Follow-ups, referências conversacionais e memória curta.                                    |
-| #52 | `chore/token-cost-optimization-pr52`    | Seleção de contexto, cache, resumos e roteamento de modelo.                                 |
-| #53 | `feature/proactive-insights-pr53`       | Motor de insights compartilhado entre Home e Assistente.                                    |
+Os números de roadmap abaixo são os números oficiais dos PRs no GitHub. Nomes de
+branches já criadas antes desta equalização são mantidos apenas como registro
+histórico e não alteram a numeração oficial.
 
-### PR #46 — Assistant Engine Foundation
+| PR  | Branch                                    | Entrega                                                                          |
+| --- | ----------------------------------------- | -------------------------------------------------------------------------------- |
+| #47 | `feature/assistant-engine-pr46`           | Assistant Engine Foundation. **Concluído.**                                      |
+| #48 | `feature/financial-context-engine-pr47`   | Financial Context Engine. **Concluído.**                                         |
+| #49 | `feature/assistant-tools-actions-pr48`    | Tools determinísticas, proposta de action e confirmação. **Pronto para merge / validação final.** |
+| #50 | `feature/conversational-ai-pr49`          | Conversational AI: provider LLM, intent e structured outputs.                    |
+| #51 | `chore/app-state-page-decomposition-pr50` | App State & Page Decomposition.                                                  |
+| #52 | `feature/financial-guardrails-pr51`       | Financial Guardrails: provenance, validação e anti-alucinação financeira.        |
+| #53 | `feature/conversation-context-pr52`       | Conversation Context: follow-ups, referências e memória curta.                   |
+| #54 | `chore/token-cost-optimization-pr53`      | Token & Cost Optimization: seleção de contexto, cache, resumos e roteamento.     |
+| #55 | `feature/supabase-persistence-pr54`       | Supabase Persistence: persistência financeira centralizada e migração gradual.   |
+| #56 | `feature/multi-user-sync-pr55`            | Multi-user & Synchronization: household, membros e sincronização.                |
+| #57 | `feature/proactive-insights-pr56`         | Proactive Insights: motor determinístico compartilhado entre Home e Assistente.  |
+
+### PR #47 — Assistant Engine Foundation
 
 **Objetivo:** criar uma fundação testável sem mudar a UI atual, adicionar provider de IA
 ou executar ações financeiras por conversa.
@@ -192,11 +209,11 @@ ou executar ações financeiras por conversa.
   dependências por interface; inicialmente pode encaminhar apenas o comportamento
   determinístico já existente, sem alterar a resposta visual.
 - `features/assistant/engine/FinancialContextProvider`: contrato de leitura por escopo
-  de perfil/mês; implementação real fica para #47.
+  de perfil/mês; implementação real fica para #48.
 - `features/assistant/engine/ToolRegistry`: contrato para tools tipadas, sem acesso a
   UI, `localStorage` ou callbacks React.
 - `features/assistant/engine/ActionGateway`: contrato para criar propostas, nunca para
-  executar sem confirmação. A execução real fica para #48.
+  executar sem confirmação. A execução real fica para #49.
 - `features/assistant/engine/ProviderAdapter`: porta opcional para LLM, ainda sem SDK,
   chave, rede ou implementação concreta.
 
@@ -217,6 +234,59 @@ de integração previstas; não existem dois fluxos concorrentes de resposta.
 rejeição de mutações sem confirmação e mocks de `FinancialContextProvider`,
 `ToolRegistry`, `ActionGateway` e `ProviderAdapter`. Nenhum teste dependerá de React ou
 `localStorage`.
+
+### PR #51 — App State & Page Decomposition (futuro)
+
+Reduzir significativamente `app/page.tsx` para que seja composição e orquestração mínima
+das features, não o local central da lógica do produto. A decomposição deverá revisar, quando
+apropriado, estado da aplicação, persistência, callbacks e mutações, fluxo do Assistente,
+responsabilidades financeiras e responsabilidades próprias de Home, Assistant, Future,
+Categories e Preferences.
+
+O alvo conceitual é separar composição de features em `app/` e `features/` das fronteiras
+reutilizáveis em `lib/assistant`, `lib/finance` e `lib/persistence`, sem impor uma estrutura
+rígida quando a arquitetura real indicar alternativa melhor. O #49 não inicia essa refatoração
+e não aumenta a responsabilidade de `app/page.tsx`.
+
+### PR #55 — Supabase Persistence (futuro)
+
+Substituir progressivamente a persistência exclusiva em `localStorage` por uma camada
+real baseada em Supabase/PostgreSQL, sem migração big bang. O Financial Context continuará
+dependendo de `FinancialDataSource`; a implementação futura será
+`SupabaseFinancialDataSource`, sem acoplamento direto de Assistant Engine, Tools ou UI ao
+banco.
+
+O planejamento inclui projeto Supabase, PostgreSQL, schema financeiro, repositories e
+adapters, autenticação, Row Level Security, migração segura dos dados existentes,
+importação inicial de `localStorage`, período de compatibilidade/transição, tratamento de
+conflitos e recuperação de erros, com testes. Nada disso é implementado antes do #55.
+
+### PR #56 — Multi-user & Synchronization (futuro)
+
+Permitir que Bruna e Matheus usem o mesmo ambiente financeiro em contas e dispositivos
+diferentes. O planejamento inclui usuários autenticados, household/casal, membros,
+permissões, sincronização entre dispositivos, isolamento entre households e ownership dos
+registros.
+
+O conceito atual `who = Bruna | Matheus | Casal` será evoluído somente quando o modelo e
+a persistência suportarem distinguir usuário que criou o registro, responsável financeiro,
+quem pagou e household. Não reinterpretar nem migrar os dados atuais antes dessa etapa.
+
+### PR #57 — Proactive Insights (futuro)
+
+Construir insights somente após Assistant Engine, Financial Context, Tools & Actions,
+Conversational AI, Guardrails, Conversation Context, otimizações de custo, persistência
+centralizada e multiusuário/sincronização. Home e Assistente deverão consumir o mesmo motor
+determinístico de insights, sem duplicar regras ou textos.
+
+### Futuro / possíveis evoluções
+
+- Open Finance / integração bancária;
+- importação automática de transações;
+- conciliação bancária;
+- categorização automática de transações importadas.
+
+Essas evoluções ficam fora do roadmap #47–#57 e não possuem PR atribuído agora.
 
 ### Critérios gerais de conclusão da Fase 2
 

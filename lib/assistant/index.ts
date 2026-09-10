@@ -1,4 +1,5 @@
 export * from "./actions/ActionGateway";
+export * from "./actions/registerExpenseAction";
 export * from "./context/createFinancialContextProvider";
 export * from "./context/FinancialDataSource";
 export * from "./context/FinancialContextProvider";
@@ -7,3 +8,4 @@ export * from "./contracts";
 export * from "./engine/AssistantEngine";
 export * from "./providers/ProviderAdapter";
 export * from "./tools/ToolRegistry";
+export * from "./tools/financialTools";
