@@ -68,6 +68,11 @@ function providerFailure(): ConversationApiResponse {
   };
 }
 
+function safeProviderMessage(error: unknown): string | undefined {
+  if (!(error instanceof Error)) return undefined;
+  return error.message.replace(/AIza[\w-]{20,}/g, "[redacted]").slice(0, 400);
+}
+
 export class GeminiProviderAdapter implements ConversationProviderAdapter {
   private readonly apiKey = process.env.GEMINI_API_KEY;
   private readonly model = process.env.GEMINI_MODEL || "gemini-2.5-flash";
@@ -158,6 +163,7 @@ export class GeminiProviderAdapter implements ConversationProviderAdapter {
         status: candidate?.status,
         code: candidate?.code,
         type: candidate?.name,
+        message: safeProviderMessage(error),
       });
       return providerFailure();
     }
@@ -206,6 +212,7 @@ export class GeminiProviderAdapter implements ConversationProviderAdapter {
         status: candidate?.status,
         code: candidate?.code,
         type: candidate?.name,
+        message: safeProviderMessage(error),
       });
       return providerFailure();
     }
