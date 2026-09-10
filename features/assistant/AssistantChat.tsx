@@ -9,7 +9,12 @@ import {
 import { Send, Sparkles } from "lucide-react";
 import styles from "./AssistantChat.module.css";
 
-type Message = { id: number; role: "assistant" | "user"; text: string };
+type Message = {
+  id: number;
+  role: "assistant" | "user";
+  text: string;
+  status?: "pending";
+};
 type Props = {
   profile: string;
   monthLabel: string;
@@ -84,9 +89,15 @@ export function AssistantChat({
               {message.role === "user" ? "Você" : "BruMath"}
             </span>
             <div className={styles.bubble}>
-              {index === 0 && message.role === "assistant"
-                ? `Oi, ${profile} 💚 O que vamos organizar hoje?`
-                : message.text}
+              {message.status === "pending" ? (
+                <span className={styles.thinking} aria-label="Pensando">
+                  <i /> <i /> <i /> <span>Pensando…</span>
+                </span>
+              ) : index === 0 && message.role === "assistant" ? (
+                `Oi, ${profile} 💚 O que vamos organizar hoje?`
+              ) : (
+                message.text
+              )}
             </div>
           </div>
         ))}
@@ -114,7 +125,6 @@ export function AssistantChat({
           <textarea
             rows={2}
             value={value}
-            disabled={isLoading}
             onChange={(event) => onChange(event.target.value)}
             aria-label="Mensagem para o BruMath"
             placeholder="Pergunte sobre suas finanças…"
@@ -137,7 +147,6 @@ export function AssistantChat({
             <Send size={20} />
           </button>
         </form>
-        {isLoading && <span className={styles.loading}>Pensando…</span>}
       </footer>
     </section>
   );

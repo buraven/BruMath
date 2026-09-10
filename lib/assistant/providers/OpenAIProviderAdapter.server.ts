@@ -142,10 +142,12 @@ export async function generateConversationPlan(
     };
   }
 
+  const model = process.env.OPENAI_MODEL || "gpt-5-mini";
+  const requestId = crypto.randomUUID();
   const client = new OpenAI({ apiKey, timeout: 15_000, maxRetries: 1 });
   try {
     const response = await client.responses.create({
-      model: process.env.OPENAI_MODEL || "gpt-5-mini",
+      model,
       instructions: [
         "Você interpreta pedidos financeiros em português para o BruMath.",
         "Nunca invente números, saldos, limites, gastos, parcelas ou datas.",
@@ -179,7 +181,15 @@ export async function generateConversationPlan(
           message:
             "Não recebi uma resposta válida do Assistente. Tente novamente.",
         };
-  } catch {
+  } catch (error) {
+    const apiError = error instanceof OpenAI.APIError ? error : undefined;
+    console.error("assistant_provider_failed", {
+      requestId,
+      model,
+      status: apiError?.status,
+      code: apiError?.code,
+      type: apiError?.type,
+    });
     return {
       ok: false,
       code: "provider-failed",

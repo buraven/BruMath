@@ -67,7 +67,7 @@ type Installment = {
 };
 type Debt = { id: number; person: string; amount: number; destination: DebtDestination; note: string; paid: number; month: string; receivedMonth?: string };
 type IncomeEntry = { id: number; title: string; amount: number; who: Person; date: string; destination: "conta" | "cartao"; note: string };
-type ChatMessage = { id: number; role: "assistant" | "user"; text: string };
+type ChatMessage = { id: number; role: "assistant" | "user"; text: string; status?: "pending" };
 type Confirmation = {
   title: string;
   description: string;
@@ -402,17 +402,19 @@ export default function Page() {
     const value = (preset ?? text).trim(); if (!value) return;
     if (assistantLoading) return;
     const now = Date.now();
-    setChat(cur => [...cur, { id: now, role: "user", text: value }]);
+    const pendingId = now + 1;
+    const completePending = (reply: string) => setChat(cur => cur.map(message => message.id === pendingId ? { ...message, text: reply, status: undefined } : message));
+    setChat(cur => [...cur, { id: now, role: "user", text: value }, { id: pendingId, role: "assistant", text: "", status: "pending" }]);
     setText("");
     setAssistantLoading(true);
     try {
       const response = await requestConversationPlan({ message: value, activeProfile, selectedMonth: viewMonth });
-      if (!response.ok) { setChat(cur => [...cur, { id: Date.now(), role: "assistant", text: response.message }]); return; }
+      if (!response.ok) { completePending(response.message); return; }
       const plan = await resolveConversationPlan(response.plan, { activeProfile, selectedMonth: viewMonth });
       if (plan.kind === "register-expense") {
         const expenseId = Date.now();
         const proposal = createRegisterExpenseProposal({ id: `expense:${expenseId}`, description: plan.input.description, amount: plan.input.amount, category: plan.input.category, owner: plan.input.owner ?? activeProfile, date: plan.input.date ?? `${viewMonth}-01` });
-        setChat(cur => [...cur, { id: Date.now(), role: "assistant", text: "Preparei o gasto para você revisar. Ele só será salvo depois da sua confirmação." }]);
+        completePending("Preparei o gasto para você revisar. Ele só será salvo depois da sua confirmação.");
         setConfirmation({ title: proposal.preview.title, description: `${proposal.preview.description}. Confirme para salvar este gasto.`, confirmLabel: "Confirmar gasto", onConfirm: async () => {
           const confirmed = confirmAction(proposal, { id: `confirmation:${proposal.id}`, proposalId: proposal.id, confirmedAt: new Date().toISOString() });
           const result = await assistantActionGateway.current.execute(confirmed);
@@ -423,10 +425,10 @@ export default function Page() {
         return;
       }
       const message = plan.kind === "clarification" ? plan.question : plan.kind === "message" ? plan.message : "Não consegui concluir essa consulta. Tente novamente.";
-      setChat(cur => [...cur, { id: Date.now(), role: "assistant", text: message }]);
+      completePending(message);
       return;
     } catch {
-      setChat(cur => [...cur, { id: Date.now(), role: "assistant", text: "Não foi possível processar sua mensagem agora. Tente novamente." }]);
+      completePending("Não foi possível processar sua mensagem agora. Tente novamente.");
       return;
     } finally {
       setAssistantLoading(false);

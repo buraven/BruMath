@@ -136,11 +136,38 @@
   opacity: 0.45;
   cursor: default;
 }
-.loading {
-  display: block;
-  margin-top: var(--space-2);
+.thinking {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
   color: var(--muted);
-  font-size: 0.75rem;
+}
+.thinking i {
+  width: 0.35rem;
+  height: 0.35rem;
+  border-radius: 50%;
+  background: currentColor;
+  animation: assistant-thinking 1.1s ease-in-out infinite;
+}
+.thinking i:nth-child(2) {
+  animation-delay: 0.15s;
+}
+.thinking i:nth-child(3) {
+  animation-delay: 0.3s;
+}
+.thinking span {
+  margin-left: var(--space-1);
+}
+@keyframes assistant-thinking {
+  50% {
+    opacity: 0.35;
+    transform: translateY(-0.15rem);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .thinking i {
+    animation: none;
+  }
 }
 .confirmation {
   padding: var(--space-4);
