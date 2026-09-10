@@ -51,6 +51,9 @@ import { ExpensesScreen } from "../features/expenses/ExpensesScreen";
 import { AssistantChat } from "../features/assistant/AssistantChat";
 import { FutureScreen } from "../features/future/FutureScreen";
 import { PreferencesScreen } from "../features/preferences/PreferencesScreen";
+import { confirmAction, createActionGateway, createRegisterExpenseAction, createRegisterExpenseProposal } from "../lib/assistant";
+import { requestConversationPlan, resolveConversationPlan } from "../lib/assistant/conversation/ConversationService";
+import { LocalStorageTransactionRepository } from "../lib/finance/LocalStorageTransactionRepository";
 
 type Person = "Bruna" | "Matheus" | "Casal";
 type Tab = NavigationTab;
@@ -188,6 +191,8 @@ export default function Page() {
   const [budgets, setBudgets] = useState(DEFAULT_BUDGETS);
   const [limits, setLimits] = useState({ Bruna: 350, Matheus: 350 });
   const [text, setText] = useState("");
+  const [assistantLoading, setAssistantLoading] = useState(false);
+  const assistantActionGateway = useRef(createActionGateway([createRegisterExpenseAction(new LocalStorageTransactionRepository())]));
   const [toast, setToast] = useState("");
   const [modal, setModal] = useState<"none" | "expense" | "installment" | "debt" | "income" | "receive" | "advance" | "settings">("none");
   const [advancingInstallment, setAdvancingInstallment] = useState<Installment | null>(null);
@@ -393,48 +398,39 @@ export default function Page() {
     setToast(nextPaid >= receivingDebt.amount ? "Dívida quitada e registrada em O que entra 💚" : `${money(amount)} recebido. Restam ${money(receivingDebt.amount - nextPaid)} 💚`);
   };
 
-  const send = (preset?: string) => {
+  const send = async (preset?: string) => {
     const value = (preset ?? text).trim(); if (!value) return;
-    const normalized = value.toLowerCase(); const amount = parseAmount(value); const who = detectPerson(value, activeProfile);
-    const push = (assistant: string) => { const now = Date.now(); setChat(cur => [...cur, { id: now, role: "user", text: value }, { id: now + 1, role: "assistant", text: assistant }]); setText(""); };
-    const insightText = () => {
-      const top = [...cats].sort((a, b) => b.spent - a.spent)[0];
-      const nearLimit = cats.filter(x => x.budget > 0 && x.spent / x.budget >= 0.8).sort((a, b) => b.percent - a.percent);
-      const personal = (["Bruna", "Matheus"] as const).map(person => {
-        const spent = monthExpenses.filter(e => e.who === person).reduce((s, e) => s + e.amount, 0);
-        return { person, spent, limit: limits[person] };
-      });
-      const personalText = personal.map(x => `${x.person}: ${money(x.spent)} de ${money(x.limit)} (${x.limit ? Math.round(x.spent / x.limit * 100) : 0}%)`).join(" • ");
-      const alerts = nearLimit.slice(0, 3).map(x => `${x.category} está em ${Math.round(x.percent)}%`).join(", ");
-      return `Insights de ${monthLabel(viewMonth)}: ${top ? `maior categoria: ${top.category}, ${money(top.spent)}.` : "ainda não há gastos categorizados."} ${alerts ? `Atenção: ${alerts}.` : "Nenhuma categoria chegou a 80% do limite."} Limites pessoais: ${personalText}. ${activeInstallments.length ? `${activeInstallments.length} parcelados ativos e ${money(futureMonthly)} previstos neste mês.` : "Sem parcelas ativas neste mês."} ${debtTotal ? `Você ainda tem ${money(debtTotal)} a receber.` : ""}`;
-    };
-    const limitWords = ["limite", "quanto ainda posso", "quanto posso gastar", "quanto resta", "quanto ainda tenho"];
-    if (limitWords.some(w => normalized.includes(w))) {
-      const person = /\bmatheus\b/.test(normalized) ? "Matheus" : /\bbruna\b/.test(normalized) ? "Bruna" : null;
-      const budgetCategory = Object.keys(budgets).find(cat => normalized.includes(cat.toLowerCase()));
-      if (budgetCategory) {
-        const data = cats.find(x => x.category === budgetCategory);
-        if (data) return push(`No limite de ${budgetCategory} em ${monthLabel(viewMonth)}, você já usou ${money(data.spent)} de ${money(data.budget)} (${Math.round(data.percent)}%). Restam ${money(Math.max(0, data.budget - data.spent))}.`);
+    if (assistantLoading) return;
+    const now = Date.now();
+    setChat(cur => [...cur, { id: now, role: "user", text: value }]);
+    setText("");
+    setAssistantLoading(true);
+    try {
+      const response = await requestConversationPlan({ message: value, activeProfile, selectedMonth: viewMonth });
+      if (!response.ok) { setChat(cur => [...cur, { id: Date.now(), role: "assistant", text: response.message }]); return; }
+      const plan = await resolveConversationPlan(response.plan, { activeProfile, selectedMonth: viewMonth });
+      if (plan.kind === "register-expense") {
+        const expenseId = Date.now();
+        const proposal = createRegisterExpenseProposal({ id: `expense:${expenseId}`, description: plan.input.description, amount: plan.input.amount, category: plan.input.category, owner: plan.input.owner ?? activeProfile, date: plan.input.date ?? `${viewMonth}-01` });
+        setChat(cur => [...cur, { id: Date.now(), role: "assistant", text: "Preparei o gasto para você revisar. Ele só será salvo depois da sua confirmação." }]);
+        setConfirmation({ title: proposal.preview.title, description: `${proposal.preview.description}. Confirme para salvar este gasto.`, confirmLabel: "Confirmar gasto", onConfirm: async () => {
+          const confirmed = confirmAction(proposal, { id: `confirmation:${proposal.id}`, proposalId: proposal.id, confirmedAt: new Date().toISOString() });
+          const result = await assistantActionGateway.current.execute(confirmed);
+          if (!result.ok) return setToast(result.message);
+          setExpenses(cur => [{ id: expenseId, title: proposal.payload.description, cat: proposal.payload.category, who: proposal.payload.owner, amount: proposal.payload.amount, date: proposal.payload.date }, ...cur]);
+          setToast("Gasto registrado 💚");
+        }});
+        return;
       }
-      if (person) {
-        const spent = monthExpenses.filter(e => e.who === person).reduce((s, e) => s + e.amount, 0);
-        return push(`No limite pessoal de ${person}, você já usou ${money(spent)} de ${money(limits[person])}. Restam ${money(Math.max(0, limits[person] - spent))} (${limits[person] ? Math.round(spent / limits[person] * 100) : 0}% usado).`);
-      }
-      return push(`Me diga a categoria ou a pessoa. Ex.: "quanto ainda tenho no limite de Casa?" ou "quanto resta do limite do Matheus?"`);
+      const message = plan.kind === "clarification" ? plan.question : plan.kind === "message" ? plan.message : "Não consegui concluir essa consulta. Tente novamente.";
+      setChat(cur => [...cur, { id: Date.now(), role: "assistant", text: message }]);
+      return;
+    } catch {
+      setChat(cur => [...cur, { id: Date.now(), role: "assistant", text: "Não foi possível processar sua mensagem agora. Tente novamente." }]);
+      return;
+    } finally {
+      setAssistantLoading(false);
     }
-    if (/insight|insights|analisa|análise|analise|como estamos|como está/.test(normalized)) return push(insightText());
-    if (/resumo|situação|situacao/.test(normalized)) return push(`Em ${monthLabel(viewMonth)}: ${money(totalSpent)} gastos, ${money(available)} disponíveis, ${activeInstallments.length} parcelados ativos e ${money(debtTotal)} a receber. ${insightText()}`);
-    if (/quanto temos|saldo|disponível|disponivel|quanto tem/.test(normalized)) return push(`Renda base: ${money(income)}. Entradas extras: ${money(extraIncome)}. Gastos: ${money(totalSpent)}. Disponível: ${money(available)}. A receber: ${money(debtTotal)}.`);
-    if (/parcela|parcelas|futuro|compromisso/.test(normalized)) return push(`Há ${activeInstallments.length} parcelados ativos, ${remaining} parcelas restantes e ${money(futureMonthly)} previstos para ${monthLabel(viewMonth)}.`);
-    if (/quem.*deve|me deve|a receber|devedor/.test(normalized)) return push(debtTotal ? `Em ${monthLabel(viewMonth)}, você tem ${money(debtTotal)} a receber. O menu Quem me deve mostra os valores desse mês e se cada pagamento vai para o cartão ou para você.` : `Ainda não há valores a receber em ${monthLabel(viewMonth)}. Use + > A receber ou o menu Quem me deve para cadastrar uma cobrança neste mês.`);
-    if (/o que entra|entradas|receita|recebi/.test(normalized)) return push(`Em ${monthLabel(viewMonth)} entraram ${money(extraIncome)} além da renda base. O menu O que entra concentra salário extra, reembolsos e recebimentos.`);
-
-    if (amount && /gastei|gasto|paguei|comprei|comprou|compramos|custou|registra|registre|foi|fomos/.test(normalized)) {
-      const item: Expense = { id: Date.now(), title: cleanExpenseTitle(value), cat: categoryFromText(value), who, amount, date: new Date().toISOString().slice(0, 10) };
-      setExpenses(cur => [item, ...cur]); setToast("Gasto registrado 💚");
-      return push(`Registrado: ${money(amount)} em ${item.cat}, como ${item.who}. Se não houver nome na frase, uso o perfil selecionado no topo.`);
-    }
-    push("Posso registrar gastos, consultar saldo, parcelas, orçamento, Quem me deve e O que entra. Ex.: “Matheus comprou bermuda por 70” ou “gastei 85 no mercado”.");
   };
 
   const switchTab = (next: Tab) => { if (tab === "chat" && messagesRef.current) chatScrollTop.current = messagesRef.current.scrollTop; setQuickAddOpen(false); setMobileMoreOpen(false); setTab(next); };
@@ -519,7 +515,7 @@ export default function Page() {
   </>}
 />}
 
-        {tab === "chat" && <AssistantChat profile={activeProfile} monthLabel={monthName} messages={chat} value={text} onChange={setText} onSend={send} messagesRef={messagesRef} scrollPosition={chatScrollTop} />}
+        {tab === "chat" && <AssistantChat profile={activeProfile} monthLabel={monthName} messages={chat} value={text} onChange={setText} onSend={send} isLoading={assistantLoading} messagesRef={messagesRef} scrollPosition={chatScrollTop} />}
 
         {tab === "stats" && <ExpensesScreen monthLabel={monthName} expenses={selectedMonthExpenses} formatMoney={money} formatDate={shortDate} renderIcon={iconFor} onCreate={openNewExpense} onEdit={openEditExpense} onDelete={deleteExpense} />}
 

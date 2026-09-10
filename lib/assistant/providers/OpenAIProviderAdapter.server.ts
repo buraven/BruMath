@@ -1,0 +1,190 @@
+import OpenAI from "openai";
+import type { AssistantProfile } from "../contracts";
+import type {
+  ConversationApiRequest,
+  ConversationApiResponse,
+  ConversationPlan,
+} from "../conversation/contracts";
+import type { FinancialToolName } from "../tools/financialTools";
+
+const toolNames = new Set<FinancialToolName>([
+  "getFinancialSummary",
+  "getExpenses",
+  "getCategorySpending",
+  "getAvailableBalance",
+  "getLimits",
+  "getInstallments",
+  "getReceivables",
+  "getExtraIncome",
+]);
+
+const profiles = ["Bruna", "Matheus", "Casal"] as const;
+const toolDefinitions = [
+  "getFinancialSummary",
+  "getExpenses",
+  "getCategorySpending",
+  "getAvailableBalance",
+  "getLimits",
+  "getInstallments",
+  "getReceivables",
+  "getExtraIncome",
+].map((name) => ({
+  type: "function" as const,
+  name,
+  description: `Solicita a consulta determinística ${name} no BruMath.`,
+  strict: true,
+  parameters: {
+    type: "object",
+    properties: {
+      profile: { type: ["string", "null"], enum: [...profiles, null] },
+      month: { type: ["string", "null"], description: "YYYY-MM ou null" },
+      category: { type: ["string", "null"] },
+      dueInSelectedMonth: { type: ["boolean", "null"] },
+    },
+    required: ["profile", "month", "category", "dueInSelectedMonth"],
+    additionalProperties: false,
+  },
+}));
+
+const actionDefinition = {
+  type: "function" as const,
+  name: "propose_register_expense",
+  description:
+    "Propõe registrar um gasto. Nunca confirma nem executa a ação; use somente quando descrição, valor e categoria estiverem claros.",
+  strict: true,
+  parameters: {
+    type: "object",
+    properties: {
+      description: { type: "string" },
+      amount: { type: "number", minimum: 0.01 },
+      category: { type: "string" },
+      owner: { type: ["string", "null"], enum: [...profiles, null] },
+      date: { type: ["string", "null"], description: "YYYY-MM-DD ou null" },
+    },
+    required: ["description", "amount", "category", "owner", "date"],
+    additionalProperties: false,
+  },
+};
+
+function isProfile(value: unknown): value is AssistantProfile {
+  return profiles.includes(value as AssistantProfile);
+}
+
+function textPlan(message: string): ConversationPlan {
+  return { kind: "message", message };
+}
+
+function parseFunctionPlan(
+  name: string,
+  rawArguments: string,
+): ConversationPlan | null {
+  let args: unknown;
+  try {
+    args = JSON.parse(rawArguments);
+  } catch {
+    return null;
+  }
+  if (!args || typeof args !== "object" || Array.isArray(args)) return null;
+  const input = args as Record<string, unknown>;
+  if (toolNames.has(name as FinancialToolName)) {
+    return {
+      kind: "tool-call",
+      toolName: name as FinancialToolName,
+      input: {
+        ...(isProfile(input.profile) ? { profile: input.profile } : {}),
+        ...(typeof input.month === "string" && /^\d{4}-\d{2}$/.test(input.month)
+          ? { month: input.month }
+          : {}),
+        ...(typeof input.category === "string"
+          ? { category: input.category }
+          : {}),
+        ...(typeof input.dueInSelectedMonth === "boolean"
+          ? { dueInSelectedMonth: input.dueInSelectedMonth }
+          : {}),
+      },
+    };
+  }
+  if (name === "propose_register_expense") {
+    if (
+      typeof input.description !== "string" ||
+      typeof input.amount !== "number" ||
+      !Number.isFinite(input.amount) ||
+      input.amount <= 0 ||
+      typeof input.category !== "string"
+    )
+      return null;
+    return {
+      kind: "register-expense",
+      input: {
+        description: input.description.trim(),
+        amount: input.amount,
+        category: input.category.trim(),
+        ...(isProfile(input.owner) ? { owner: input.owner } : {}),
+        ...(typeof input.date === "string" &&
+        /^\d{4}-\d{2}-\d{2}$/.test(input.date)
+          ? { date: input.date }
+          : {}),
+      },
+    };
+  }
+  return null;
+}
+
+export async function generateConversationPlan(
+  request: ConversationApiRequest,
+): Promise<ConversationApiResponse> {
+  const apiKey = process.env.OPENAI_API_KEY;
+  if (!apiKey) {
+    return {
+      ok: false,
+      code: "unavailable",
+      message: "O Assistente com IA ainda não está configurado neste ambiente.",
+    };
+  }
+
+  const client = new OpenAI({ apiKey, timeout: 15_000, maxRetries: 1 });
+  try {
+    const response = await client.responses.create({
+      model: process.env.OPENAI_MODEL || "gpt-5-mini",
+      instructions: [
+        "Você interpreta pedidos financeiros em português para o BruMath.",
+        "Nunca invente números, saldos, limites, gastos, parcelas ou datas.",
+        "Para qualquer dado financeiro, chame exatamente uma tool permitida.",
+        "O perfil e mês informados são defaults; só os sobrescreva quando o usuário for explícito.",
+        "Se descrição, valor ou categoria de um gasto forem ambíguos, responda com uma pergunta curta em vez de propor ação.",
+        "Uma proposta de gasto não é uma confirmação e nunca executa nada.",
+        "Para conversa não financeira, responda de modo curto e útil, sem alegar acesso a dados.",
+      ].join(" "),
+      input: `Perfil padrão: ${request.activeProfile}. Mês padrão: ${request.selectedMonth}. Mensagem: ${request.message}`,
+      tools: [...toolDefinitions, actionDefinition],
+    });
+    const call = response.output.find((item) => item.type === "function_call");
+    if (call && call.type === "function_call") {
+      const plan = parseFunctionPlan(call.name, call.arguments);
+      return plan
+        ? { ok: true, plan }
+        : {
+            ok: false,
+            code: "invalid-response",
+            message:
+              "Não consegui validar a resposta do Assistente. Tente novamente.",
+          };
+    }
+    const message = response.output_text.trim();
+    return message
+      ? { ok: true, plan: textPlan(message) }
+      : {
+          ok: false,
+          code: "invalid-response",
+          message:
+            "Não recebi uma resposta válida do Assistente. Tente novamente.",
+        };
+  } catch {
+    return {
+      ok: false,
+      code: "provider-failed",
+      message:
+        "Não foi possível falar com o Assistente agora. Tente novamente em instantes.",
+    };
+  }
+}

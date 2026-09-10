@@ -17,6 +17,7 @@ type Props = {
   value: string;
   onChange: (value: string) => void;
   onSend: (value?: string) => void;
+  isLoading?: boolean;
   messagesRef: RefObject<HTMLDivElement>;
   scrollPosition: MutableRefObject<number>;
 };
@@ -35,6 +36,7 @@ export function AssistantChat({
   value,
   onChange,
   onSend,
+  isLoading = false,
   messagesRef,
   scrollPosition,
 }: Props) {
@@ -92,7 +94,12 @@ export function AssistantChat({
       <footer className={styles.footer}>
         <div className={styles.suggestions} aria-label="Sugestões de perguntas">
           {suggestions.map(([label, command]) => (
-            <button type="button" key={label} onClick={() => onSend(command)}>
+            <button
+              type="button"
+              key={label}
+              onClick={() => onSend(command)}
+              disabled={isLoading}
+            >
               {label}
             </button>
           ))}
@@ -101,12 +108,13 @@ export function AssistantChat({
           className={styles.composer}
           onSubmit={(event) => {
             event.preventDefault();
-            if (value.trim()) onSend();
+            if (value.trim() && !isLoading) onSend();
           }}
         >
           <textarea
             rows={2}
             value={value}
+            disabled={isLoading}
             onChange={(event) => onChange(event.target.value)}
             aria-label="Mensagem para o BruMath"
             placeholder="Pergunte sobre suas finanças…"
@@ -117,18 +125,19 @@ export function AssistantChat({
                 !event.nativeEvent.isComposing
               ) {
                 event.preventDefault();
-                if (value.trim()) onSend();
+                if (value.trim() && !isLoading) onSend();
               }
             }}
           />
           <button
             type="submit"
-            disabled={!value.trim()}
+            disabled={!value.trim() || isLoading}
             aria-label="Enviar mensagem"
           >
             <Send size={20} />
           </button>
         </form>
+        {isLoading && <span className={styles.loading}>Pensando…</span>}
       </footer>
     </section>
   );
