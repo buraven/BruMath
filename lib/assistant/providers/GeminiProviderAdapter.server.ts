@@ -75,7 +75,7 @@ function safeProviderMessage(error: unknown): string | undefined {
 
 export class GeminiProviderAdapter implements ConversationProviderAdapter {
   private readonly apiKey = process.env.GEMINI_API_KEY;
-  private readonly model = process.env.GEMINI_MODEL || "gemini-2.5-flash";
+  private readonly model = process.env.GEMINI_MODEL || "gemini-3.6-flash";
 
   private client(): GoogleGenAI | null {
     return this.apiKey ? new GoogleGenAI({ apiKey: this.apiKey }) : null;
