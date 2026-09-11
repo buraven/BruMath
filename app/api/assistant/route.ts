@@ -47,14 +47,15 @@ function isRequest(value: unknown): value is ConversationApiRequest {
       request.activeProfile === "Casal") &&
     typeof request.selectedMonth === "string" &&
     /^\d{4}-\d{2}$/.test(request.selectedMonth) &&
+    (request.requestId === undefined ||
+      (typeof request.requestId === "string" &&
+        /^[a-zA-Z0-9-]{1,80}$/.test(request.requestId))) &&
     (request.toolResults === undefined || isToolResults(request.toolResults))
   );
 }
 
 export async function POST(request: Request) {
   const receivedAt = performance.now();
-  const requestId = crypto.randomUUID();
-  console.info("assistant_request_received", { requestId });
   let payload: unknown;
   try {
     payload = await request.json();
@@ -70,6 +71,8 @@ export async function POST(request: Request) {
       { status: 400 },
     );
   }
+  const requestId = payload.requestId ?? crypto.randomUUID();
+  console.info("assistant_request_received", { requestId });
   let result;
   try {
     const provider = createAssistantProvider();
