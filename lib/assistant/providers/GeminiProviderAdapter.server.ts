@@ -8,7 +8,10 @@ import type {
   ConversationApiResponse,
   ConversationToolResult,
 } from "../conversation/contracts";
-import { conversationResponseStyleInstructions } from "../conversation/responseStyle";
+import {
+  conversationResponseStyleInstructions,
+  responseModeInstructions,
+} from "../conversation/responseStyle";
 import { quickActionInstruction } from "../conversation/quickActions";
 import {
   financialToolNames,
@@ -141,9 +144,7 @@ export class GeminiProviderAdapter implements ConversationProviderAdapter {
           request.conversationContext?.summary
             ? `Pendência curta da conversa: ${request.conversationContext.summary}`
             : "",
-          request.responseMode === "compact"
-            ? "Esta é uma prévia compacta da Home: responda em até dois parágrafos curtos ou três itens, sem relatório extenso."
-            : "",
+          responseModeInstructions(request.responseMode) ?? "",
           quickActionInstruction(request.quickAction) ?? "",
           `Mensagem: ${request.message}`,
         ]
@@ -264,9 +265,7 @@ export class GeminiProviderAdapter implements ConversationProviderAdapter {
           "Responda à mensagem a seguir com base exclusivamente nos resultados determinísticos fornecidos.",
           "Diferencie análise/recomendação de fatos. Não invente números. Seja útil e conciso.",
           `Perfil: ${request.activeProfile}. Mês: ${request.selectedMonth}. Pergunta: ${request.message}`,
-          request.responseMode === "compact"
-            ? "Esta é uma prévia compacta da Home: responda em até dois parágrafos curtos ou três itens, sem relatório extenso."
-            : "",
+          responseModeInstructions(request.responseMode) ?? "",
           `Resultados autorizados: ${JSON.stringify(toolResults)}`,
         ].join("\n"),
         config: { systemInstruction: instructions, ...generationConfig },

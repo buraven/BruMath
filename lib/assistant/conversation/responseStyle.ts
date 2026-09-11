@@ -15,12 +15,27 @@ export const conversationResponseStylePolicy = {
     insights:
       "análise dos fatos, pontos de atenção e recomendação proporcional à evidência",
     specificQuestion: "resposta focada somente no assunto perguntado",
+    compactPreview: {
+      maxParagraphs: 2,
+      maxItems: 3,
+      headings: false,
+      priority: "informação principal primeiro",
+    },
   },
   incompleteData: {
     disclose: true,
     forbidFreeBalanceInference: true,
   },
 } as const;
+
+/**
+ * Shared compact/full presentation contract. Providers receive this policy,
+ * while tools remain the single deterministic source for financial facts.
+ */
+export function responseModeInstructions(mode: "compact" | "full" | undefined) {
+  if (mode !== "compact") return undefined;
+  return "Esta é uma prévia compacta da Home: entregue primeiro a informação principal, em no máximo dois parágrafos curtos ou três itens. Não use headings, relatório extenso, seções repetidas ou ressalvas longas; mantenha apenas uma ressalva breve quando os dados estiverem incompletos.";
+}
 
 /**
  * Product-level voice shared by every conversational provider. Financial

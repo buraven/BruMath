@@ -59,10 +59,8 @@ import {
   type HomeAssistantQuickAction,
 } from "../features/home/components/HomeAssistantPreview/HomeAssistantPreview";
 import { HomeExpenses } from "../features/home/components/HomeExpenses/HomeExpenses";
-import {
-  HomeInsights,
-  type HomeInsight,
-} from "../features/home/components/HomeInsights/HomeInsights";
+import { HomeInsights } from "../features/home/components/HomeInsights/HomeInsights";
+import { deriveHomeInsights } from "../features/home/components/HomeInsights/radarInsights";
 import { ExpensesScreen } from "../features/expenses/ExpensesScreen";
 import { AssistantChat } from "../features/assistant/AssistantChat";
 import { FutureScreen } from "../features/future/FutureScreen";
@@ -1219,50 +1217,13 @@ export default function Page() {
     .slice()
     .sort((a, b) => a.nextDue.localeCompare(b.nextDue));
   const monthName = monthLabel(viewMonth);
-  const homeInsights: readonly HomeInsight[] = (() => {
-    const highestLimit = limitItems
-      .filter((item) => item.id.startsWith("category:") && item.amount > 0)
-      .sort((a, b) => b.spent / b.amount - a.spent / a.amount)[0];
-    const insights: HomeInsight[] = [];
-    if (highestLimit && highestLimit.spent > 0) {
-      const percentage = Math.round(
-        (highestLimit.spent / highestLimit.amount) * 100,
-      );
-      insights.push({
-        id: "limit",
-        title: `${highestLimit.label.replace("category:", "")} está em ${percentage}% do limite`,
-        detail: `${money(highestLimit.spent)} registrados de ${money(highestLimit.amount)}.`,
-        tone: percentage >= 80 ? "attention" : "positive",
-      });
-    }
-    if (remaining > 0) {
-      insights.push({
-        id: "installments",
-        title: `${remaining} parcelas restantes`,
-        detail: `${activeInstallments.length} compromisso${activeInstallments.length === 1 ? "" : "s"} ativo${activeInstallments.length === 1 ? "" : "s"}.`,
-        tone: "info",
-      });
-    }
-    if (debtTotal > 0) {
-      insights.push({
-        id: "receivable",
-        title: `${money(debtTotal)} a receber`,
-        detail: "Valores registrados ainda em aberto.",
-        tone: "positive",
-      });
-    }
-    return insights.length
-      ? insights.slice(0, 3)
-      : [
-          {
-            id: "empty",
-            title: "Ainda não há sinais para analisar",
-            detail:
-              "Registre movimentações neste mês para o radar financeiro ganhar contexto.",
-            tone: "info",
-          },
-        ];
-  })();
+  const homeInsights = deriveHomeInsights({
+    limitItems,
+    remainingInstallments: remaining,
+    activeInstallmentCount: activeInstallments.length,
+    receivableTotal: debtTotal,
+    formatMoney: money,
+  });
 
   return (
     <>

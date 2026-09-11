@@ -16,6 +16,9 @@
   display: grid;
   gap: var(--space-3);
 }
+.card[data-insight-count="1"] .items {
+  gap: 0;
+}
 .item {
   display: flex;
   align-items: flex-start;

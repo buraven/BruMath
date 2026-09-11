@@ -6,7 +6,10 @@ import type {
   ConversationPlan,
   ConversationToolResult,
 } from "../conversation/contracts";
-import { conversationResponseStyleInstructions } from "../conversation/responseStyle";
+import {
+  conversationResponseStyleInstructions,
+  responseModeInstructions,
+} from "../conversation/responseStyle";
 import { quickActionInstruction } from "../conversation/quickActions";
 import type { ConversationProviderAdapter } from "./ConversationProviderAdapter.server";
 import type { FinancialToolName } from "../tools/financialTools";
@@ -176,9 +179,7 @@ export async function generateConversationPlan(
         request.conversationContext?.summary
           ? `Pendência curta da conversa: ${request.conversationContext.summary}`
           : "",
-        request.responseMode === "compact"
-          ? "Esta é uma prévia compacta da Home: responda em até dois parágrafos curtos ou três itens, sem relatório extenso."
-          : "",
+        responseModeInstructions(request.responseMode) ?? "",
         quickActionInstruction(request.quickAction) ?? "",
         `Mensagem: ${request.message}`,
       ]
@@ -290,9 +291,7 @@ export class OpenAIProviderAdapter implements ConversationProviderAdapter {
         ].join(" "),
         input: [
           `Perfil: ${request.activeProfile}. Mês: ${request.selectedMonth}. Pergunta: ${request.message}`,
-          request.responseMode === "compact"
-            ? "Esta é uma prévia compacta da Home: responda em até dois parágrafos curtos ou três itens, sem relatório extenso."
-            : "",
+          responseModeInstructions(request.responseMode) ?? "",
           `Resultados autorizados: ${JSON.stringify(toolResults)}`,
         ]
           .filter(Boolean)

@@ -50,7 +50,10 @@ export function HomeAssistantPreview({
           </div>
         ) : latestMessage?.text.trim() ? (
           <div className={`bubble assistant-bubble ${styles.message}`}>
-            <AssistantMarkdown content={latestMessage.text} />
+            <AssistantMarkdown
+              content={latestMessage.text}
+              className={styles.compactMarkdown}
+            />
           </div>
         ) : null}
         <QuickActions

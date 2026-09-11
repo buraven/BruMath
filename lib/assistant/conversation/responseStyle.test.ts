@@ -3,6 +3,7 @@ import test from "node:test";
 import {
   conversationResponseStyleInstructions,
   conversationResponseStylePolicy,
+  responseModeInstructions,
 } from "./responseStyle";
 
 test("defines a provider-independent, adaptive response style", () => {
@@ -13,4 +14,16 @@ test("defines a provider-independent, adaptive response style", () => {
     true,
   );
   assert.match(conversationResponseStyleInstructions, /Adapte a estrutura/);
+});
+
+test("keeps the Home preview compact without changing the financial source", () => {
+  const compact = conversationResponseStylePolicy.presentation.compactPreview;
+  assert.equal(compact.maxParagraphs, 2);
+  assert.equal(compact.maxItems, 3);
+  assert.equal(compact.headings, false);
+  assert.match(
+    responseModeInstructions("compact") ?? "",
+    /informa..o principal/i,
+  );
+  assert.equal(responseModeInstructions("full"), undefined);
 });

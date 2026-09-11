@@ -1,12 +1,8 @@
 import { AlertTriangle, ChartNoAxesCombined, ReceiptText } from "lucide-react";
+import type { HomeInsight } from "./radarInsights";
 import styles from "./HomeInsights.module.css";
 
-export type HomeInsight = {
-  id: "limit" | "installments" | "receivable" | "empty";
-  title: string;
-  detail: string;
-  tone: "attention" | "info" | "positive";
-};
+export type { HomeInsight } from "./radarInsights";
 
 const icons = {
   limit: AlertTriangle,
@@ -17,7 +13,11 @@ const icons = {
 
 export function HomeInsights({ items }: { items: readonly HomeInsight[] }) {
   return (
-    <section className={styles.card} aria-label="Insights para você">
+    <section
+      className={styles.card}
+      aria-label="Insights para você"
+      data-insight-count={items.length}
+    >
       <header>
         <h2>Insights para você</h2>
       </header>
