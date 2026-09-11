@@ -26,6 +26,7 @@ import {
 const toolNames = new Set<FinancialToolName>([
   "getFinancialSummary",
   "getExpenses",
+  "getExpenseRanking",
   "getCategorySpending",
   "getAvailableBalance",
   "getLimits",
@@ -37,6 +38,7 @@ const toolNames = new Set<FinancialToolName>([
 const toolDefinitions = [
   "getFinancialSummary",
   "getExpenses",
+  "getExpenseRanking",
   "getCategorySpending",
   "getAvailableBalance",
   "getLimits",
@@ -156,7 +158,7 @@ export async function generateConversationPlan(
         "Para insights gerais, planeje no máximo quatro consultas independentes e nunca repita uma tool com o mesmo escopo. Priorize resumo, limites, parcelas e recebíveis; só peça consultas adicionais se forem materialmente necessárias.",
         "O mês financeiro selecionado é o contexto obrigatório para 'este mês', 'nesse mês', 'mês passado' e 'próximo mês'. A data real serve somente para datas de lançamento como hoje, ontem e anteontem.",
         "O perfil e mês informados são defaults; só os sobrescreva quando o usuário for explícito.",
-        "Para 'onde gastamos mais', use getExpenses sem categoria e deixe a análise ordenar os gastos determinísticos por categoria. Nunca exija categoria nessa pergunta geral.",
+        "Para 'onde gastamos mais', use getExpenseRanking sem categoria. Nunca exija categoria nessa pergunta geral.",
         "Quando houver cadastro de gasto pendente, use clarify_register_expense até completar os campos faltantes ou cancel_pending_intent se a pessoa desistir.",
         "Se descrição, valor ou categoria de um gasto forem ambíguos, responda com uma pergunta curta em vez de propor ação.",
         "Uma proposta de gasto não é uma confirmação e nunca executa nada.",

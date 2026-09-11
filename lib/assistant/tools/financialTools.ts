@@ -19,6 +19,7 @@ import { createToolRegistry, type ToolRegistry } from "./ToolRegistry";
 export type FinancialToolName =
   | "getFinancialSummary"
   | "getExpenses"
+  | "getExpenseRanking"
   | "getCategorySpending"
   | "getAvailableBalance"
   | "getLimits"
@@ -124,6 +125,40 @@ const getExpenses: ReadOnlyTool<
         resolveScope(context.scope, input),
       ),
     );
+  },
+};
+
+const getExpenseRanking: ReadOnlyTool<
+  NoInput,
+  FinancialToolOutput<
+    readonly { category: string; total: number; percentage: number }[]
+  >
+> = {
+  definition: {
+    name: "getExpenseRanking",
+    description:
+      "Ordena determinísticamente os gastos por categoria no período e perfil consultados.",
+  },
+  async execute(_, context) {
+    const expenses = await context.financialContext.getExpenses(context.scope);
+    const totals = new Map<string, number>();
+    for (const expense of expenses.value) {
+      totals.set(
+        expense.category,
+        (totals.get(expense.category) ?? 0) + expense.amount,
+      );
+    }
+    const total = [...totals.values()].reduce((sum, value) => sum + value, 0);
+    const value = [...totals.entries()]
+      .map(([category, amount]) => ({
+        category,
+        total: amount,
+        percentage: total ? (amount / total) * 100 : 0,
+      }))
+      .sort(
+        (a, b) => b.total - a.total || a.category.localeCompare(b.category),
+      );
+    return success("getExpenseRanking", { ...expenses, value });
   },
 };
 
@@ -262,6 +297,7 @@ export function createFinancialTools(): readonly ReadOnlyTool[] {
   return [
     getFinancialSummary,
     getExpenses,
+    getExpenseRanking,
     getCategorySpending,
     getAvailableBalance,
     getLimits,

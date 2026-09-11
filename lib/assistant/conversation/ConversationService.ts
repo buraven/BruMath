@@ -22,6 +22,7 @@ import {
 const toolNames = new Set<FinancialToolName>([
   "getFinancialSummary",
   "getExpenses",
+  "getExpenseRanking",
   "getCategorySpending",
   "getAvailableBalance",
   "getLimits",

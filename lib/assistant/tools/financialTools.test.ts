@@ -219,6 +219,24 @@ test("keeps limits separate and returns installments and receivables", async () 
   assert.equal(receivables.value.data[0]?.outstanding, 200);
 });
 
+test("ranks spending categories deterministically without requiring a category filter", async () => {
+  const ranking = await tool<
+    Record<string, never>,
+    { data: { category: string; total: number; percentage: number }[] }
+  >("getExpenseRanking").execute(
+    {},
+    createContext({ profile: "Casal", month: "2026-09" }),
+  );
+
+  assert.equal(ranking.ok, true);
+  if (!ranking.ok) return;
+  assert.deepEqual(ranking.value.data, [
+    { category: "Casa", total: 300, percentage: 50 },
+    { category: "Carro", total: 200, percentage: 100 / 3 },
+    { category: "Alimentação", total: 100, percentage: 100 / 6 },
+  ]);
+});
+
 test("rejects a category query without a category and never mutates the snapshot", async () => {
   const before = structuredClone(snapshot);
   const result = await tool<{ category: string }, unknown>(
@@ -275,6 +293,7 @@ test("registers the deterministic financial capabilities once", () => {
     [
       "getFinancialSummary",
       "getExpenses",
+      "getExpenseRanking",
       "getCategorySpending",
       "getAvailableBalance",
       "getLimits",

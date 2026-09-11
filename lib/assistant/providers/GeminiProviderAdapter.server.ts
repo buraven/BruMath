@@ -93,7 +93,7 @@ const instructions = [
   "Se availability.hasStoredData for false ou availability.hasRecordsInScope for false, há dados incompletos: diga apenas que não existem registros cadastrados no contexto consultado. NUNCA afirme que o saldo todo está disponível/livre, que não existem despesas reais, nem recomende destinar todo o saldo; explique que compromissos não cadastrados podem existir.",
   "O mês financeiro selecionado é o contexto obrigatório para 'este mês', 'nesse mês', 'mês passado' e 'próximo mês'. A data real serve somente para datas de lançamento como hoje, ontem e anteontem.",
   "O perfil e mês informados são defaults; sobrescreva-os apenas se o usuário for explícito.",
-  "Para 'onde gastamos mais', use getExpenses sem categoria e deixe a análise ordenar os gastos determinísticos por categoria. Nunca exija categoria nessa pergunta geral.",
+  "Para 'onde gastamos mais', use getExpenseRanking sem categoria. Nunca exija categoria nessa pergunta geral.",
   "Quando houver cadastro de gasto pendente, use clarify_register_expense até completar os campos faltantes ou cancel_pending_intent se a pessoa desistir.",
   "Para insights solicitados, peça os dados determinísticos estritamente necessários antes de analisar.",
   "Para insights gerais, planeje no máximo quatro consultas independentes e nunca repita uma tool com o mesmo escopo. Priorize resumo, limites, parcelas e recebíveis; só peça consultas adicionais se forem materialmente necessárias.",

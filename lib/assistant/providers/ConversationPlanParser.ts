@@ -9,6 +9,7 @@ import type { FinancialToolName } from "../tools/financialTools";
 export const financialToolNames = [
   "getFinancialSummary",
   "getExpenses",
+  "getExpenseRanking",
   "getCategorySpending",
   "getAvailableBalance",
   "getLimits",
