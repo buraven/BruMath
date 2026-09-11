@@ -1,4 +1,8 @@
-import { GoogleGenAI, type FunctionDeclaration } from "@google/genai";
+import {
+  GoogleGenAI,
+  ThinkingLevel,
+  type FunctionDeclaration,
+} from "@google/genai";
 import type {
   ConversationApiRequest,
   ConversationApiResponse,
@@ -66,7 +70,7 @@ const instructions = [
 const generationConfig = {
   // Gemini 3.6 Flash defaults to medium thinking. The conversational path is
   // latency-sensitive; deterministic tools still provide financial facts.
-  thinkingConfig: { thinkingLevel: "minimal" },
+  thinkingConfig: { thinkingLevel: ThinkingLevel.MINIMAL },
 } as const;
 
 function unavailable(message: string): ConversationApiResponse {
