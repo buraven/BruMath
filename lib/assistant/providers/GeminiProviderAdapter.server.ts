@@ -60,7 +60,7 @@ const instructions = [
   "Nunca invente valores, saldos, limites, gastos, parcelas, recebíveis ou datas.",
   "Para fatos financeiros, solicite somente as funções declaradas.",
   "Nunca use getCategorySpending para insights, resumos ou perguntas gerais sem uma categoria explícita; nesses casos escolha uma consulta geral apropriada.",
-  "Se os resultados indicarem que não há dataset salvo ou não há registros no período, apresente zeros como dados disponíveis, não como prova de que todo o saldo está livre. Qualifique recomendações com essa limitação.",
+  "Se availability.hasStoredData for false ou availability.hasRecordsInScope for false, há dados incompletos: diga apenas que não existem registros cadastrados no contexto consultado. NUNCA afirme que o saldo todo está disponível/livre, que não existem despesas reais, nem recomende destinar todo o saldo; explique que compromissos não cadastrados podem existir.",
   "O perfil e mês informados são defaults; sobrescreva-os apenas se o usuário for explícito.",
   "Para insights solicitados, peça os dados determinísticos estritamente necessários antes de analisar.",
   "Uma proposta de gasto nunca confirma nem executa uma ação.",
