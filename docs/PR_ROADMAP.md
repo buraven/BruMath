@@ -181,25 +181,25 @@ Os números de roadmap abaixo são os números oficiais dos PRs no GitHub. Nomes
 branches já criadas antes desta equalização são mantidos apenas como registro
 histórico e não alteram a numeração oficial.
 
-| PR  | Branch                                    | Entrega                                                                                                             |
-| --- | ----------------------------------------- | ------------------------------------------------------------------------------------------------------------------- |
-| #47 | `feature/assistant-engine-pr46`           | Assistant Engine Foundation. **Concluído.**                                                                         |
-| #48 | `feature/financial-context-engine-pr47`   | Financial Context Engine. **Concluído.**                                                                            |
-| #49 | `feature/assistant-tools-actions-pr48`    | Tools determinísticas, proposta de action e confirmação. **Concluído.**                                             |
-| #50 | `feature/conversational-ai-pr50`          | Conversational AI: provider LLM server-side, intent, structured outputs e confirmação visual. **Em implementação.** |
-| #51 | `chore/app-state-page-decomposition-pr50` | App State & Page Decomposition.                                                                                     |
-| #52 | `feature/financial-guardrails-pr51`       | Financial Guardrails: provenance, validação e anti-alucinação financeira.                                           |
-| #53 | `feature/conversation-context-pr52`       | Conversation Context: follow-ups, referências e memória curta.                                                      |
-| #54 | `chore/token-cost-optimization-pr53`      | Token & Cost Optimization: seleção de contexto, cache, resumos e roteamento.                                        |
-| #55 | `feature/supabase-persistence-pr54`       | Supabase Persistence: persistência financeira centralizada e migração gradual.                                      |
-| #56 | `feature/multi-user-sync-pr55`            | Multi-user & Synchronization: household, membros e sincronização.                                                   |
-| #57 | `feature/proactive-insights-pr56`         | Proactive Insights: motor determinístico compartilhado entre Home e Assistente.                                     |
+| PR  | Branch                                    | Entrega                                                                                                              |
+| --- | ----------------------------------------- | -------------------------------------------------------------------------------------------------------------------- |
+| #47 | `feature/assistant-engine-pr46`           | Assistant Engine Foundation. **Concluído.**                                                                          |
+| #48 | `feature/financial-context-engine-pr47`   | Financial Context Engine. **Concluído.**                                                                             |
+| #49 | `feature/assistant-tools-actions-pr48`    | Tools determinísticas, proposta de action e confirmação. **Concluído.**                                              |
+| #50 | `feature/conversational-ai-pr50`          | Conversational AI: provider LLM server-side, intent, structured outputs e confirmação visual. **Pronto para merge.** |
+| #51 | `chore/app-state-page-decomposition-pr50` | App State & Page Decomposition.                                                                                      |
+| #52 | `feature/financial-guardrails-pr51`       | Financial Guardrails: provenance, validação e anti-alucinação financeira.                                            |
+| #53 | `feature/conversation-context-pr52`       | Conversation Context: follow-ups, referências e memória curta.                                                       |
+| #54 | `chore/token-cost-optimization-pr53`      | Token & Cost Optimization: seleção de contexto, cache, resumos e roteamento.                                         |
+| #55 | `feature/supabase-persistence-pr54`       | Supabase Persistence: persistência financeira centralizada e migração gradual.                                       |
+| #56 | `feature/multi-user-sync-pr55`            | Multi-user & Synchronization: household, membros e sincronização.                                                    |
+| #57 | `feature/proactive-insights-pr56`         | Proactive Insights: motor determinístico compartilhado entre Home e Assistente.                                      |
 
 ### PR #50 — Conversational AI
 
-O provider OpenAI permanece exclusivamente server-side, configurado por
-`OPENAI_API_KEY` e `OPENAI_MODEL` (com `gpt-5-mini` como padrão de custo/latência).
-Ele interpreta a mensagem e devolve um plano tipado para tools permitidas ou uma
+Os providers OpenAI e Gemini permanecem exclusivamente server-side, configurados por
+suas variáveis de ambiente privadas e selecionados explicitamente por `AI_PROVIDER`.
+O provider escolhido interpreta a mensagem e devolve um plano tipado para tools permitidas ou uma
 proposta de ação; não recebe `brumath-data`, não acessa `localStorage` e não executa
 ações. Enquanto os dados financeiros estiverem somente no navegador, as tools locais
 consultam o `FinancialContextProvider` e formatam resultados determinísticos. A futura

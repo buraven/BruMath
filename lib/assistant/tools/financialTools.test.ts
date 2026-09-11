@@ -230,11 +230,21 @@ test("ranks spending categories deterministically without requiring a category f
 
   assert.equal(ranking.ok, true);
   if (!ranking.ok) return;
-  assert.deepEqual(ranking.value.data, [
-    { category: "Casa", total: 300, percentage: 50 },
-    { category: "Carro", total: 200, percentage: 100 / 3 },
-    { category: "Alimentação", total: 100, percentage: 100 / 6 },
-  ]);
+  assert.deepEqual(
+    ranking.value.data.map(({ category, total }) => ({ category, total })),
+    [
+      { category: "Casa", total: 300 },
+      { category: "Carro", total: 200 },
+      { category: "Alimentação", total: 100 },
+    ],
+  );
+  assert.equal(ranking.value.data[0]?.percentage, 50);
+  assert.ok(
+    Math.abs((ranking.value.data[1]?.percentage ?? 0) - 100 / 3) < 1e-10,
+  );
+  assert.ok(
+    Math.abs((ranking.value.data[2]?.percentage ?? 0) - 100 / 6) < 1e-10,
+  );
 });
 
 test("rejects a category query without a category and never mutates the snapshot", async () => {

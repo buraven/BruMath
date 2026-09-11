@@ -9,7 +9,7 @@ test("official quick actions carry a deterministic intent", () => {
   );
   assert.match(
     quickActionInstruction("insights") ?? "",
-    /sem exigir categoria/i,
+    /sem categoria explícita/i,
   );
   assert.match(quickActionInstruction("installments") ?? "", /getInstallments/);
 });

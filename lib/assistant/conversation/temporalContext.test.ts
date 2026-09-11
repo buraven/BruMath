@@ -31,6 +31,13 @@ test("resolves relative dates across month and year boundaries", () => {
     }),
     "2026-09-10",
   );
+  assert.equal(
+    resolveRelativeDate("anteontem", {
+      currentDate: "2026-09-10",
+      timeZone: "America/Sao_Paulo",
+    }),
+    "2026-09-08",
+  );
 });
 
 test("anchors financial relative periods to the selected month across year rollover", () => {
