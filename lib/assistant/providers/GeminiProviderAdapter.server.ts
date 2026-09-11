@@ -63,6 +63,12 @@ const instructions = [
   "Se faltar descrição, valor ou categoria para registrar gasto, peça esclarecimento curto.",
 ].join(" ");
 
+const generationConfig = {
+  // Gemini 3.6 Flash defaults to medium thinking. The conversational path is
+  // latency-sensitive; deterministic tools still provide financial facts.
+  thinkingConfig: { thinkingLevel: "minimal" },
+} as const;
+
 function unavailable(message: string): ConversationApiResponse {
   return { ok: false, code: "unavailable", message };
 }
@@ -114,6 +120,7 @@ export class GeminiProviderAdapter implements ConversationProviderAdapter {
       phase: "planning",
       model: this.model,
       configuredRetries: 0,
+      thinkingLevel: generationConfig.thinkingConfig.thinkingLevel,
     });
     try {
       const response = await client.models.generateContent({
@@ -122,6 +129,7 @@ export class GeminiProviderAdapter implements ConversationProviderAdapter {
         config: {
           systemInstruction: instructions,
           tools: [{ functionDeclarations: tools }],
+          ...generationConfig,
         },
       });
       const calls = response.functionCalls ?? [];
@@ -132,6 +140,7 @@ export class GeminiProviderAdapter implements ConversationProviderAdapter {
         model: this.model,
         durationMs: Math.round(performance.now() - startedAt),
         functionCallCount: calls.length,
+        thinkingLevel: generationConfig.thinkingConfig.thinkingLevel,
       });
       if (calls.length) {
         if (calls.length > 5) {
@@ -199,6 +208,7 @@ export class GeminiProviderAdapter implements ConversationProviderAdapter {
         message: safeProviderMessage(error),
         durationMs: Math.round(performance.now() - startedAt),
         configuredRetries: 0,
+        thinkingLevel: generationConfig.thinkingConfig.thinkingLevel,
       });
       return providerFailure();
     }
@@ -222,6 +232,7 @@ export class GeminiProviderAdapter implements ConversationProviderAdapter {
       model: this.model,
       configuredRetries: 0,
       toolResultCount: toolResults.length,
+      thinkingLevel: generationConfig.thinkingConfig.thinkingLevel,
     });
     try {
       const response = await client.models.generateContent({
@@ -232,7 +243,7 @@ export class GeminiProviderAdapter implements ConversationProviderAdapter {
           `Perfil: ${request.activeProfile}. Mês: ${request.selectedMonth}. Pergunta: ${request.message}`,
           `Resultados autorizados: ${JSON.stringify(toolResults)}`,
         ].join("\n"),
-        config: { systemInstruction: instructions },
+        config: { systemInstruction: instructions, ...generationConfig },
       });
       const message = response.text?.trim();
       console.info("assistant_provider_call_end", {
@@ -241,6 +252,7 @@ export class GeminiProviderAdapter implements ConversationProviderAdapter {
         phase: "explanation",
         model: this.model,
         durationMs: Math.round(performance.now() - startedAt),
+        thinkingLevel: generationConfig.thinkingConfig.thinkingLevel,
       });
       return message
         ? { ok: true, plan: { kind: "message", message } }
@@ -266,6 +278,7 @@ export class GeminiProviderAdapter implements ConversationProviderAdapter {
         message: safeProviderMessage(error),
         durationMs: Math.round(performance.now() - startedAt),
         configuredRetries: 0,
+        thinkingLevel: generationConfig.thinkingConfig.thinkingLevel,
       });
       return providerFailure();
     }
