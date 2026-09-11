@@ -14,6 +14,11 @@ import {
 } from "../conversation/responseStyle";
 import { quickActionInstruction } from "../conversation/quickActions";
 import {
+  deduplicateToolCalls,
+  isWithinToolBudget,
+  toolBudgetUserMessage,
+} from "../conversation/toolPlanning";
+import {
   financialToolNames,
   parseFunctionPlan,
   profiles,
@@ -68,6 +73,7 @@ const instructions = [
   "Se availability.hasStoredData for false ou availability.hasRecordsInScope for false, há dados incompletos: diga apenas que não existem registros cadastrados no contexto consultado. NUNCA afirme que o saldo todo está disponível/livre, que não existem despesas reais, nem recomende destinar todo o saldo; explique que compromissos não cadastrados podem existir.",
   "O perfil e mês informados são defaults; sobrescreva-os apenas se o usuário for explícito.",
   "Para insights solicitados, peça os dados determinísticos estritamente necessários antes de analisar.",
+  "Para insights gerais, planeje no máximo quatro consultas independentes e nunca repita uma tool com o mesmo escopo. Priorize resumo, limites, parcelas e recebíveis; só peça consultas adicionais se forem materialmente necessárias.",
   "Uma proposta de gasto nunca confirma nem executa uma ação.",
   "Saldo disponível não é autorização ou limite para gastar. Para 'quanto ainda posso gastar?', consulte getLimits quando o limite aplicável estiver claro; se saldo e limite forem materialmente ambíguos, peça clarificação curta.",
   "Se faltar descrição, valor ou categoria para registrar gasto, peça esclarecimento curto.",
@@ -167,14 +173,6 @@ export class GeminiProviderAdapter implements ConversationProviderAdapter {
         thinkingLevel: generationConfig.thinkingConfig.thinkingLevel,
       });
       if (calls.length) {
-        if (calls.length > 5) {
-          return {
-            ok: false,
-            code: "invalid-response",
-            message:
-              "O Assistente solicitou consultas demais para esta resposta.",
-          };
-        }
         const plans = calls.map((call) =>
           call.name ? parseFunctionPlan(call.name, call.args) : null,
         );
@@ -203,9 +201,31 @@ export class GeminiProviderAdapter implements ConversationProviderAdapter {
           (plan): plan is Extract<typeof plan, { kind: "tool-call" }> =>
             plan?.kind === "tool-call",
         );
-        return toolCalls.length === 1
-          ? { ok: true, plan: toolCalls[0] }
-          : { ok: true, plan: { kind: "tool-calls", calls: toolCalls } };
+        const deduplicated = deduplicateToolCalls(toolCalls, {
+          activeProfile: request.activeProfile,
+          selectedMonth: request.selectedMonth,
+        });
+        console.info("assistant_tool_plan_normalized", {
+          requestId,
+          provider: "gemini",
+          model: this.model,
+          rawToolCount: toolCalls.length,
+          uniqueToolCount: deduplicated.calls.length,
+          duplicatesRemoved: deduplicated.duplicatesRemoved,
+        });
+        if (!isWithinToolBudget(deduplicated.calls)) {
+          return {
+            ok: false,
+            code: "invalid-response",
+            message: toolBudgetUserMessage,
+          };
+        }
+        return deduplicated.calls.length === 1
+          ? { ok: true, plan: deduplicated.calls[0] }
+          : {
+              ok: true,
+              plan: { kind: "tool-calls", calls: deduplicated.calls },
+            };
       }
       const message = response.text?.trim();
       return message

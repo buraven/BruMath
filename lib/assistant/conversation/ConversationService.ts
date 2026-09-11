@@ -8,9 +8,15 @@ import {
 import type {
   ConversationApiResponse,
   ConversationPlan,
+  ConversationQuickAction,
   ConversationToolResult,
 } from "./contracts";
 import { createTemporalContext } from "./temporalContext";
+import {
+  deduplicateToolCalls,
+  isWithinToolBudget,
+  toolBudgetUserMessage,
+} from "./toolPlanning";
 
 const toolNames = new Set<FinancialToolName>([
   "getFinancialSummary",
@@ -76,12 +82,7 @@ export async function requestConversationPlan(request: {
   toolResults?: readonly ConversationToolResult[];
   requestId?: string;
   responseMode?: "compact" | "full";
-  quickAction?:
-    | "financial-summary"
-    | "insights"
-    | "installments"
-    | "receivables"
-    | "incoming-summary";
+  quickAction?: ConversationQuickAction;
   conversationContext?: { summary: string };
 }): Promise<ConversationApiResponse> {
   const startedAt = performance.now();
@@ -100,6 +101,9 @@ export async function requestConversationPlan(request: {
     serverTiming: response.headers.get("Server-Timing"),
   });
   const body = (await response.json()) as ConversationApiResponse;
+  if (!body.ok && body.code === "invalid-response") {
+    return { ...body, message: toolBudgetUserMessage };
+  }
   if (!response.ok || !body.ok) {
     return body.ok
       ? {
@@ -128,13 +132,23 @@ export async function resolveConversationPlan(
       message: "Não reconheci essa consulta financeira.",
     };
   }
+  const deduplicated = deduplicateToolCalls(calls, defaults);
+  if (!isWithinToolBudget(deduplicated.calls)) {
+    return { kind: "message", message: toolBudgetUserMessage };
+  }
+  if (deduplicated.duplicatesRemoved) {
+    console.info("assistant_tool_calls_deduplicated", {
+      duplicatesRemoved: deduplicated.duplicatesRemoved,
+      uniqueToolCount: deduplicated.calls.length,
+    });
+  }
   const registry = createFinancialToolRegistry();
   const financialContext = createFinancialContextProvider(
     new LocalStorageFinancialDataSource(),
   );
   const toolsStartedAt = performance.now();
   const results = await Promise.all(
-    calls.map(async (call) => {
+    deduplicated.calls.map(async (call) => {
       const toolStartedAt = performance.now();
       const profile = isProfile(call.input.profile)
         ? call.input.profile
@@ -166,7 +180,7 @@ export async function resolveConversationPlan(
     }),
   );
   console.info("assistant_tools_completed", {
-    toolCount: calls.length,
+    toolCount: deduplicated.calls.length,
     durationMs: Math.round(performance.now() - toolsStartedAt),
   });
   const failure = results.find((result) => !result.ok);

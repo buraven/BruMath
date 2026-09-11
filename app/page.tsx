@@ -1365,7 +1365,9 @@ export default function Page() {
                 messages={chat}
                 value={text}
                 onChange={setText}
-                onSend={send}
+                onSend={(message, quickAction) =>
+                  send(message, "full", quickAction)
+                }
                 isLoading={assistantLoading}
                 messagesRef={messagesRef}
                 scrollPosition={chatScrollTop}

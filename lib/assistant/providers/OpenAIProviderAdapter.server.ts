@@ -11,6 +11,11 @@ import {
   responseModeInstructions,
 } from "../conversation/responseStyle";
 import { quickActionInstruction } from "../conversation/quickActions";
+import {
+  deduplicateToolCalls,
+  isWithinToolBudget,
+  toolBudgetUserMessage,
+} from "../conversation/toolPlanning";
 import type { ConversationProviderAdapter } from "./ConversationProviderAdapter.server";
 import type { FinancialToolName } from "../tools/financialTools";
 
@@ -164,6 +169,7 @@ export async function generateConversationPlan(
         "Você interpreta pedidos financeiros em português para o BruMath.",
         "Nunca invente números, saldos, limites, gastos, parcelas ou datas.",
         "Para qualquer dado financeiro, chame exatamente uma tool permitida.",
+        "Para insights gerais, planeje no máximo quatro consultas independentes e nunca repita uma tool com o mesmo escopo. Priorize resumo, limites, parcelas e recebíveis; só peça consultas adicionais se forem materialmente necessárias.",
         "O perfil e mês informados são defaults; só os sobrescreva quando o usuário for explícito.",
         "Se descrição, valor ou categoria de um gasto forem ambíguos, responda com uma pergunta curta em vez de propor ação.",
         "Uma proposta de gasto não é uma confirmação e nunca executa nada.",
@@ -192,14 +198,6 @@ export async function generateConversationPlan(
         item.type === "function_call",
     );
     if (calls.length) {
-      if (calls.length > 5) {
-        return {
-          ok: false,
-          code: "invalid-response",
-          message:
-            "O Assistente solicitou consultas demais para esta resposta.",
-        };
-      }
       const plans = calls.map((call) =>
         parseFunctionPlan(call.name, call.arguments),
       );
@@ -228,9 +226,27 @@ export async function generateConversationPlan(
         (plan): plan is Extract<typeof plan, { kind: "tool-call" }> =>
           plan?.kind === "tool-call",
       );
-      return toolCalls.length === 1
-        ? { ok: true, plan: toolCalls[0] }
-        : { ok: true, plan: { kind: "tool-calls", calls: toolCalls } };
+      const deduplicated = deduplicateToolCalls(toolCalls, {
+        activeProfile: request.activeProfile,
+        selectedMonth: request.selectedMonth,
+      });
+      console.info("assistant_tool_plan_normalized", {
+        provider: "openai",
+        model,
+        rawToolCount: toolCalls.length,
+        uniqueToolCount: deduplicated.calls.length,
+        duplicatesRemoved: deduplicated.duplicatesRemoved,
+      });
+      if (!isWithinToolBudget(deduplicated.calls)) {
+        return {
+          ok: false,
+          code: "invalid-response",
+          message: toolBudgetUserMessage,
+        };
+      }
+      return deduplicated.calls.length === 1
+        ? { ok: true, plan: deduplicated.calls[0] }
+        : { ok: true, plan: { kind: "tool-calls", calls: deduplicated.calls } };
     }
     const message = response.output_text.trim();
     return message

@@ -7,7 +7,7 @@ export function quickActionInstruction(
     "financial-summary":
       "Ação oficial: visão financeira resumida. Consulte getFinancialSummary; não peça desambiguação.",
     insights:
-      "Ação oficial: insights gerais. Consulte dados gerais pertinentes, sem exigir categoria; analise somente fatos retornados.",
+      "Ação oficial: insights gerais. Planeje no máximo quatro consultas independentes, priorizando getFinancialSummary, getLimits, getInstallments e getReceivables quando relevantes. Não use getCategorySpending sem categoria explícita, não repita consultas equivalentes e analise somente fatos retornados.",
     installments:
       "Ação oficial: parcelas. Consulte getInstallments; não peça desambiguação.",
     receivables:

@@ -8,6 +8,13 @@ export type ConversationToolInput = {
   dueInSelectedMonth?: boolean;
 };
 
+export type ConversationQuickAction =
+  | "financial-summary"
+  | "insights"
+  | "installments"
+  | "receivables"
+  | "incoming-summary";
+
 export type RegisterExpensePlan = {
   description: string;
   amount: number;
@@ -50,12 +57,7 @@ export type ConversationApiRequest = Pick<
   "message" | "activeProfile" | "selectedMonth" | "conversationContext"
 > & {
   responseMode?: "compact" | "full";
-  quickAction?:
-    | "financial-summary"
-    | "insights"
-    | "installments"
-    | "receivables"
-    | "incoming-summary";
+  quickAction?: ConversationQuickAction;
   temporalContext?: { currentDate: string; timeZone: string };
   toolResults?: readonly ConversationToolResult[];
   /** Added only by the server route for safe latency correlation. */

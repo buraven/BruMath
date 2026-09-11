@@ -1,14 +1,10 @@
 import { ChevronRight, Send } from "lucide-react";
 import { QuickActions } from "../../../../components/finance/QuickActions";
 import { AssistantMarkdown } from "../../../../components/assistant/AssistantMarkdown";
+import type { ConversationQuickAction } from "../../../../lib/assistant/conversation/contracts";
 import styles from "./HomeAssistantPreview.module.css";
 
-export type HomeAssistantQuickAction =
-  | "financial-summary"
-  | "insights"
-  | "installments"
-  | "receivables"
-  | "incoming-summary";
+export type HomeAssistantQuickAction = ConversationQuickAction;
 
 type HomeAssistantPreviewProps = {
   profile: string;

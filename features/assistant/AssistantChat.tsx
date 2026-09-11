@@ -8,6 +8,7 @@ import {
 } from "react";
 import { Send, Sparkles } from "lucide-react";
 import { AssistantMarkdown } from "../../components/assistant/AssistantMarkdown";
+import type { ConversationQuickAction } from "../../lib/assistant/conversation/contracts";
 import styles from "./AssistantChat.module.css";
 
 type Message = {
@@ -22,17 +23,17 @@ type Props = {
   messages: Message[];
   value: string;
   onChange: (value: string) => void;
-  onSend: (value?: string) => void;
+  onSend: (value?: string, quickAction?: ConversationQuickAction) => void;
   isLoading?: boolean;
   messagesRef: RefObject<HTMLDivElement>;
   scrollPosition: MutableRefObject<number>;
 };
-const suggestions = [
-  ["Como estamos este mês?", "Como estamos este mês?"],
-  ["Onde gastamos mais?", "Me dê insights"],
-  ["Próximas parcelas", "Próximas parcelas"],
+const suggestions: readonly [string, string, ConversationQuickAction?][] = [
+  ["Como estamos este mês?", "Como estamos este mês?", "financial-summary"],
+  ["Onde gastamos mais?", "Me dê insights", "insights"],
+  ["Próximas parcelas", "Próximas parcelas", "installments"],
   ["Quanto ainda posso gastar?", "Quanto ainda posso gastar?"],
-  ["Quem me deve?", "Quem me deve?"],
+  ["Quem me deve?", "Quem me deve?", "receivables"],
 ];
 
 export function AssistantChat({
@@ -109,11 +110,11 @@ export function AssistantChat({
       </div>
       <footer className={styles.footer}>
         <div className={styles.suggestions} aria-label="Sugestões de perguntas">
-          {suggestions.map(([label, command]) => (
+          {suggestions.map(([label, command, quickAction]) => (
             <button
               type="button"
               key={label}
-              onClick={() => onSend(command)}
+              onClick={() => onSend(command, quickAction)}
               disabled={isLoading}
             >
               {label}
