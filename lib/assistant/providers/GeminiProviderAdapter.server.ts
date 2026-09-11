@@ -8,6 +8,7 @@ import type {
   ConversationApiResponse,
   ConversationToolResult,
 } from "../conversation/contracts";
+import { conversationResponseStyleInstructions } from "../conversation/responseStyle";
 import {
   financialToolNames,
   parseFunctionPlan,
@@ -65,6 +66,7 @@ const instructions = [
   "Para insights solicitados, peça os dados determinísticos estritamente necessários antes de analisar.",
   "Uma proposta de gasto nunca confirma nem executa uma ação.",
   "Se faltar descrição, valor ou categoria para registrar gasto, peça esclarecimento curto.",
+  conversationResponseStyleInstructions,
 ].join(" ");
 
 const generationConfig = {

@@ -6,6 +6,7 @@ import type {
   ConversationPlan,
   ConversationToolResult,
 } from "../conversation/contracts";
+import { conversationResponseStyleInstructions } from "../conversation/responseStyle";
 import type { ConversationProviderAdapter } from "./ConversationProviderAdapter.server";
 import type { FinancialToolName } from "../tools/financialTools";
 
@@ -158,6 +159,7 @@ export async function generateConversationPlan(
         "Se descrição, valor ou categoria de um gasto forem ambíguos, responda com uma pergunta curta em vez de propor ação.",
         "Uma proposta de gasto não é uma confirmação e nunca executa nada.",
         "Para conversa não financeira, responda de modo curto e útil, sem alegar acesso a dados.",
+        conversationResponseStyleInstructions,
       ].join(" "),
       input: `Perfil padrão: ${request.activeProfile}. Mês padrão: ${request.selectedMonth}. Mensagem: ${request.message}`,
       tools: [...toolDefinitions, actionDefinition],
@@ -227,8 +229,10 @@ export class OpenAIProviderAdapter implements ConversationProviderAdapter {
       const client = new OpenAI({ apiKey, timeout: 15_000, maxRetries: 1 });
       const response = await client.responses.create({
         model,
-        instructions:
-          "Responda em português do Brasil com base exclusivamente nos resultados financeiros determinísticos fornecidos. Não invente números e diferencie recomendações de fatos.",
+        instructions: [
+          "Responda com base exclusivamente nos resultados financeiros determinísticos fornecidos. Não invente números e diferencie recomendações de fatos.",
+          conversationResponseStyleInstructions,
+        ].join(" "),
         input: `Perfil: ${request.activeProfile}. Mês: ${request.selectedMonth}. Pergunta: ${request.message}\nResultados autorizados: ${JSON.stringify(toolResults)}`,
       });
       const message = response.output_text.trim();
