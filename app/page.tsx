@@ -402,17 +402,18 @@ export default function Page() {
     const value = (preset ?? text).trim(); if (!value) return;
     if (assistantLoading) return;
     const now = Date.now();
+    const conversationRequestId = crypto.randomUUID();
     const pendingId = now + 1;
     const completePending = (reply: string) => setChat(cur => cur.map(message => message.id === pendingId ? { ...message, text: reply, status: undefined } : message));
     setChat(cur => [...cur, { id: now, role: "user", text: value }, { id: pendingId, role: "assistant", text: "", status: "pending" }]);
     setText("");
     setAssistantLoading(true);
     try {
-      const response = await requestConversationPlan({ message: value, activeProfile, selectedMonth: viewMonth });
+      const response = await requestConversationPlan({ message: value, activeProfile, selectedMonth: viewMonth, requestId: conversationRequestId });
       if (!response.ok) { completePending(response.message); return; }
       const plan = await resolveConversationPlan(response.plan, { activeProfile, selectedMonth: viewMonth });
       if (plan.kind === "tool-results") {
-        const explanation = await requestConversationPlan({ message: value, activeProfile, selectedMonth: viewMonth, toolResults: plan.results });
+        const explanation = await requestConversationPlan({ message: value, activeProfile, selectedMonth: viewMonth, toolResults: plan.results, requestId: conversationRequestId });
         completePending(explanation.ok ? explanation.plan.kind === "message" ? explanation.plan.message : "Não consegui concluir essa análise. Tente novamente." : explanation.message);
         return;
       }

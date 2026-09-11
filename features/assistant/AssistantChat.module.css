@@ -68,6 +68,43 @@
   background: var(--color-accent-soft);
   border-color: var(--color-accent-strong);
 }
+.markdown > :first-child {
+  margin-top: 0;
+}
+.markdown > :last-child {
+  margin-bottom: 0;
+}
+.markdown p,
+.markdown ul,
+.markdown ol {
+  margin: 0 0 var(--space-2);
+}
+.markdown h1,
+.markdown h2,
+.markdown h3,
+.markdown h4 {
+  margin: var(--space-3) 0 var(--space-1);
+  font-size: 0.95em;
+  line-height: 1.35;
+}
+.markdown ul,
+.markdown ol {
+  padding-left: var(--space-5);
+}
+.markdown li + li {
+  margin-top: var(--space-1);
+}
+.markdown hr {
+  margin: var(--space-3) 0;
+  border: 0;
+  border-top: 1px solid var(--line);
+}
+.markdown code {
+  padding: 0.08em 0.3em;
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  font-size: 0.9em;
+}
 .footer {
   padding-block: var(--space-2);
   background: var(--bg);

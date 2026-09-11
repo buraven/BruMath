@@ -26,7 +26,11 @@ function isToolResults(
         item.scope.profile === "Casal") &&
       typeof item.scope.month === "string" &&
       /^\d{4}-\d{2}$/.test(item.scope.month) &&
-      Array.isArray(item.provenance)
+      Array.isArray(item.provenance) &&
+      (item.availability === undefined ||
+        (item.availability.source === "brumath-data" &&
+          typeof item.availability.hasStoredData === "boolean" &&
+          typeof item.availability.hasRecordsInScope === "boolean"))
     );
   });
 }
@@ -48,6 +52,9 @@ function isRequest(value: unknown): value is ConversationApiRequest {
 }
 
 export async function POST(request: Request) {
+  const receivedAt = performance.now();
+  const requestId = crypto.randomUUID();
+  console.info("assistant_request_received", { requestId });
   let payload: unknown;
   try {
     payload = await request.json();
@@ -66,9 +73,13 @@ export async function POST(request: Request) {
   let result;
   try {
     const provider = createAssistantProvider();
-    result = payload.toolResults?.length
-      ? await provider.generateExplanation(payload, payload.toolResults)
-      : await provider.generatePlan(payload);
+    const providerRequest = { ...payload, requestId };
+    result = providerRequest.toolResults?.length
+      ? await provider.generateExplanation(
+          providerRequest,
+          providerRequest.toolResults,
+        )
+      : await provider.generatePlan(providerRequest);
   } catch {
     result = {
       ok: false as const,
@@ -76,5 +87,15 @@ export async function POST(request: Request) {
       message: "O Assistente com IA ainda não está configurado neste ambiente.",
     };
   }
-  return NextResponse.json(result, { status: result.ok ? 200 : 503 });
+  const durationMs = Math.round(performance.now() - receivedAt);
+  console.info("assistant_request_completed", {
+    requestId,
+    durationMs,
+    status: result.ok ? 200 : 503,
+    phase: payload.toolResults?.length ? "explanation" : "planning",
+  });
+  return NextResponse.json(result, {
+    status: result.ok ? 200 : 503,
+    headers: { "Server-Timing": `assistant;dur=${durationMs}` },
+  });
 }

@@ -38,12 +38,21 @@ export type ConversationToolResult = {
   data: unknown;
   scope: ConversationToolInput & { profile: AssistantProfile; month: string };
   provenance: readonly { kind: string; label: string; source?: string }[];
+  availability?: {
+    source: "brumath-data";
+    hasStoredData: boolean;
+    hasRecordsInScope: boolean;
+  };
 };
 
 export type ConversationApiRequest = Pick<
   AssistantRequest,
   "message" | "activeProfile" | "selectedMonth"
-> & { toolResults?: readonly ConversationToolResult[] };
+> & {
+  toolResults?: readonly ConversationToolResult[];
+  /** Added only by the server route for safe latency correlation. */
+  requestId?: string;
+};
 
 export type ConversationApiResponse =
   | { ok: true; plan: ConversationPlan }

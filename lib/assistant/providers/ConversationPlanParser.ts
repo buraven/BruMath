@@ -72,6 +72,7 @@ export function parseFunctionPlan(
 ): ConversationPlan | null {
   if ((financialToolNames as readonly string[]).includes(name)) {
     const input = parseToolInput(value);
+    if (name === "getCategorySpending" && !input?.category) return null;
     return input
       ? { kind: "tool-call", toolName: name as FinancialToolName, input }
       : null;

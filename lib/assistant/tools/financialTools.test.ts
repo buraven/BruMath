@@ -236,6 +236,37 @@ test("rejects a category query without a category and never mutates the snapshot
   assert.deepEqual(snapshot, before);
 });
 
+test("marks an absent local dataset as incomplete instead of treating its zeros as activity", async () => {
+  const summary = await tool<Record<string, never>, { availability: unknown }>(
+    "getFinancialSummary",
+  ).execute(
+    {},
+    {
+      scope: { profile: "Casal", month: "2026-09" },
+      financialContext: createFinancialContextProvider({
+        read: async () => ({
+          income: 13000,
+          expenses: [],
+          installments: [],
+          debts: [],
+          incomeEntries: [],
+          budgets: {},
+          limits: { Bruna: 0, Matheus: 0 },
+          hasStoredData: false,
+        }),
+      }),
+    },
+  );
+
+  assert.equal(summary.ok, true);
+  if (!summary.ok) return;
+  assert.deepEqual(summary.value.availability, {
+    source: "brumath-data",
+    hasStoredData: false,
+    hasRecordsInScope: false,
+  });
+});
+
 test("registers the deterministic financial capabilities once", () => {
   const registry = createFinancialToolRegistry();
 

@@ -31,6 +31,7 @@ export type FinancialToolOutput<T> = {
   data: T;
   scope: FinancialScope;
   provenance: readonly ResponseProvenance[];
+  availability?: FinancialContextResult<T>["availability"];
 };
 
 export type CategoryFilter = {
@@ -81,6 +82,7 @@ function success<T>(
       data: context.value,
       scope: context.scope,
       provenance: withToolProvenance(toolName, context.provenance),
+      availability: context.availability,
     },
   };
 }

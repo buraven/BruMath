@@ -73,11 +73,19 @@ export async function requestConversationPlan(request: {
   activeProfile: AssistantProfile;
   selectedMonth: string;
   toolResults?: readonly ConversationToolResult[];
+  requestId?: string;
 }): Promise<ConversationApiResponse> {
+  const startedAt = performance.now();
   const response = await fetch("/api/assistant", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(request),
+  });
+  console.info("assistant_client_provider_round", {
+    requestId: request.requestId,
+    phase: request.toolResults?.length ? "explanation" : "planning",
+    durationMs: Math.round(performance.now() - startedAt),
+    serverTiming: response.headers.get("Server-Timing"),
   });
   const body = (await response.json()) as ConversationApiResponse;
   if (!response.ok || !body.ok) {
@@ -112,8 +120,10 @@ export async function resolveConversationPlan(
   const financialContext = createFinancialContextProvider(
     new LocalStorageFinancialDataSource(),
   );
+  const toolsStartedAt = performance.now();
   const results = await Promise.all(
     calls.map(async (call) => {
+      const toolStartedAt = performance.now();
       const profile = isProfile(call.input.profile)
         ? call.input.profile
         : defaults.activeProfile;
@@ -124,7 +134,7 @@ export async function resolveConversationPlan(
         typeof call.input.category === "string" && call.input.category.trim()
           ? call.input.category.trim()
           : undefined;
-      return registry.require(call.toolName).execute(
+      const result = await registry.require(call.toolName).execute(
         {
           ...(category ? { category } : {}),
           ...(typeof call.input.dueInSelectedMonth === "boolean"
@@ -136,8 +146,17 @@ export async function resolveConversationPlan(
           financialContext,
         },
       );
+      console.info("assistant_tool_completed", {
+        toolName: call.toolName,
+        durationMs: Math.round(performance.now() - toolStartedAt),
+      });
+      return result;
     }),
   );
+  console.info("assistant_tools_completed", {
+    toolCount: calls.length,
+    durationMs: Math.round(performance.now() - toolsStartedAt),
+  });
   const failure = results.find((result) => !result.ok);
   if (failure && !failure.ok)
     return { kind: "message", message: failure.message };

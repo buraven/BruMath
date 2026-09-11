@@ -24,8 +24,14 @@ const toolParameters = {
 const tools: FunctionDeclaration[] = [
   ...financialToolNames.map((name) => ({
     name,
-    description: `Consulta determinística ${name} no BruMath.`,
-    parametersJsonSchema: toolParameters,
+    description:
+      name === "getCategorySpending"
+        ? "Soma gastos de uma categoria específica. Só use quando o usuário informar claramente a categoria; category é obrigatória."
+        : `Consulta determinística ${name} no BruMath.`,
+    parametersJsonSchema:
+      name === "getCategorySpending"
+        ? { ...toolParameters, required: ["category"] }
+        : toolParameters,
   })),
   {
     name: "propose_register_expense",
@@ -49,6 +55,8 @@ const instructions = [
   "Você é o Assistente financeiro do BruMath e conversa em português do Brasil.",
   "Nunca invente valores, saldos, limites, gastos, parcelas, recebíveis ou datas.",
   "Para fatos financeiros, solicite somente as funções declaradas.",
+  "Nunca use getCategorySpending para insights, resumos ou perguntas gerais sem uma categoria explícita; nesses casos escolha uma consulta geral apropriada.",
+  "Se os resultados indicarem que não há dataset salvo ou não há registros no período, apresente zeros como dados disponíveis, não como prova de que todo o saldo está livre. Qualifique recomendações com essa limitação.",
   "O perfil e mês informados são defaults; sobrescreva-os apenas se o usuário for explícito.",
   "Para insights solicitados, peça os dados determinísticos estritamente necessários antes de analisar.",
   "Uma proposta de gasto nunca confirma nem executa uma ação.",
@@ -78,7 +86,16 @@ export class GeminiProviderAdapter implements ConversationProviderAdapter {
   private readonly model = process.env.GEMINI_MODEL || "gemini-3.6-flash";
 
   private client(): GoogleGenAI | null {
-    return this.apiKey ? new GoogleGenAI({ apiKey: this.apiKey }) : null;
+    return this.apiKey
+      ? new GoogleGenAI({
+          apiKey: this.apiKey,
+          httpOptions: {
+            timeout: 15_000,
+            // The SDK defaults to five attempts; one makes latency predictable.
+            retryOptions: { attempts: 1 },
+          },
+        })
+      : null;
   }
 
   async generatePlan(
@@ -89,7 +106,15 @@ export class GeminiProviderAdapter implements ConversationProviderAdapter {
       return unavailable(
         "O Assistente com IA ainda não está configurado neste ambiente.",
       );
-    const requestId = crypto.randomUUID();
+    const requestId = request.requestId ?? crypto.randomUUID();
+    const startedAt = performance.now();
+    console.info("assistant_provider_call_start", {
+      requestId,
+      provider: "gemini",
+      phase: "planning",
+      model: this.model,
+      configuredRetries: 0,
+    });
     try {
       const response = await client.models.generateContent({
         model: this.model,
@@ -100,6 +125,14 @@ export class GeminiProviderAdapter implements ConversationProviderAdapter {
         },
       });
       const calls = response.functionCalls ?? [];
+      console.info("assistant_provider_call_end", {
+        requestId,
+        provider: "gemini",
+        phase: "planning",
+        model: this.model,
+        durationMs: Math.round(performance.now() - startedAt),
+        functionCallCount: calls.length,
+      });
       if (calls.length) {
         if (calls.length > 5) {
           return {
@@ -164,6 +197,8 @@ export class GeminiProviderAdapter implements ConversationProviderAdapter {
         code: candidate?.code,
         type: candidate?.name,
         message: safeProviderMessage(error),
+        durationMs: Math.round(performance.now() - startedAt),
+        configuredRetries: 0,
       });
       return providerFailure();
     }
@@ -178,7 +213,16 @@ export class GeminiProviderAdapter implements ConversationProviderAdapter {
       return unavailable(
         "O Assistente com IA ainda não está configurado neste ambiente.",
       );
-    const requestId = crypto.randomUUID();
+    const requestId = request.requestId ?? crypto.randomUUID();
+    const startedAt = performance.now();
+    console.info("assistant_provider_call_start", {
+      requestId,
+      provider: "gemini",
+      phase: "explanation",
+      model: this.model,
+      configuredRetries: 0,
+      toolResultCount: toolResults.length,
+    });
     try {
       const response = await client.models.generateContent({
         model: this.model,
@@ -191,6 +235,13 @@ export class GeminiProviderAdapter implements ConversationProviderAdapter {
         config: { systemInstruction: instructions },
       });
       const message = response.text?.trim();
+      console.info("assistant_provider_call_end", {
+        requestId,
+        provider: "gemini",
+        phase: "explanation",
+        model: this.model,
+        durationMs: Math.round(performance.now() - startedAt),
+      });
       return message
         ? { ok: true, plan: { kind: "message", message } }
         : {
@@ -213,6 +264,8 @@ export class GeminiProviderAdapter implements ConversationProviderAdapter {
         code: candidate?.code,
         type: candidate?.name,
         message: safeProviderMessage(error),
+        durationMs: Math.round(performance.now() - startedAt),
+        configuredRetries: 0,
       });
       return providerFailure();
     }
