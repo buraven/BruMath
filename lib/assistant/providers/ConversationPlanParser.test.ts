@@ -24,3 +24,28 @@ test("accepts category spending only with an explicit category", () => {
     },
   );
 });
+
+test("keeps an incomplete expense as a typed clarification instead of a generic message", () => {
+  assert.deepEqual(
+    parseFunctionPlan("clarify_register_expense", {
+      amount: 35,
+      description: null,
+      category: "Pets",
+    }),
+    {
+      kind: "register-expense-clarification",
+      intent: {
+        kind: "register-expense",
+        amount: 35,
+        category: "Pets",
+        missingFields: ["description"],
+      },
+    },
+  );
+});
+
+test("represents cancellation as a non-mutating typed plan", () => {
+  assert.deepEqual(parseFunctionPlan("cancel_pending_intent", {}), {
+    kind: "cancel-pending-intent",
+  });
+});

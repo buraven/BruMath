@@ -7,6 +7,7 @@ import {
 } from "../tools/financialTools";
 import type {
   ConversationApiResponse,
+  ConversationContext,
   ConversationPlan,
   ConversationQuickAction,
   ConversationToolResult,
@@ -83,7 +84,7 @@ export async function requestConversationPlan(request: {
   requestId?: string;
   responseMode?: "compact" | "full";
   quickAction?: ConversationQuickAction;
-  conversationContext?: { summary: string };
+  conversationContext?: ConversationContext;
 }): Promise<ConversationApiResponse> {
   const startedAt = performance.now();
   const response = await fetch("/api/assistant", {

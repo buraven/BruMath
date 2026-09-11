@@ -35,3 +35,17 @@ export function resolveRelativeDate(
   );
   return date.toISOString().slice(0, 10);
 }
+
+/** Financial relative periods are anchored to the selected product month, not today. */
+export function resolveFinancialMonth(
+  reference: "selected" | "previous" | "next",
+  selectedMonth: string,
+): string {
+  const [year, month] = selectedMonth.split("-").map(Number);
+  const date = new Date(Date.UTC(year, month - 1, 1));
+  date.setUTCMonth(
+    date.getUTCMonth() +
+      (reference === "selected" ? 0 : reference === "previous" ? -1 : 1),
+  );
+  return date.toISOString().slice(0, 7);
+}

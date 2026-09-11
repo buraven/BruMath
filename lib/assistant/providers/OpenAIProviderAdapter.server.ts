@@ -1,5 +1,4 @@
 import OpenAI from "openai";
-import type { AssistantProfile } from "../contracts";
 import type {
   ConversationApiRequest,
   ConversationApiResponse,
@@ -11,6 +10,7 @@ import {
   responseModeInstructions,
 } from "../conversation/responseStyle";
 import { quickActionInstruction } from "../conversation/quickActions";
+import { contextSummary } from "../conversation/conversationContext";
 import {
   deduplicateToolCalls,
   isWithinToolBudget,
@@ -18,6 +18,10 @@ import {
 } from "../conversation/toolPlanning";
 import type { ConversationProviderAdapter } from "./ConversationProviderAdapter.server";
 import type { FinancialToolName } from "../tools/financialTools";
+import {
+  parseFunctionPlan as parseSharedFunctionPlan,
+  profiles,
+} from "./ConversationPlanParser";
 
 const toolNames = new Set<FinancialToolName>([
   "getFinancialSummary",
@@ -30,7 +34,6 @@ const toolNames = new Set<FinancialToolName>([
   "getExtraIncome",
 ]);
 
-const profiles = ["Bruna", "Matheus", "Casal"] as const;
 const toolDefinitions = [
   "getFinancialSummary",
   "getExpenses",
@@ -78,9 +81,37 @@ const actionDefinition = {
   },
 };
 
-function isProfile(value: unknown): value is AssistantProfile {
-  return profiles.includes(value as AssistantProfile);
-}
+const clarificationDefinition = {
+  type: "function" as const,
+  name: "clarify_register_expense",
+  description:
+    "Mantém um cadastro de gasto pendente quando ainda falta descrição ou categoria. Nunca persiste nada.",
+  strict: true,
+  parameters: {
+    type: "object",
+    properties: {
+      amount: { type: ["number", "null"] },
+      description: { type: ["string", "null"] },
+      category: { type: ["string", "null"] },
+    },
+    required: ["amount", "description", "category"],
+    additionalProperties: false,
+  },
+};
+
+const cancelPendingIntentDefinition = {
+  type: "function" as const,
+  name: "cancel_pending_intent",
+  description:
+    "Cancela a intenção pendente atual sem executar ou persistir qualquer alteração.",
+  strict: true,
+  parameters: {
+    type: "object",
+    properties: {},
+    required: [],
+    additionalProperties: false,
+  },
+};
 
 function textPlan(message: string): ConversationPlan {
   return { kind: "message", message };
@@ -97,54 +128,7 @@ function parseFunctionPlan(
     return null;
   }
   if (!args || typeof args !== "object" || Array.isArray(args)) return null;
-  const input = args as Record<string, unknown>;
-  if (toolNames.has(name as FinancialToolName)) {
-    if (
-      name === "getCategorySpending" &&
-      (typeof input.category !== "string" || !input.category.trim())
-    )
-      return null;
-    return {
-      kind: "tool-call",
-      toolName: name as FinancialToolName,
-      input: {
-        ...(isProfile(input.profile) ? { profile: input.profile } : {}),
-        ...(typeof input.month === "string" && /^\d{4}-\d{2}$/.test(input.month)
-          ? { month: input.month }
-          : {}),
-        ...(typeof input.category === "string"
-          ? { category: input.category }
-          : {}),
-        ...(typeof input.dueInSelectedMonth === "boolean"
-          ? { dueInSelectedMonth: input.dueInSelectedMonth }
-          : {}),
-      },
-    };
-  }
-  if (name === "propose_register_expense") {
-    if (
-      typeof input.description !== "string" ||
-      typeof input.amount !== "number" ||
-      !Number.isFinite(input.amount) ||
-      input.amount <= 0 ||
-      typeof input.category !== "string"
-    )
-      return null;
-    return {
-      kind: "register-expense",
-      input: {
-        description: input.description.trim(),
-        amount: input.amount,
-        category: input.category.trim(),
-        ...(isProfile(input.owner) ? { owner: input.owner } : {}),
-        ...(typeof input.date === "string" &&
-        /^\d{4}-\d{2}-\d{2}$/.test(input.date)
-          ? { date: input.date }
-          : {}),
-      },
-    };
-  }
-  return null;
+  return parseSharedFunctionPlan(name, args);
 }
 
 export async function generateConversationPlan(
@@ -170,7 +154,10 @@ export async function generateConversationPlan(
         "Nunca invente números, saldos, limites, gastos, parcelas ou datas.",
         "Para qualquer dado financeiro, chame exatamente uma tool permitida.",
         "Para insights gerais, planeje no máximo quatro consultas independentes e nunca repita uma tool com o mesmo escopo. Priorize resumo, limites, parcelas e recebíveis; só peça consultas adicionais se forem materialmente necessárias.",
+        "O mês financeiro selecionado é o contexto obrigatório para 'este mês', 'nesse mês', 'mês passado' e 'próximo mês'. A data real serve somente para datas de lançamento como hoje, ontem e anteontem.",
         "O perfil e mês informados são defaults; só os sobrescreva quando o usuário for explícito.",
+        "Para 'onde gastamos mais', use getExpenses sem categoria e deixe a análise ordenar os gastos determinísticos por categoria. Nunca exija categoria nessa pergunta geral.",
+        "Quando houver cadastro de gasto pendente, use clarify_register_expense até completar os campos faltantes ou cancel_pending_intent se a pessoa desistir.",
         "Se descrição, valor ou categoria de um gasto forem ambíguos, responda com uma pergunta curta em vez de propor ação.",
         "Uma proposta de gasto não é uma confirmação e nunca executa nada.",
         "Saldo disponível não é autorização ou limite para gastar. Para 'quanto ainda posso gastar?', consulte getLimits quando o limite aplicável estiver claro; se saldo e limite forem materialmente ambíguos, peça clarificação curta.",
@@ -180,10 +167,10 @@ export async function generateConversationPlan(
       input: [
         `Perfil padrão: ${request.activeProfile}. Mês padrão: ${request.selectedMonth}.`,
         request.temporalContext
-          ? `Data atual confiável: ${request.temporalContext.currentDate} (${request.temporalContext.timeZone}). Resolva hoje, ontem, anteontem, este mês, mês passado e próximo mês a partir dela; nunca peça ao usuário uma data já determinável.`
+          ? `Data atual confiável: ${request.temporalContext.currentDate} (${request.temporalContext.timeZone}). Resolva apenas hoje, ontem e anteontem por essa data; nunca peça ao usuário uma data já determinável.`
           : "",
-        request.conversationContext?.summary
-          ? `Pendência curta da conversa: ${request.conversationContext.summary}`
+        contextSummary(request.conversationContext)
+          ? `Contexto curto da conversa: ${contextSummary(request.conversationContext)}`
           : "",
         responseModeInstructions(request.responseMode) ?? "",
         quickActionInstruction(request.quickAction) ?? "",
@@ -191,7 +178,12 @@ export async function generateConversationPlan(
       ]
         .filter(Boolean)
         .join(" "),
-      tools: [...toolDefinitions, actionDefinition],
+      tools: [
+        ...toolDefinitions,
+        actionDefinition,
+        clarificationDefinition,
+        cancelPendingIntentDefinition,
+      ],
     });
     const calls = response.output.filter(
       (item): item is Extract<typeof item, { type: "function_call" }> =>
@@ -222,6 +214,11 @@ export async function generateConversationPlan(
       }
       const first = plans[0]!;
       if (first.kind === "register-expense") return { ok: true, plan: first };
+      if (
+        first.kind === "register-expense-clarification" ||
+        first.kind === "cancel-pending-intent"
+      )
+        return { ok: true, plan: first };
       const toolCalls = plans.filter(
         (plan): plan is Extract<typeof plan, { kind: "tool-call" }> =>
           plan?.kind === "tool-call",

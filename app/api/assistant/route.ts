@@ -65,9 +65,18 @@ function isRequest(value: unknown): value is ConversationApiRequest {
     (request.conversationContext === undefined ||
       (typeof request.conversationContext === "object" &&
         request.conversationContext !== null &&
-        (request.conversationContext.summary === undefined ||
-          (typeof request.conversationContext.summary === "string" &&
-            request.conversationContext.summary.length <= 1_000)))) &&
+        (!request.conversationContext.pendingIntent ||
+          (request.conversationContext.pendingIntent.kind ===
+            "register-expense" &&
+            Array.isArray(
+              request.conversationContext.pendingIntent.missingFields,
+            ))) &&
+        (!request.conversationContext.lastQuery ||
+          ((financialToolNames as readonly string[]).includes(
+            request.conversationContext.lastQuery.toolName,
+          ) &&
+            typeof request.conversationContext.lastQuery.input ===
+              "object")))) &&
     (request.requestId === undefined ||
       (typeof request.requestId === "string" &&
         /^[a-zA-Z0-9-]{1,80}$/.test(request.requestId))) &&

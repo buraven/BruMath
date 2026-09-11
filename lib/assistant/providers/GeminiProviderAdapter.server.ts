@@ -13,6 +13,7 @@ import {
   responseModeInstructions,
 } from "../conversation/responseStyle";
 import { quickActionInstruction } from "../conversation/quickActions";
+import { contextSummary } from "../conversation/conversationContext";
 import {
   deduplicateToolCalls,
   isWithinToolBudget,
@@ -63,6 +64,25 @@ const tools: FunctionDeclaration[] = [
       required: ["description", "amount", "category"],
     },
   },
+  {
+    name: "clarify_register_expense",
+    description:
+      "Mantém um cadastro de gasto pendente quando ainda falta descrição ou categoria. Nunca persiste nada.",
+    parametersJsonSchema: {
+      type: "object",
+      properties: {
+        amount: { type: "number" },
+        description: { type: "string" },
+        category: { type: "string" },
+      },
+    },
+  },
+  {
+    name: "cancel_pending_intent",
+    description:
+      "Cancela a intenção pendente atual sem executar ou persistir qualquer alteração.",
+    parametersJsonSchema: { type: "object", properties: {} },
+  },
 ];
 
 const instructions = [
@@ -71,7 +91,10 @@ const instructions = [
   "Para fatos financeiros, solicite somente as funções declaradas.",
   "Nunca use getCategorySpending para insights, resumos ou perguntas gerais sem uma categoria explícita; nesses casos escolha uma consulta geral apropriada.",
   "Se availability.hasStoredData for false ou availability.hasRecordsInScope for false, há dados incompletos: diga apenas que não existem registros cadastrados no contexto consultado. NUNCA afirme que o saldo todo está disponível/livre, que não existem despesas reais, nem recomende destinar todo o saldo; explique que compromissos não cadastrados podem existir.",
+  "O mês financeiro selecionado é o contexto obrigatório para 'este mês', 'nesse mês', 'mês passado' e 'próximo mês'. A data real serve somente para datas de lançamento como hoje, ontem e anteontem.",
   "O perfil e mês informados são defaults; sobrescreva-os apenas se o usuário for explícito.",
+  "Para 'onde gastamos mais', use getExpenses sem categoria e deixe a análise ordenar os gastos determinísticos por categoria. Nunca exija categoria nessa pergunta geral.",
+  "Quando houver cadastro de gasto pendente, use clarify_register_expense até completar os campos faltantes ou cancel_pending_intent se a pessoa desistir.",
   "Para insights solicitados, peça os dados determinísticos estritamente necessários antes de analisar.",
   "Para insights gerais, planeje no máximo quatro consultas independentes e nunca repita uma tool com o mesmo escopo. Priorize resumo, limites, parcelas e recebíveis; só peça consultas adicionais se forem materialmente necessárias.",
   "Uma proposta de gasto nunca confirma nem executa uma ação.",
@@ -145,10 +168,10 @@ export class GeminiProviderAdapter implements ConversationProviderAdapter {
         contents: [
           `Perfil padrão: ${request.activeProfile}. Mês padrão: ${request.selectedMonth}.`,
           request.temporalContext
-            ? `Data atual confiável: ${request.temporalContext.currentDate} (${request.temporalContext.timeZone}). Resolva hoje, ontem, anteontem, este mês, mês passado e próximo mês a partir dela; nunca peça ao usuário uma data já determinável.`
+            ? `Data atual confiável: ${request.temporalContext.currentDate} (${request.temporalContext.timeZone}). Resolva apenas hoje, ontem e anteontem por essa data; nunca peça ao usuário uma data já determinável.`
             : "",
-          request.conversationContext?.summary
-            ? `Pendência curta da conversa: ${request.conversationContext.summary}`
+          contextSummary(request.conversationContext)
+            ? `Contexto curto da conversa: ${contextSummary(request.conversationContext)}`
             : "",
           responseModeInstructions(request.responseMode) ?? "",
           quickActionInstruction(request.quickAction) ?? "",
@@ -197,6 +220,11 @@ export class GeminiProviderAdapter implements ConversationProviderAdapter {
         }
         const first = plans[0]!;
         if (first.kind === "register-expense") return { ok: true, plan: first };
+        if (
+          first.kind === "register-expense-clarification" ||
+          first.kind === "cancel-pending-intent"
+        )
+          return { ok: true, plan: first };
         const toolCalls = plans.filter(
           (plan): plan is Extract<typeof plan, { kind: "tool-call" }> =>
             plan?.kind === "tool-call",

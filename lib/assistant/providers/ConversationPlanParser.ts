@@ -66,6 +66,40 @@ export function parseRegisterExpense(
   };
 }
 
+function parseExpenseClarification(value: unknown): ConversationPlan | null {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return null;
+  const input = value as Record<string, unknown>;
+  const amount =
+    typeof input.amount === "number" &&
+    Number.isFinite(input.amount) &&
+    input.amount > 0
+      ? input.amount
+      : undefined;
+  const description =
+    typeof input.description === "string" && input.description.trim()
+      ? input.description.trim()
+      : undefined;
+  const category =
+    typeof input.category === "string" && input.category.trim()
+      ? input.category.trim()
+      : undefined;
+  const missingFields = [
+    ...(description ? [] : (["description"] as const)),
+    ...(category ? [] : (["category"] as const)),
+  ];
+  if (missingFields.length === 0) return null;
+  return {
+    kind: "register-expense-clarification",
+    intent: {
+      kind: "register-expense",
+      ...(amount !== undefined ? { amount } : {}),
+      ...(description ? { description } : {}),
+      ...(category ? { category } : {}),
+      missingFields,
+    },
+  };
+}
+
 export function parseFunctionPlan(
   name: string,
   value: unknown,
@@ -81,5 +115,9 @@ export function parseFunctionPlan(
     const input = parseRegisterExpense(value);
     return input ? { kind: "register-expense", input } : null;
   }
+  if (name === "clarify_register_expense")
+    return parseExpenseClarification(value);
+  if (name === "cancel_pending_intent")
+    return { kind: "cancel-pending-intent" };
   return null;
 }

@@ -75,6 +75,7 @@ import {
   requestConversationPlan,
   resolveConversationPlan,
 } from "../lib/assistant/conversation/ConversationService";
+import type { ConversationContext } from "../lib/assistant/conversation/contracts";
 import { LocalStorageTransactionRepository } from "../lib/finance/LocalStorageTransactionRepository";
 
 type Person = "Bruna" | "Matheus" | "Casal";
@@ -485,7 +486,7 @@ export default function Page() {
     useState<CompactAssistantMessage>({
       text: `Oi, ${activeProfile} 💚 O que vamos organizar hoje?`,
     });
-  const pendingConversation = useRef<string | null>(null);
+  const conversationContext = useRef<ConversationContext>({});
   const messagesRef = useRef<HTMLDivElement>(null);
   const chatScrollTop = useRef(0);
 
@@ -1093,14 +1094,30 @@ export default function Page() {
         requestId: conversationRequestId,
         responseMode,
         quickAction,
-        ...(pendingConversation.current
-          ? { conversationContext: { summary: pendingConversation.current } }
+        ...(conversationContext.current.pendingIntent ||
+        conversationContext.current.lastQuery
+          ? { conversationContext: conversationContext.current }
           : {}),
       });
       if (!response.ok) {
-        pendingConversation.current = null;
+        conversationContext.current = {};
         completePending(response.message);
         return;
+      }
+      if (response.plan.kind === "tool-call") {
+        conversationContext.current = {
+          lastQuery: {
+            toolName: response.plan.toolName,
+            input: response.plan.input,
+          },
+        };
+      } else if (response.plan.kind === "tool-calls") {
+        const primary = response.plan.calls[0];
+        if (primary) {
+          conversationContext.current = {
+            lastQuery: { toolName: primary.toolName, input: primary.input },
+          };
+        }
       }
       const plan = await resolveConversationPlan(response.plan, {
         activeProfile,
@@ -1116,7 +1133,6 @@ export default function Page() {
           responseMode,
           quickAction,
         });
-        pendingConversation.current = null;
         completePending(
           explanation.ok
             ? explanation.plan.kind === "message"
@@ -1136,7 +1152,7 @@ export default function Page() {
           owner: plan.input.owner ?? activeProfile,
           date: plan.input.date ?? `${viewMonth}-01`,
         });
-        pendingConversation.current = null;
+        conversationContext.current = {};
         completePending(
           "Preparei o gasto para você revisar. Ele só será salvo depois da sua confirmação.",
         );
@@ -1173,10 +1189,29 @@ export default function Page() {
         });
         return;
       }
+      if (plan.kind === "register-expense-clarification") {
+        conversationContext.current = { pendingIntent: plan.intent };
+        const missing = plan.intent.missingFields.includes("category")
+          ? plan.intent.missingFields.includes("description")
+            ? "Qual foi a descrição e a categoria desse gasto?"
+            : "Qual foi a categoria desse gasto?"
+          : "Qual foi a descrição desse gasto?";
+        completePending(missing);
+        return;
+      }
+      if (plan.kind === "cancel-pending-intent") {
+        conversationContext.current = {};
+        completePending("Tudo bem, cancelei esse lançamento.");
+        return;
+      }
       if (plan.kind === "clarification") {
-        pendingConversation.current = `A pessoa disse: “${value}”. A pergunta pendente do Assistente é: “${plan.question}”. Use a nova mensagem apenas para concluir essa intenção e descarte a pendência em seguida.`;
+        conversationContext.current = {};
+      } else if (plan.kind === "tool-call") {
+        conversationContext.current = {
+          lastQuery: { toolName: plan.toolName, input: plan.input },
+        };
       } else {
-        pendingConversation.current = null;
+        conversationContext.current = {};
       }
       const message =
         plan.kind === "clarification"
@@ -1187,7 +1222,7 @@ export default function Page() {
       completePending(message);
       return;
     } catch {
-      pendingConversation.current = null;
+      conversationContext.current = {};
       completePending(
         "Não foi possível processar sua mensagem agora. Tente novamente.",
       );

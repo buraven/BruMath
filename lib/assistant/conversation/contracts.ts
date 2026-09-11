@@ -23,9 +23,29 @@ export type RegisterExpensePlan = {
   date?: string;
 };
 
+export type PendingExpenseIntent = {
+  kind: "register-expense";
+  amount?: number;
+  description?: string;
+  category?: string;
+  owner?: AssistantProfile;
+  date?: string;
+  missingFields: readonly ("description" | "category")[];
+};
+
+export type ConversationContext = {
+  pendingIntent?: PendingExpenseIntent;
+  lastQuery?: {
+    toolName: FinancialToolName;
+    input: ConversationToolInput;
+  };
+};
+
 export type ConversationPlan =
   | { kind: "message"; message: string }
   | { kind: "clarification"; question: string }
+  | { kind: "register-expense-clarification"; intent: PendingExpenseIntent }
+  | { kind: "cancel-pending-intent" }
   | {
       kind: "tool-call";
       toolName: FinancialToolName;
@@ -54,11 +74,12 @@ export type ConversationToolResult = {
 
 export type ConversationApiRequest = Pick<
   AssistantRequest,
-  "message" | "activeProfile" | "selectedMonth" | "conversationContext"
+  "message" | "activeProfile" | "selectedMonth"
 > & {
   responseMode?: "compact" | "full";
   quickAction?: ConversationQuickAction;
   temporalContext?: { currentDate: string; timeZone: string };
+  conversationContext?: ConversationContext;
   toolResults?: readonly ConversationToolResult[];
   /** Added only by the server route for safe latency correlation. */
   requestId?: string;
