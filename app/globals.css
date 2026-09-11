@@ -1330,6 +1330,33 @@ button {
   line-height: 1.6;
 }
 
+.confirmation-details {
+  display: grid;
+  gap: var(--space-2);
+  margin: var(--space-4) 0 0;
+  padding: var(--space-3);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md);
+  background: var(--surface-soft);
+}
+
+.confirmation-details div {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+
+.confirmation-details dt {
+  color: var(--muted);
+}
+
+.confirmation-details dd {
+  margin: 0;
+  color: var(--text);
+  font-weight: 700;
+  text-align: right;
+}
+
 .modal-actions .primary-button.danger-button {
   background: var(--danger);
   color: #fff;

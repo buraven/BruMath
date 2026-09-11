@@ -79,7 +79,12 @@ import type {
   ConversationContext,
   RegisterExpensePlan,
 } from "../lib/assistant/conversation/contracts";
-import { resolvePendingExpenseReply } from "../lib/assistant/conversation/conversationContext";
+import {
+  completeExpenseIntent,
+  createPendingExpenseIntent,
+  pendingExpenseQuestion,
+  resolvePendingExpenseReply,
+} from "../lib/assistant/conversation/conversationContext";
 import { LocalStorageTransactionRepository } from "../lib/finance/LocalStorageTransactionRepository";
 
 type Person = "Bruna" | "Matheus" | "Casal";
@@ -135,6 +140,7 @@ type Confirmation = {
   title: string;
   description: string;
   confirmLabel: string;
+  details?: readonly { label: string; value: string }[];
   destructive?: boolean;
   onConfirm: () => void;
 };
@@ -1079,14 +1085,16 @@ export default function Page() {
         );
       }
     };
-    const presentExpenseProposal = (input: RegisterExpensePlan) => {
+    const presentExpenseProposal = (
+      input: RegisterExpensePlan & { owner: Person },
+    ) => {
       const expenseId = Date.now();
       const proposal = createRegisterExpenseProposal({
         id: `expense:${expenseId}`,
         description: input.description,
         amount: input.amount,
         category: input.category,
-        owner: input.owner ?? activeProfile,
+        owner: input.owner,
         date: input.date ?? `${viewMonth}-01`,
       });
       conversationContext.current = {};
@@ -1097,6 +1105,13 @@ export default function Page() {
         title: proposal.preview.title,
         description: `${proposal.preview.description}. Confirme para salvar este gasto.`,
         confirmLabel: "Confirmar gasto",
+        details: [
+          { label: "Valor", value: money(proposal.payload.amount) },
+          { label: "Descrição", value: proposal.payload.description },
+          { label: "Categoria", value: proposal.payload.category },
+          { label: "Responsável", value: proposal.payload.owner },
+          { label: "Data", value: shortDate(proposal.payload.date) },
+        ],
         onConfirm: async () => {
           const confirmed = confirmAction(proposal, {
             id: `confirmation:${proposal.id}`,
@@ -1158,7 +1173,7 @@ export default function Page() {
           description: resolved.intent.description,
           amount: resolved.intent.amount,
           category: resolved.intent.category,
-          ...(resolved.intent.owner ? { owner: resolved.intent.owner } : {}),
+          owner: resolved.intent.owner,
           ...(resolved.intent.date ? { date: resolved.intent.date } : {}),
         });
         return;
@@ -1219,17 +1234,24 @@ export default function Page() {
         return;
       }
       if (plan.kind === "register-expense") {
-        presentExpenseProposal(plan.input);
+        const intent = createPendingExpenseIntent(plan.input);
+        if (!completeExpenseIntent(intent)) {
+          conversationContext.current = { pendingIntent: intent };
+          completePending(pendingExpenseQuestion(intent));
+          return;
+        }
+        presentExpenseProposal({
+          description: intent.description,
+          amount: intent.amount,
+          category: intent.category,
+          owner: intent.owner,
+          ...(intent.date ? { date: intent.date } : {}),
+        });
         return;
       }
       if (plan.kind === "register-expense-clarification") {
         conversationContext.current = { pendingIntent: plan.intent };
-        const missing = plan.intent.missingFields.includes("category")
-          ? plan.intent.missingFields.includes("description")
-            ? "Qual foi a descrição e a categoria desse gasto?"
-            : "Qual foi a categoria desse gasto?"
-          : "Qual foi a descrição desse gasto?";
-        completePending(missing);
+        completePending(pendingExpenseQuestion(plan.intent));
         return;
       }
       if (plan.kind === "cancel-pending-intent") {
@@ -2171,6 +2193,16 @@ export default function Page() {
               </button>
             </div>
             <p className="confirmation-copy">{confirmation.description}</p>
+            {confirmation.details && (
+              <dl className="confirmation-details">
+                {confirmation.details.map((detail) => (
+                  <div key={detail.label}>
+                    <dt>{detail.label}</dt>
+                    <dd>{detail.value}</dd>
+                  </div>
+                ))}
+              </dl>
+            )}
             <div className="modal-actions">
               <button
                 type="button"

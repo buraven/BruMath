@@ -84,9 +84,15 @@ function parseExpenseClarification(value: unknown): ConversationPlan | null {
     typeof input.category === "string" && input.category.trim()
       ? input.category.trim()
       : undefined;
+  const owner = isProfile(input.owner) ? input.owner : undefined;
+  const date =
+    typeof input.date === "string" && /^\d{4}-\d{2}-\d{2}$/.test(input.date)
+      ? input.date
+      : undefined;
   const missingFields = [
     ...(description ? [] : (["description"] as const)),
     ...(category ? [] : (["category"] as const)),
+    ...(owner ? [] : (["owner"] as const)),
   ];
   if (missingFields.length === 0) return null;
   return {
@@ -96,6 +102,8 @@ function parseExpenseClarification(value: unknown): ConversationPlan | null {
       ...(amount !== undefined ? { amount } : {}),
       ...(description ? { description } : {}),
       ...(category ? { category } : {}),
+      ...(owner ? { owner } : {}),
+      ...(date ? { date } : {}),
       missingFields,
     },
   };

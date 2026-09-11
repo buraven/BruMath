@@ -30,7 +30,7 @@ export type PendingExpenseIntent = {
   category?: string;
   owner?: AssistantProfile;
   date?: string;
-  missingFields: readonly ("description" | "category")[];
+  missingFields: readonly ("description" | "category" | "owner")[];
 };
 
 export type ConversationContext = {

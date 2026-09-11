@@ -31,6 +31,8 @@ test("keeps an incomplete expense as a typed clarification instead of a generic 
       amount: 35,
       description: null,
       category: "Pets",
+      owner: null,
+      date: "2026-09-09",
     }),
     {
       kind: "register-expense-clarification",
@@ -38,7 +40,8 @@ test("keeps an incomplete expense as a typed clarification instead of a generic 
         kind: "register-expense",
         amount: 35,
         category: "Pets",
-        missingFields: ["description"],
+        date: "2026-09-09",
+        missingFields: ["description", "owner"],
       },
     },
   );

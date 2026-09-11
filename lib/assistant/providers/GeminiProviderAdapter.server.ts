@@ -51,7 +51,7 @@ const tools: FunctionDeclaration[] = [
   {
     name: "propose_register_expense",
     description:
-      "Propõe registrar um gasto. Nunca confirma nem executa essa ação; use apenas quando descrição, valor e categoria estiverem claros.",
+      "Propõe registrar um gasto. Nunca confirma nem executa essa ação; use apenas quando descrição, valor, categoria e responsável estiverem claros.",
     parametersJsonSchema: {
       type: "object",
       properties: {
@@ -61,19 +61,21 @@ const tools: FunctionDeclaration[] = [
         owner: { type: "string", enum: [...profiles] },
         date: { type: "string", description: "YYYY-MM-DD" },
       },
-      required: ["description", "amount", "category"],
+      required: ["description", "amount", "category", "owner"],
     },
   },
   {
     name: "clarify_register_expense",
     description:
-      "Mantém um cadastro de gasto pendente quando ainda falta descrição ou categoria. Nunca persiste nada.",
+      "Mantém um cadastro de gasto pendente quando ainda falta descrição, categoria ou responsável. Nunca persiste nada.",
     parametersJsonSchema: {
       type: "object",
       properties: {
         amount: { type: "number" },
         description: { type: "string" },
         category: { type: "string" },
+        owner: { type: "string", enum: [...profiles] },
+        date: { type: "string", description: "YYYY-MM-DD" },
       },
     },
   },
@@ -95,11 +97,12 @@ const instructions = [
   "O perfil e mês informados são defaults; sobrescreva-os apenas se o usuário for explícito.",
   "Para 'onde gastamos mais', use getExpenseRanking sem categoria. Nunca exija categoria nessa pergunta geral.",
   "Quando houver cadastro de gasto pendente, use clarify_register_expense até completar os campos faltantes ou cancel_pending_intent se a pessoa desistir.",
+  "Para mutações, nunca assuma o responsável pelo perfil ativo: só informe owner quando Bruna, Matheus ou Casal tiver sido explicitamente indicado. Sem owner explícito, mantenha o gasto pendente e pergunte.",
   "Para insights solicitados, peça os dados determinísticos estritamente necessários antes de analisar.",
   "Para insights gerais, planeje no máximo quatro consultas independentes e nunca repita uma tool com o mesmo escopo. Priorize resumo, limites, parcelas e recebíveis; só peça consultas adicionais se forem materialmente necessárias.",
   "Uma proposta de gasto nunca confirma nem executa uma ação.",
   "Saldo disponível não é autorização ou limite para gastar. Para 'quanto ainda posso gastar?', consulte getLimits quando o limite aplicável estiver claro; se saldo e limite forem materialmente ambíguos, peça clarificação curta.",
-  "Se faltar descrição, valor ou categoria para registrar gasto, peça esclarecimento curto.",
+  "Se faltar descrição, valor, categoria ou responsável para registrar gasto, peça esclarecimento curto.",
   conversationResponseStyleInstructions,
 ].join(" ");
 

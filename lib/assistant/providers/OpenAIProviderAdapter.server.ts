@@ -67,7 +67,7 @@ const actionDefinition = {
   type: "function" as const,
   name: "propose_register_expense",
   description:
-    "Propõe registrar um gasto. Nunca confirma nem executa a ação; use somente quando descrição, valor e categoria estiverem claros.",
+    "Propõe registrar um gasto. Nunca confirma nem executa a ação; use somente quando descrição, valor, categoria e responsável estiverem claros.",
   strict: true,
   parameters: {
     type: "object",
@@ -87,7 +87,7 @@ const clarificationDefinition = {
   type: "function" as const,
   name: "clarify_register_expense",
   description:
-    "Mantém um cadastro de gasto pendente quando ainda falta descrição ou categoria. Nunca persiste nada.",
+    "Mantém um cadastro de gasto pendente quando ainda falta descrição, categoria ou responsável. Nunca persiste nada.",
   strict: true,
   parameters: {
     type: "object",
@@ -95,8 +95,10 @@ const clarificationDefinition = {
       amount: { type: ["number", "null"] },
       description: { type: ["string", "null"] },
       category: { type: ["string", "null"] },
+      owner: { type: ["string", "null"], enum: [...profiles, null] },
+      date: { type: ["string", "null"], description: "YYYY-MM-DD ou null" },
     },
-    required: ["amount", "description", "category"],
+    required: ["amount", "description", "category", "owner", "date"],
     additionalProperties: false,
   },
 };
@@ -160,7 +162,8 @@ export async function generateConversationPlan(
         "O perfil e mês informados são defaults; só os sobrescreva quando o usuário for explícito.",
         "Para 'onde gastamos mais', use getExpenseRanking sem categoria. Nunca exija categoria nessa pergunta geral.",
         "Quando houver cadastro de gasto pendente, use clarify_register_expense até completar os campos faltantes ou cancel_pending_intent se a pessoa desistir.",
-        "Se descrição, valor ou categoria de um gasto forem ambíguos, responda com uma pergunta curta em vez de propor ação.",
+        "Para mutações, nunca assuma o responsável pelo perfil ativo: só informe owner quando Bruna, Matheus ou Casal tiver sido explicitamente indicado. Sem owner explícito, mantenha o gasto pendente e pergunte.",
+        "Se descrição, valor, categoria ou responsável de um gasto forem ambíguos, responda com uma pergunta curta em vez de propor ação.",
         "Uma proposta de gasto não é uma confirmação e nunca executa nada.",
         "Saldo disponível não é autorização ou limite para gastar. Para 'quanto ainda posso gastar?', consulte getLimits quando o limite aplicável estiver claro; se saldo e limite forem materialmente ambíguos, peça clarificação curta.",
         "Para conversa não financeira, responda de modo curto e útil, sem alegar acesso a dados.",
