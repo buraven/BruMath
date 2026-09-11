@@ -75,7 +75,11 @@ import {
   requestConversationPlan,
   resolveConversationPlan,
 } from "../lib/assistant/conversation/ConversationService";
-import type { ConversationContext } from "../lib/assistant/conversation/contracts";
+import type {
+  ConversationContext,
+  RegisterExpensePlan,
+} from "../lib/assistant/conversation/contracts";
+import { resolvePendingExpenseReply } from "../lib/assistant/conversation/conversationContext";
 import { LocalStorageTransactionRepository } from "../lib/finance/LocalStorageTransactionRepository";
 
 type Person = "Bruna" | "Matheus" | "Casal";
@@ -1075,6 +1079,52 @@ export default function Page() {
         );
       }
     };
+    const presentExpenseProposal = (input: RegisterExpensePlan) => {
+      const expenseId = Date.now();
+      const proposal = createRegisterExpenseProposal({
+        id: `expense:${expenseId}`,
+        description: input.description,
+        amount: input.amount,
+        category: input.category,
+        owner: input.owner ?? activeProfile,
+        date: input.date ?? `${viewMonth}-01`,
+      });
+      conversationContext.current = {};
+      completePending(
+        "Preparei o gasto para você revisar. Ele só será salvo depois da sua confirmação.",
+      );
+      setConfirmation({
+        title: proposal.preview.title,
+        description: `${proposal.preview.description}. Confirme para salvar este gasto.`,
+        confirmLabel: "Confirmar gasto",
+        onConfirm: async () => {
+          const confirmed = confirmAction(proposal, {
+            id: `confirmation:${proposal.id}`,
+            proposalId: proposal.id,
+            confirmedAt: new Date().toISOString(),
+          });
+          const result =
+            await assistantActionGateway.current.execute(confirmed);
+          if (!result.ok) {
+            completePending(result.message);
+            return setToast(result.message);
+          }
+          setExpenses((cur) => [
+            {
+              id: expenseId,
+              title: proposal.payload.description,
+              cat: proposal.payload.category,
+              who: proposal.payload.owner,
+              amount: proposal.payload.amount,
+              date: proposal.payload.date,
+            },
+            ...cur,
+          ]);
+          completePending("Gasto registrado com sucesso 💚");
+          setToast("Gasto registrado 💚");
+        },
+      });
+    };
     if (responseMode === "compact") {
       setCompactAssistantMessage({ text: "", status: "pending" });
     } else {
@@ -1087,6 +1137,32 @@ export default function Page() {
     setText("");
     setAssistantLoading(true);
     try {
+      const pendingExpense = conversationContext.current.pendingIntent;
+      if (pendingExpense) {
+        const resolved = resolvePendingExpenseReply(
+          pendingExpense,
+          value,
+          Object.keys(budgets),
+        );
+        if (resolved.kind === "cancelled") {
+          conversationContext.current = {};
+          completePending("Tudo bem, cancelei esse lançamento.");
+          return;
+        }
+        if (resolved.kind === "clarifying") {
+          conversationContext.current = { pendingIntent: resolved.intent };
+          completePending(resolved.question);
+          return;
+        }
+        presentExpenseProposal({
+          description: resolved.intent.description,
+          amount: resolved.intent.amount,
+          category: resolved.intent.category,
+          ...(resolved.intent.owner ? { owner: resolved.intent.owner } : {}),
+          ...(resolved.intent.date ? { date: resolved.intent.date } : {}),
+        });
+        return;
+      }
       const response = await requestConversationPlan({
         message: value,
         activeProfile,
@@ -1143,50 +1219,7 @@ export default function Page() {
         return;
       }
       if (plan.kind === "register-expense") {
-        const expenseId = Date.now();
-        const proposal = createRegisterExpenseProposal({
-          id: `expense:${expenseId}`,
-          description: plan.input.description,
-          amount: plan.input.amount,
-          category: plan.input.category,
-          owner: plan.input.owner ?? activeProfile,
-          date: plan.input.date ?? `${viewMonth}-01`,
-        });
-        conversationContext.current = {};
-        completePending(
-          "Preparei o gasto para você revisar. Ele só será salvo depois da sua confirmação.",
-        );
-        setConfirmation({
-          title: proposal.preview.title,
-          description: `${proposal.preview.description}. Confirme para salvar este gasto.`,
-          confirmLabel: "Confirmar gasto",
-          onConfirm: async () => {
-            const confirmed = confirmAction(proposal, {
-              id: `confirmation:${proposal.id}`,
-              proposalId: proposal.id,
-              confirmedAt: new Date().toISOString(),
-            });
-            const result =
-              await assistantActionGateway.current.execute(confirmed);
-            if (!result.ok) {
-              completePending(result.message);
-              return setToast(result.message);
-            }
-            setExpenses((cur) => [
-              {
-                id: expenseId,
-                title: proposal.payload.description,
-                cat: proposal.payload.category,
-                who: proposal.payload.owner,
-                amount: proposal.payload.amount,
-                date: proposal.payload.date,
-              },
-              ...cur,
-            ]);
-            completePending("Gasto registrado com sucesso 💚");
-            setToast("Gasto registrado 💚");
-          },
-        });
+        presentExpenseProposal(plan.input);
         return;
       }
       if (plan.kind === "register-expense-clarification") {
