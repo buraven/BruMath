@@ -10,6 +10,7 @@ import type {
   ConversationPlan,
   ConversationToolResult,
 } from "./contracts";
+import { createTemporalContext } from "./temporalContext";
 
 const toolNames = new Set<FinancialToolName>([
   "getFinancialSummary",
@@ -74,12 +75,23 @@ export async function requestConversationPlan(request: {
   selectedMonth: string;
   toolResults?: readonly ConversationToolResult[];
   requestId?: string;
+  responseMode?: "compact" | "full";
+  quickAction?:
+    | "financial-summary"
+    | "insights"
+    | "installments"
+    | "receivables"
+    | "incoming-summary";
+  conversationContext?: { summary: string };
 }): Promise<ConversationApiResponse> {
   const startedAt = performance.now();
   const response = await fetch("/api/assistant", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(request),
+    body: JSON.stringify({
+      ...request,
+      temporalContext: createTemporalContext(),
+    }),
   });
   console.info("assistant_client_provider_round", {
     requestId: request.requestId,

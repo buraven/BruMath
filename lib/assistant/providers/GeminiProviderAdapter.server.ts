@@ -9,6 +9,7 @@ import type {
   ConversationToolResult,
 } from "../conversation/contracts";
 import { conversationResponseStyleInstructions } from "../conversation/responseStyle";
+import { quickActionInstruction } from "../conversation/quickActions";
 import {
   financialToolNames,
   parseFunctionPlan,
@@ -65,6 +66,7 @@ const instructions = [
   "O perfil e mês informados são defaults; sobrescreva-os apenas se o usuário for explícito.",
   "Para insights solicitados, peça os dados determinísticos estritamente necessários antes de analisar.",
   "Uma proposta de gasto nunca confirma nem executa uma ação.",
+  "Saldo disponível não é autorização ou limite para gastar. Para 'quanto ainda posso gastar?', consulte getLimits quando o limite aplicável estiver claro; se saldo e limite forem materialmente ambíguos, peça clarificação curta.",
   "Se faltar descrição, valor ou categoria para registrar gasto, peça esclarecimento curto.",
   conversationResponseStyleInstructions,
 ].join(" ");
@@ -131,7 +133,22 @@ export class GeminiProviderAdapter implements ConversationProviderAdapter {
     try {
       const response = await client.models.generateContent({
         model: this.model,
-        contents: `Perfil padrão: ${request.activeProfile}. Mês padrão: ${request.selectedMonth}. Mensagem: ${request.message}`,
+        contents: [
+          `Perfil padrão: ${request.activeProfile}. Mês padrão: ${request.selectedMonth}.`,
+          request.temporalContext
+            ? `Data atual confiável: ${request.temporalContext.currentDate} (${request.temporalContext.timeZone}). Resolva hoje, ontem, anteontem, este mês, mês passado e próximo mês a partir dela; nunca peça ao usuário uma data já determinável.`
+            : "",
+          request.conversationContext?.summary
+            ? `Pendência curta da conversa: ${request.conversationContext.summary}`
+            : "",
+          request.responseMode === "compact"
+            ? "Esta é uma prévia compacta da Home: responda em até dois parágrafos curtos ou três itens, sem relatório extenso."
+            : "",
+          quickActionInstruction(request.quickAction) ?? "",
+          `Mensagem: ${request.message}`,
+        ]
+          .filter(Boolean)
+          .join(" "),
         config: {
           systemInstruction: instructions,
           tools: [{ functionDeclarations: tools }],
@@ -247,6 +264,9 @@ export class GeminiProviderAdapter implements ConversationProviderAdapter {
           "Responda à mensagem a seguir com base exclusivamente nos resultados determinísticos fornecidos.",
           "Diferencie análise/recomendação de fatos. Não invente números. Seja útil e conciso.",
           `Perfil: ${request.activeProfile}. Mês: ${request.selectedMonth}. Pergunta: ${request.message}`,
+          request.responseMode === "compact"
+            ? "Esta é uma prévia compacta da Home: responda em até dois parágrafos curtos ou três itens, sem relatório extenso."
+            : "",
           `Resultados autorizados: ${JSON.stringify(toolResults)}`,
         ].join("\n"),
         config: { systemInstruction: instructions, ...generationConfig },

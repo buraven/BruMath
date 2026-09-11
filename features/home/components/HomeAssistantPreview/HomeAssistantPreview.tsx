@@ -1,13 +1,24 @@
 import { ChevronRight, Send } from "lucide-react";
 import { QuickActions } from "../../../../components/finance/QuickActions";
+import { AssistantMarkdown } from "../../../../components/assistant/AssistantMarkdown";
 import styles from "./HomeAssistantPreview.module.css";
+
+export type HomeAssistantQuickAction =
+  | "financial-summary"
+  | "insights"
+  | "installments"
+  | "receivables"
+  | "incoming-summary";
 
 type HomeAssistantPreviewProps = {
   profile: string;
-  latestMessage?: string;
+  latestMessage?: { text: string; status?: "pending" };
   value: string;
   onChange: (value: string) => void;
-  onSend: (preset?: string) => void;
+  onSend: (request?: {
+    message: string;
+    quickAction?: HomeAssistantQuickAction;
+  }) => void;
   onOpenConversation: () => void;
 };
 
@@ -33,23 +44,65 @@ export function HomeAssistantPreview({
         </span>
       </div>
       <div className="chat-preview">
-        <div className="bubble assistant-bubble">
-          <span className={styles.message}>{latestMessage}</span>
-        </div>
+        {latestMessage?.status === "pending" ? (
+          <div className="bubble assistant-bubble" aria-label="Pensando">
+            <span className={styles.thinking}>Pensando…</span>
+          </div>
+        ) : latestMessage?.text.trim() ? (
+          <div className={`bubble assistant-bubble ${styles.message}`}>
+            <AssistantMarkdown content={latestMessage.text} />
+          </div>
+        ) : null}
         <QuickActions
           actions={[
-            { label: "Quanto temos?", onClick: () => onSend("Quanto temos?") },
-            { label: "Insights", onClick: () => onSend("Me dê insights") },
+            {
+              label: "Quanto temos?",
+              onClick: () =>
+                onSend({
+                  message: "Quanto temos?",
+                  quickAction: "financial-summary",
+                }),
+            },
+            {
+              label: "Insights",
+              onClick: () =>
+                onSend({ message: "Me dê insights", quickAction: "insights" }),
+            },
           ]}
         />
         <details>
           <summary>Mais atalhos</summary>
           <QuickActions
             actions={[
-              { label: "Resumo", onClick: () => onSend("Resumo") },
-              { label: "Parcelas", onClick: () => onSend("Parcelas") },
-              { label: "Quem me deve?", onClick: () => onSend("Quem me deve?") },
-              { label: "O que entra", onClick: () => onSend("O que entra") },
+              {
+                label: "Resumo",
+                onClick: () =>
+                  onSend({
+                    message: "Resumo",
+                    quickAction: "financial-summary",
+                  }),
+              },
+              {
+                label: "Parcelas",
+                onClick: () =>
+                  onSend({ message: "Parcelas", quickAction: "installments" }),
+              },
+              {
+                label: "Quem me deve?",
+                onClick: () =>
+                  onSend({
+                    message: "Quem me deve?",
+                    quickAction: "receivables",
+                  }),
+              },
+              {
+                label: "O que entra",
+                onClick: () =>
+                  onSend({
+                    message: "O que entra",
+                    quickAction: "incoming-summary",
+                  }),
+              },
             ]}
           />
         </details>

@@ -7,6 +7,7 @@ import type {
   ConversationToolResult,
 } from "../conversation/contracts";
 import { conversationResponseStyleInstructions } from "../conversation/responseStyle";
+import { quickActionInstruction } from "../conversation/quickActions";
 import type { ConversationProviderAdapter } from "./ConversationProviderAdapter.server";
 import type { FinancialToolName } from "../tools/financialTools";
 
@@ -90,6 +91,11 @@ function parseFunctionPlan(
   if (!args || typeof args !== "object" || Array.isArray(args)) return null;
   const input = args as Record<string, unknown>;
   if (toolNames.has(name as FinancialToolName)) {
+    if (
+      name === "getCategorySpending" &&
+      (typeof input.category !== "string" || !input.category.trim())
+    )
+      return null;
     return {
       kind: "tool-call",
       toolName: name as FinancialToolName,
@@ -158,23 +164,72 @@ export async function generateConversationPlan(
         "O perfil e mês informados são defaults; só os sobrescreva quando o usuário for explícito.",
         "Se descrição, valor ou categoria de um gasto forem ambíguos, responda com uma pergunta curta em vez de propor ação.",
         "Uma proposta de gasto não é uma confirmação e nunca executa nada.",
+        "Saldo disponível não é autorização ou limite para gastar. Para 'quanto ainda posso gastar?', consulte getLimits quando o limite aplicável estiver claro; se saldo e limite forem materialmente ambíguos, peça clarificação curta.",
         "Para conversa não financeira, responda de modo curto e útil, sem alegar acesso a dados.",
         conversationResponseStyleInstructions,
       ].join(" "),
-      input: `Perfil padrão: ${request.activeProfile}. Mês padrão: ${request.selectedMonth}. Mensagem: ${request.message}`,
+      input: [
+        `Perfil padrão: ${request.activeProfile}. Mês padrão: ${request.selectedMonth}.`,
+        request.temporalContext
+          ? `Data atual confiável: ${request.temporalContext.currentDate} (${request.temporalContext.timeZone}). Resolva hoje, ontem, anteontem, este mês, mês passado e próximo mês a partir dela; nunca peça ao usuário uma data já determinável.`
+          : "",
+        request.conversationContext?.summary
+          ? `Pendência curta da conversa: ${request.conversationContext.summary}`
+          : "",
+        request.responseMode === "compact"
+          ? "Esta é uma prévia compacta da Home: responda em até dois parágrafos curtos ou três itens, sem relatório extenso."
+          : "",
+        quickActionInstruction(request.quickAction) ?? "",
+        `Mensagem: ${request.message}`,
+      ]
+        .filter(Boolean)
+        .join(" "),
       tools: [...toolDefinitions, actionDefinition],
     });
-    const call = response.output.find((item) => item.type === "function_call");
-    if (call && call.type === "function_call") {
-      const plan = parseFunctionPlan(call.name, call.arguments);
-      return plan
-        ? { ok: true, plan }
-        : {
-            ok: false,
-            code: "invalid-response",
-            message:
-              "Não consegui validar a resposta do Assistente. Tente novamente.",
-          };
+    const calls = response.output.filter(
+      (item): item is Extract<typeof item, { type: "function_call" }> =>
+        item.type === "function_call",
+    );
+    if (calls.length) {
+      if (calls.length > 5) {
+        return {
+          ok: false,
+          code: "invalid-response",
+          message:
+            "O Assistente solicitou consultas demais para esta resposta.",
+        };
+      }
+      const plans = calls.map((call) =>
+        parseFunctionPlan(call.name, call.arguments),
+      );
+      if (plans.some((plan) => !plan)) {
+        return {
+          ok: false,
+          code: "invalid-response",
+          message:
+            "Não consegui validar a consulta solicitada pelo Assistente.",
+        };
+      }
+      if (
+        plans.some((plan) => plan?.kind === "register-expense") &&
+        plans.length > 1
+      ) {
+        return {
+          ok: false,
+          code: "invalid-response",
+          message:
+            "Uma proposta de gasto não pode ser combinada com outras ações.",
+        };
+      }
+      const first = plans[0]!;
+      if (first.kind === "register-expense") return { ok: true, plan: first };
+      const toolCalls = plans.filter(
+        (plan): plan is Extract<typeof plan, { kind: "tool-call" }> =>
+          plan?.kind === "tool-call",
+      );
+      return toolCalls.length === 1
+        ? { ok: true, plan: toolCalls[0] }
+        : { ok: true, plan: { kind: "tool-calls", calls: toolCalls } };
     }
     const message = response.output_text.trim();
     return message
@@ -233,7 +288,15 @@ export class OpenAIProviderAdapter implements ConversationProviderAdapter {
           "Responda com base exclusivamente nos resultados financeiros determinísticos fornecidos. Não invente números e diferencie recomendações de fatos.",
           conversationResponseStyleInstructions,
         ].join(" "),
-        input: `Perfil: ${request.activeProfile}. Mês: ${request.selectedMonth}. Pergunta: ${request.message}\nResultados autorizados: ${JSON.stringify(toolResults)}`,
+        input: [
+          `Perfil: ${request.activeProfile}. Mês: ${request.selectedMonth}. Pergunta: ${request.message}`,
+          request.responseMode === "compact"
+            ? "Esta é uma prévia compacta da Home: responda em até dois parágrafos curtos ou três itens, sem relatório extenso."
+            : "",
+          `Resultados autorizados: ${JSON.stringify(toolResults)}`,
+        ]
+          .filter(Boolean)
+          .join("\n"),
       });
       const message = response.output_text.trim();
       return message

@@ -47,6 +47,27 @@ function isRequest(value: unknown): value is ConversationApiRequest {
       request.activeProfile === "Casal") &&
     typeof request.selectedMonth === "string" &&
     /^\d{4}-\d{2}$/.test(request.selectedMonth) &&
+    (request.responseMode === undefined ||
+      request.responseMode === "compact" ||
+      request.responseMode === "full") &&
+    (request.quickAction === undefined ||
+      [
+        "financial-summary",
+        "insights",
+        "installments",
+        "receivables",
+        "incoming-summary",
+      ].includes(request.quickAction)) &&
+    (request.temporalContext === undefined ||
+      (typeof request.temporalContext.currentDate === "string" &&
+        /^\d{4}-\d{2}-\d{2}$/.test(request.temporalContext.currentDate) &&
+        typeof request.temporalContext.timeZone === "string")) &&
+    (request.conversationContext === undefined ||
+      (typeof request.conversationContext === "object" &&
+        request.conversationContext !== null &&
+        (request.conversationContext.summary === undefined ||
+          (typeof request.conversationContext.summary === "string" &&
+            request.conversationContext.summary.length <= 1_000)))) &&
     (request.requestId === undefined ||
       (typeof request.requestId === "string" &&
         /^[a-zA-Z0-9-]{1,80}$/.test(request.requestId))) &&

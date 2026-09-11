@@ -6,8 +6,8 @@ import {
   type MutableRefObject,
   type RefObject,
 } from "react";
-import ReactMarkdown from "react-markdown";
 import { Send, Sparkles } from "lucide-react";
+import { AssistantMarkdown } from "../../components/assistant/AssistantMarkdown";
 import styles from "./AssistantChat.module.css";
 
 type Message = {
@@ -98,7 +98,7 @@ export function AssistantChat({
                 `Oi, ${profile} 💚 O que vamos organizar hoje?`
               ) : message.role === "assistant" ? (
                 <div className={styles.markdown}>
-                  <ReactMarkdown skipHtml>{message.text}</ReactMarkdown>
+                  <AssistantMarkdown content={message.text} />
                 </div>
               ) : (
                 message.text

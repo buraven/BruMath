@@ -47,8 +47,16 @@ export type ConversationToolResult = {
 
 export type ConversationApiRequest = Pick<
   AssistantRequest,
-  "message" | "activeProfile" | "selectedMonth"
+  "message" | "activeProfile" | "selectedMonth" | "conversationContext"
 > & {
+  responseMode?: "compact" | "full";
+  quickAction?:
+    | "financial-summary"
+    | "insights"
+    | "installments"
+    | "receivables"
+    | "incoming-summary";
+  temporalContext?: { currentDate: string; timeZone: string };
   toolResults?: readonly ConversationToolResult[];
   /** Added only by the server route for safe latency correlation. */
   requestId?: string;
