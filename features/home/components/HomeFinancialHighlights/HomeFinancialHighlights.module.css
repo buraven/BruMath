@@ -1,0 +1,134 @@
+.grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--space-4);
+}
+
+.card {
+  display: grid;
+  min-width: 0;
+  gap: var(--space-3);
+  padding: var(--space-5);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+  background: var(--surface-card-gradient);
+  box-shadow: var(--shadow-card);
+}
+
+.card header {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-3);
+}
+.icon {
+  display: grid;
+  flex: 0 0 auto;
+  width: var(--space-8);
+  height: var(--space-8);
+  place-items: center;
+  border-radius: var(--radius-sm);
+  color: var(--color-accent-strong);
+  background: var(--color-accent-soft);
+}
+.receivable {
+  color: var(--color-info);
+  background: var(--color-info-soft);
+}
+.upcoming {
+  color: var(--color-secondary);
+  background: color-mix(in srgb, var(--color-secondary) 16%, transparent);
+}
+.card h2 {
+  margin: 0;
+  font-size: 0.93rem;
+  letter-spacing: -0.02em;
+}
+.card header p,
+.detail {
+  margin: var(--space-1) 0 0;
+  color: var(--muted);
+  font-size: 0.73rem;
+  line-height: 1.45;
+}
+.card > strong {
+  font-size: clamp(1.25rem, 2vw, 1.55rem);
+  letter-spacing: -0.04em;
+  overflow-wrap: anywhere;
+}
+.card dl {
+  display: grid;
+  gap: var(--space-2);
+  margin: 0;
+}
+.card dl div {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  color: var(--muted);
+  font-size: 0.74rem;
+}
+.card dd {
+  margin: 0;
+  color: var(--text);
+  font-weight: 700;
+}
+.card button {
+  justify-self: start;
+  padding: 0;
+  border: 0;
+  color: var(--text);
+  background: transparent;
+  cursor: pointer;
+  font-size: 0.75rem;
+  font-weight: 800;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.upcomingList {
+  display: grid;
+  gap: var(--space-2);
+  padding: 0;
+  margin: 0;
+  list-style: none;
+}
+.upcomingList li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  padding-block: var(--space-2);
+  border-bottom: 1px solid var(--line);
+  font-size: 0.73rem;
+}
+.upcomingList li:last-child {
+  border-bottom: 0;
+}
+.upcomingList span {
+  display: grid;
+  min-width: 0;
+  gap: 2px;
+}
+.upcomingList strong {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.upcomingList small {
+  color: var(--muted);
+}
+.upcomingList b {
+  flex: 0 0 auto;
+  font-size: 0.72rem;
+}
+
+@container workspace (max-width: 1020px) {
+  .grid {
+    grid-template-columns: 1fr;
+  }
+}
+@media (max-width: 767px) {
+  .card {
+    padding: var(--space-4);
+  }
+}

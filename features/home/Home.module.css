@@ -8,9 +8,15 @@
 .metrics,
 .overview,
 .limits,
+.highlights,
+.assistant,
 .insights,
 .content {
   min-width: 0;
+}
+
+.assistant {
+  max-width: 48rem;
 }
 
 .dashboard {

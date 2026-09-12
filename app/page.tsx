@@ -6,14 +6,12 @@ import {
   CalendarDays,
   ChevronLeft,
   ChevronRight,
-  CreditCard,
   Home,
   MessageCircle,
   Monitor,
   MoreHorizontal,
   Moon,
   Pencil,
-  Plus,
   Receipt,
   Settings2,
   Send,
@@ -21,7 +19,6 @@ import {
   Sun,
   Tag,
   WalletCards,
-  X,
 } from "lucide-react";
 import { ConfirmationDialog } from "../components/ui/ConfirmationDialog";
 import { IncomeFormDialog } from "../components/finance/IncomeFormDialog";
@@ -36,6 +33,7 @@ import { QuickActions } from "../components/finance/QuickActions";
 
 import { NavButton } from "../components/navigation/NavButton";
 import { AppSidebar } from "../components/navigation/AppSidebar";
+import { QuickAddMenu } from "../components/navigation/QuickAddMenu";
 import { MonthSelector } from "../components/navigation/MonthSelector";
 import { NewHome } from "../features/home/NewHome";
 import { HomeAssistantPreview } from "../features/home/components/HomeAssistantPreview/HomeAssistantPreview";
@@ -53,7 +51,10 @@ import { FinancialSettingsDialog } from "../features/limits/FinancialSettingsDia
 import { PreferencesScreen } from "../features/preferences/PreferencesScreen";
 import { useThemePreference } from "../features/preferences/useThemePreference";
 import { usePersistedFinancialState } from "../features/app/usePersistedFinancialState";
-import { deriveFinancialSelectors } from "../features/app/financialSelectors";
+import {
+  deriveCategorySpending,
+  deriveFinancialSelectors,
+} from "../features/app/financialSelectors";
 import {
   createExpenseIncomeMutations,
   createInstallmentMutations,
@@ -61,6 +62,7 @@ import {
   createReceivableMutations,
 } from "../features/app/financialMutationControllers";
 import { renderCategoryIcon } from "../features/app/renderCategoryIcon";
+import { HomeFinancialHighlights } from "../features/home/components/HomeFinancialHighlights/HomeFinancialHighlights";
 import {
   DEFAULT_BUDGETS,
   INITIAL_EXPENSES,
@@ -375,6 +377,7 @@ export default function Page() {
     receivableTotal: debtTotal,
     formatMoney: money,
   });
+  const categorySpending = deriveCategorySpending(monthExpenses);
 
   return (
     <>
@@ -473,38 +476,53 @@ export default function Page() {
                 income={monthIncomeTotal}
                 extraIncome={extraIncome}
                 expenses={totalSpent}
+                categories={categorySpending}
                 formatMoney={money}
                 insights={<HomeInsights items={homeInsights} />}
                 limits={
                   <HomeLimits
                     items={limitItems}
                     onConfigure={() => switchTab("limits")}
+                    renderIcon={renderCategoryIcon}
+                  />
+                }
+                highlights={
+                  <HomeFinancialHighlights
+                    baseIncome={income}
+                    extraIncome={extraIncome}
+                    debts={selectedDebts}
+                    installments={selectedInstallments}
+                    formatMoney={money}
+                    formatDate={shortDate}
+                    onOpenIncome={() => switchTab("income")}
+                    onOpenDebts={() => switchTab("debts")}
+                    onOpenFuture={() => switchTab("future")}
+                  />
+                }
+                assistant={
+                  <HomeAssistantPreview
+                    profile={activeProfile}
+                    latestMessage={compactAssistantMessage}
+                    value={text}
+                    onChange={setText}
+                    onSend={(request) => {
+                      const message = request?.message ?? text;
+                      if (!message.trim()) return;
+                      send(message, "compact", request?.quickAction);
+                    }}
+                    onOpenConversation={() => switchTab("chat")}
                   />
                 }
                 upcoming={
-                  <>
-                    <HomeAssistantPreview
-                      profile={activeProfile}
-                      latestMessage={compactAssistantMessage}
-                      value={text}
-                      onChange={setText}
-                      onSend={(request) => {
-                        const message = request?.message ?? text;
-                        if (!message.trim()) return;
-                        send(message, "compact", request?.quickAction);
-                      }}
-                      onOpenConversation={() => switchTab("chat")}
-                    />
-                    <HomeExpenses
-                      monthLabel={monthName}
-                      expenses={selectedMonthExpenses}
-                      onEdit={openEditExpense}
-                      onDelete={deleteExpense}
-                      formatMoney={money}
-                      formatDate={shortDate}
-                      renderIcon={renderCategoryIcon}
-                    />
-                  </>
+                  <HomeExpenses
+                    monthLabel={monthName}
+                    expenses={selectedMonthExpenses}
+                    onEdit={openEditExpense}
+                    onDelete={deleteExpense}
+                    formatMoney={money}
+                    formatDate={shortDate}
+                    renderIcon={renderCategoryIcon}
+                  />
                 }
               />
             )}
@@ -555,6 +573,7 @@ export default function Page() {
                   });
                   setToast("Limites atualizados 💚");
                 }}
+                renderIcon={renderCategoryIcon}
               />
             )}
 
@@ -620,39 +639,17 @@ export default function Page() {
         </div>
       </div>
       <ViewportNavigation>
-        <div className="fab-wrap">
-          {quickAddOpen && (
-            <div className="quick-add-menu">
-              <button type="button" onClick={openNewExpense}>
-                <Receipt size={17} /> Gasto
-              </button>
-              <button type="button" onClick={openNewInstallment}>
-                <CreditCard size={17} /> Parcela
-              </button>
-              <button type="button" onClick={openNewIncome}>
-                <WalletCards size={17} /> Entrada
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  setQuickAddOpen(false);
-                  openDebt();
-                }}
-              >
-                <WalletCards size={17} /> A receber
-              </button>
-            </div>
-          )}
-          <button
-            type="button"
-            className={`floating-add ${quickAddOpen ? "is-open" : ""}`}
-            onClick={() => setQuickAddOpen((v) => !v)}
-            aria-label="Adicionar"
-            aria-expanded={quickAddOpen}
-          >
-            {quickAddOpen ? <X size={23} /> : <Plus size={25} />}
-          </button>
-        </div>
+        <QuickAddMenu
+          open={quickAddOpen}
+          onToggle={() => setQuickAddOpen((value) => !value)}
+          onExpense={openNewExpense}
+          onInstallment={openNewInstallment}
+          onIncome={openNewIncome}
+          onReceivable={() => {
+            setQuickAddOpen(false);
+            openDebt();
+          }}
+        />
 
         {mobileMoreOpen && (
           <div className="mobile-more-menu" aria-label="Mais opções">

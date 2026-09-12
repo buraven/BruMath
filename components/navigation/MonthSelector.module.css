@@ -13,29 +13,40 @@
   border-radius: 18px;
   background: color-mix(in srgb, var(--surface) 92%, transparent);
   backdrop-filter: blur(18px);
-  box-shadow: 0 8px 24px rgba(31, 42, 34, .05);
+  box-shadow: 0 8px 24px rgba(31, 42, 34, 0.05);
 }
 
 .current {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
   min-width: 0;
+}
+
+.current > svg {
+  flex: 0 0 auto;
+  color: var(--color-accent-strong);
 }
 
 :global(.app-shell):has([data-home]) .bar {
   position: static;
   background: var(--surface);
 }
-:global(.app-shell):has([data-assistant-chat]) .bar { position: static; margin-bottom: var(--space-2); }
+:global(.app-shell):has([data-assistant-chat]) .bar {
+  position: static;
+  margin-bottom: var(--space-2);
+}
 
-.current span {
+.current small {
   display: block;
   color: var(--muted);
-  font-size: .65rem;
+  font-size: 0.65rem;
 }
 
 .current strong {
   display: block;
   margin-top: 2px;
-  font-size: .86rem;
+  font-size: 0.86rem;
   text-transform: capitalize;
 }
 
@@ -68,7 +79,7 @@
   background: transparent;
   color: var(--muted);
   cursor: pointer;
-  font-size: .67rem;
+  font-size: 0.67rem;
   font-weight: 700;
   white-space: nowrap;
 }
@@ -109,17 +120,17 @@
 
   .presets button {
     padding: 7px 8px;
-    font-size: .62rem;
+    font-size: 0.62rem;
   }
 }
 
 @media (max-width: 520px) {
   .current strong {
-    font-size: .8rem;
+    font-size: 0.8rem;
   }
 
   .presets button {
-    font-size: .58rem;
+    font-size: 0.58rem;
     padding-inline: 6px;
   }
 }

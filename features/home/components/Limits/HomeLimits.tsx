@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import styles from "./HomeLimits.module.css";
 
 type Item = { id: string; label: string; amount: number; spent: number };
@@ -7,9 +8,11 @@ const money = (value: number) =>
 export function HomeLimits({
   items,
   onConfigure,
+  renderIcon,
 }: {
   items: Item[];
   onConfigure: () => void;
+  renderIcon: (category: string) => ReactNode;
 }) {
   const personal = items.filter(
     (item) => item.id === "Bruna" || item.id === "Matheus",
@@ -36,7 +39,12 @@ export function HomeLimits({
         return (
           <div className={styles.row} key={item.id}>
             <div className={styles.title}>
-              <strong>{item.label}</strong>
+              <span className={styles.identity}>
+                {item.id.startsWith("category:") ? (
+                  <i aria-hidden="true">{renderIcon(item.label)}</i>
+                ) : null}
+                <strong>{item.label}</strong>
+              </span>
               <span>
                 {item.amount > 0 ? `${Math.round(percentage)}%` : "Sem limite"}
               </span>

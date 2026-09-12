@@ -1,6 +1,9 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { deriveFinancialSelectors } from "./financialSelectors";
+import {
+  deriveCategorySpending,
+  deriveFinancialSelectors,
+} from "./financialSelectors";
 
 test("derives the existing month, limit and receivable values without mixing periods", () => {
   const result = deriveFinancialSelectors({
@@ -87,4 +90,39 @@ test("derives the existing month, limit and receivable values without mixing per
       spent: 100,
     },
   ]);
+});
+
+test("derives category distribution only from the selected expenses", () => {
+  const result = deriveCategorySpending([
+    {
+      id: 1,
+      title: "Mercado",
+      cat: "Alimentação",
+      who: "Bruna",
+      amount: 75,
+      date: "2026-09-02",
+    },
+    {
+      id: 2,
+      title: "Uber",
+      cat: "Transporte",
+      who: "Matheus",
+      amount: 25,
+      date: "2026-09-03",
+    },
+    {
+      id: 3,
+      title: "Restaurante",
+      cat: "Alimentação",
+      who: "Casal",
+      amount: 50,
+      date: "2026-09-04",
+    },
+  ]);
+
+  assert.deepEqual(result, [
+    { category: "Alimentação", amount: 125, percentage: 83.33333333333334 },
+    { category: "Transporte", amount: 25, percentage: 16.666666666666664 },
+  ]);
+  assert.deepEqual(deriveCategorySpending([]), []);
 });

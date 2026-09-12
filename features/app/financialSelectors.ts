@@ -5,6 +5,38 @@ import type {
   Installment,
 } from "../../lib/app/AppTypes";
 
+export type CategorySpending = {
+  category: string;
+  amount: number;
+  percentage: number;
+};
+
+/**
+ * Presentation-only aggregation for the Home chart. Financial totals continue
+ * to be derived from the same selected-month expenses used throughout the app.
+ */
+export function deriveCategorySpending(
+  expenses: readonly Expense[],
+): readonly CategorySpending[] {
+  const total = expenses.reduce((sum, expense) => sum + expense.amount, 0);
+  if (total <= 0) return [];
+
+  const amounts = expenses.reduce<Record<string, number>>((result, expense) => {
+    result[expense.cat] = (result[expense.cat] ?? 0) + expense.amount;
+    return result;
+  }, {});
+
+  return Object.entries(amounts)
+    .map(([category, amount]) => ({
+      category,
+      amount,
+      percentage: (amount / total) * 100,
+    }))
+    .sort(
+      (a, b) => b.amount - a.amount || a.category.localeCompare(b.category),
+    );
+}
+
 type FinancialSelectorsInput = {
   expenses: Expense[];
   installments: Installment[];

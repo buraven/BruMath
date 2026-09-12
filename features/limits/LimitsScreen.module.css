@@ -47,9 +47,19 @@
   padding-block: var(--space-4);
   border-bottom: 1px solid var(--line);
 }
-.item > svg {
-  flex-shrink: 0;
+.icon {
+  display: grid;
+  width: 32px;
+  height: 32px;
+  flex: 0 0 auto;
+  place-items: center;
+  border-radius: var(--radius-sm);
   color: var(--color-accent-strong);
+  background: var(--color-accent-soft);
+}
+.icon svg {
+  width: 18px;
+  height: 18px;
 }
 .content {
   min-width: 0;

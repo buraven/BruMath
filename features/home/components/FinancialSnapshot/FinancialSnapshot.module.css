@@ -59,10 +59,7 @@
   place-items: center;
   margin: 0 auto;
   border-radius: 50%;
-  background: conic-gradient(
-    var(--color-accent) var(--spent),
-    var(--surface-soft) 0
-  );
+  background: conic-gradient(var(--categories));
   transform: rotate(-90deg);
 }
 
@@ -117,16 +114,29 @@
   font-size: 0.75rem;
 }
 
-.spent {
-  background: var(--color-accent);
+.category1 {
+  background: var(--category-1);
+}
+.category2 {
+  background: var(--category-2);
+}
+.category3 {
+  background: var(--category-3);
+}
+.category4 {
+  background: var(--category-4);
+}
+.category5 {
+  background: var(--category-5);
+}
+.category6 {
+  background: var(--category-6);
 }
 
-.available {
-  background: var(--color-info);
-}
-
-.income {
-  background: var(--color-secondary);
+.emptyLegend {
+  color: var(--muted);
+  font-size: 0.78rem;
+  line-height: 1.5;
 }
 
 .card footer {
