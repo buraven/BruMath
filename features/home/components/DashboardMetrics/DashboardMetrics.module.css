@@ -1,14 +1,14 @@
 .grid {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: var(--space-4);
+  gap: var(--space-3);
 }
 
 .card {
-  min-width: 0;
   display: grid;
-  min-height: 116px;
-  gap: var(--space-1);
+  grid-template-rows: auto 1fr auto auto;
+  min-width: 0;
+  min-height: 112px;
   padding: var(--space-3);
   border: 1px solid var(--line);
   border-radius: var(--radius-lg);
@@ -22,14 +22,15 @@
   justify-content: space-between;
   gap: var(--space-2);
   color: var(--muted);
-  font-size: 0.78rem;
+  font-size: 0.74rem;
   font-weight: 700;
 }
 
 .heading i {
   display: grid;
-  width: var(--space-8);
-  height: var(--space-8);
+  width: 30px;
+  height: 30px;
+  flex: 0 0 auto;
   place-items: center;
   border-radius: var(--radius-sm);
   font-style: normal;
@@ -51,19 +52,23 @@
 }
 
 .card strong {
-  overflow-wrap: anywhere;
   align-self: end;
-  font-size: clamp(1.25rem, 2vw, 1.55rem);
-  letter-spacing: -0.04em;
+  min-width: 0;
+  margin-top: var(--space-2);
+  overflow-wrap: anywhere;
+  font-size: clamp(1.12rem, 1.8vw, 1.45rem);
+  letter-spacing: -0.045em;
 }
 
 .card small {
+  margin-top: var(--space-1);
   color: var(--muted);
-  font-size: 0.72rem;
+  font-size: 0.7rem;
 }
 
 .track {
   height: var(--space-1);
+  margin-top: var(--space-2);
   overflow: hidden;
   border-radius: 999px;
   background: var(--soft-track);
@@ -80,24 +85,25 @@
   );
 }
 
-@media (max-width: 920px) {
+@container workspace (min-width: 600px) and (max-width: 920px) {
   .grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
 
-@media (max-width: 480px) {
+@container workspace (max-width: 599px) {
   .grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: var(--space-2);
   }
 
   .card {
-    min-height: 122px;
+    min-height: 104px;
     padding: var(--space-3);
   }
 
   .heading {
-    font-size: 0.7rem;
+    font-size: 0.68rem;
   }
 
   .heading i {
@@ -108,12 +114,12 @@
   .card strong {
     overflow-wrap: normal;
     white-space: nowrap;
-    font-size: clamp(1rem, 4.7vw, 1.25rem);
+    font-size: clamp(1rem, 4.4vw, 1.2rem);
   }
 }
 
-@container workspace (max-width: 900px) {
+@media (max-width: 380px) {
   .grid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-columns: 1fr;
   }
 }

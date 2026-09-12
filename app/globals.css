@@ -1946,8 +1946,8 @@ button {
   display: none;
 }
 .app-shell:has([data-home]) .topbar {
-  flex-wrap: wrap;
   gap: var(--space-3);
+  padding-block: var(--space-3);
 }
 .app-shell:has([data-home]) .topbar-actions {
   flex-wrap: wrap;
@@ -1973,6 +1973,24 @@ button {
   }
   .app-shell:has([data-home]) .profile-label {
     display: none;
+  }
+}
+
+@media (min-width: 600px) and (max-width: 1099px) {
+  .app-shell:has([data-home]) .topbar {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: center;
+  }
+
+  .app-shell:has([data-home]) .topbar-period {
+    grid-column: 1 / -1;
+    grid-row: 2;
+  }
+
+  .app-shell:has([data-home]) .topbar-actions {
+    grid-column: 2;
+    grid-row: 1;
   }
 }
 @media (max-width: 1439px), (hover: none), (pointer: coarse) {

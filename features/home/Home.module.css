@@ -1,15 +1,15 @@
 .home {
-  --home-gap: var(--space-3);
-  min-width: 0;
+  --home-gap: var(--space-4);
   display: grid;
   grid-template-areas:
     "metrics"
-    "dashboard"
+    "primary"
     "highlights"
     "assistant"
-    "content";
+    "expenses";
   gap: var(--home-gap);
   width: 100%;
+  min-width: 0;
 }
 
 .metrics {
@@ -17,107 +17,56 @@
 }
 
 .dashboard {
-  grid-area: dashboard;
+  grid-area: primary;
+  display: grid;
+  grid-template-columns: minmax(0, 1.18fr) minmax(18rem, 0.82fr);
+  align-items: start;
+  gap: var(--home-gap);
 }
 
 .highlights {
   grid-area: highlights;
+  min-width: 0;
 }
 
 .assistantInsights {
   grid-area: assistant;
-}
-
-.content {
-  grid-area: content;
-}
-
-.metrics,
-.overview,
-.limits,
-.highlights,
-.assistant,
-.assistantInsights,
-.insights,
-.content {
-  min-width: 0;
-}
-
-.dashboard {
-  display: grid;
-  grid-template-columns: minmax(0, 1.18fr) minmax(19rem, 0.82fr);
-  gap: var(--home-gap);
-  align-items: start;
-}
-
-.assistantInsights {
   display: grid;
   grid-template-columns: minmax(0, 1.32fr) minmax(16rem, 0.8fr);
   align-items: start;
   gap: var(--home-gap);
 }
 
-.assistant :global(.section) {
-  margin-top: 0;
-}
-
 .content {
-  align-items: start;
-  display: block;
+  grid-area: expenses;
 }
 
-.home :global(.section-title) {
-  flex-wrap: wrap;
-  gap: var(--space-2);
-}
-.home :global(.input-row) {
-  display: flex;
-  flex-wrap: wrap;
-}
-.home :global(.input-row input) {
+.overview,
+.limits,
+.assistant,
+.insights,
+.content {
   min-width: 0;
-  flex: 1 1 12rem;
-}
-.insights :global(.summary-grid) {
-  display: block;
-  margin: 0;
-}
-.insights :global(.summary-grid) > div {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: var(--space-3);
-}
-.insights :global(.metric-card) {
-  min-width: 0;
-  padding: var(--space-4);
-}
-.insights :global(.metric-card) strong {
-  overflow-wrap: anywhere;
-}
-.limits {
-  container-type: inline-size;
-}
-@container workspace (min-width: 1000px) {
-  .insights :global(.summary-grid) > div {
-    grid-template-columns: repeat(4, minmax(0, 1fr));
-  }
 }
 
+.assistant :global(.section),
 .content :global(.section) {
   margin-top: 0;
 }
 
-/* Tablet portrait keeps the dashboard readable without becoming a scaled phone. */
+.insights :global(.summary-grid) {
+  display: block;
+  margin: 0;
+}
+
+/* Tablet portrait is a dashboard with its own composition, not an enlarged phone. */
 @container workspace (min-width: 600px) and (max-width: 860px) {
   .home {
     --home-gap: var(--space-3);
   }
 
+  .dashboard,
   .assistantInsights {
-    grid-template-columns: 1fr;
-  }
-
-  .dashboard {
     grid-template-columns: 1fr;
   }
 }
