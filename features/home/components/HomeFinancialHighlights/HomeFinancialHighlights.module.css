@@ -1,78 +1,93 @@
 .grid {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: var(--space-4);
+  align-items: stretch;
+  gap: var(--space-3);
 }
 
 .card {
   display: grid;
+  grid-template-rows: auto auto 1fr auto;
   min-width: 0;
-  gap: var(--space-1);
+  gap: var(--space-2);
   padding: var(--space-3);
   border: 1px solid var(--line);
   border-radius: var(--radius-lg);
-  background: var(--surface-card-gradient);
+  background: var(--surface);
   box-shadow: var(--shadow-card);
 }
 
 .card header {
-  display: flex;
-  align-items: flex-start;
-  gap: var(--space-3);
+  display: grid;
+  grid-template-columns: 30px minmax(0, 1fr);
+  align-items: start;
+  gap: var(--space-2);
 }
+
 .icon {
   display: grid;
-  flex: 0 0 auto;
-  width: var(--space-8);
-  height: var(--space-8);
+  width: 30px;
+  height: 30px;
   place-items: center;
   border-radius: var(--radius-sm);
   color: var(--color-accent-strong);
   background: var(--color-accent-soft);
 }
+
 .receivable {
   color: var(--color-info);
   background: var(--color-info-soft);
 }
+
 .upcoming {
   color: var(--color-secondary);
   background: color-mix(in srgb, var(--color-secondary) 16%, transparent);
 }
+
 .card h2 {
   margin: 0;
-  font-size: 0.84rem;
-  letter-spacing: -0.02em;
+  font-size: 0.82rem;
+  letter-spacing: -0.025em;
 }
+
 .card header p,
 .detail {
   margin: var(--space-1) 0 0;
   color: var(--muted);
-  font-size: 0.73rem;
-  line-height: 1.45;
+  font-size: 0.68rem;
+  line-height: 1.35;
 }
+
 .card > strong {
-  font-size: clamp(1.08rem, 1.55vw, 1.35rem);
-  letter-spacing: -0.04em;
-  overflow-wrap: anywhere;
+  min-width: 0;
+  font-size: clamp(1.05rem, 1.45vw, 1.3rem);
+  letter-spacing: -0.045em;
 }
+
 .card dl {
   display: grid;
+  align-content: start;
   gap: var(--space-1);
   margin: 0;
 }
-.card dl div {
+
+.card dl div,
+.upcomingList li {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: var(--space-3);
+  gap: var(--space-2);
   color: var(--muted);
-  font-size: 0.74rem;
+  font-size: 0.69rem;
 }
+
 .card dd {
   margin: 0;
   color: var(--text);
   font-weight: 700;
+  white-space: nowrap;
 }
+
 .card button {
   justify-self: start;
   padding: 0;
@@ -80,49 +95,52 @@
   color: var(--text);
   background: transparent;
   cursor: pointer;
-  font-size: 0.75rem;
+  font-size: 0.7rem;
   font-weight: 800;
   text-decoration: underline;
   text-underline-offset: 3px;
 }
+
 .upcomingList {
   display: grid;
-  gap: var(--space-2);
+  align-content: start;
+  gap: var(--space-1);
   padding: 0;
   margin: 0;
   list-style: none;
 }
+
 .upcomingList li {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--space-2);
   padding-block: var(--space-1);
   border-bottom: 1px solid var(--line);
-  font-size: 0.73rem;
 }
+
 .upcomingList li:last-child {
   border-bottom: 0;
 }
+
 .upcomingList span {
   display: grid;
   min-width: 0;
-  gap: 2px;
+  gap: 1px;
 }
+
 .upcomingList strong {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+
 .upcomingList small {
   color: var(--muted);
 }
+
 .upcomingList b {
   flex: 0 0 auto;
-  font-size: 0.72rem;
+  font-size: 0.68rem;
 }
 
-@container workspace (min-width: 680px) and (max-width: 1020px) {
+@container workspace (min-width: 600px) and (max-width: 1020px) {
   .grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
@@ -132,13 +150,8 @@
   }
 }
 
-@container workspace (max-width: 679px) {
+@container workspace (max-width: 599px) {
   .grid {
     grid-template-columns: 1fr;
-  }
-}
-@media (max-width: 767px) {
-  .card {
-    padding: var(--space-4);
   }
 }
