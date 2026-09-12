@@ -7,8 +7,8 @@
 .card {
   display: grid;
   min-width: 0;
-  gap: var(--space-2);
-  padding: var(--space-4);
+  gap: var(--space-1);
+  padding: var(--space-3);
   border: 1px solid var(--line);
   border-radius: var(--radius-lg);
   background: var(--surface-card-gradient);
@@ -40,7 +40,7 @@
 }
 .card h2 {
   margin: 0;
-  font-size: 0.93rem;
+  font-size: 0.84rem;
   letter-spacing: -0.02em;
 }
 .card header p,
@@ -51,13 +51,13 @@
   line-height: 1.45;
 }
 .card > strong {
-  font-size: clamp(1.25rem, 2vw, 1.55rem);
+  font-size: clamp(1.08rem, 1.55vw, 1.35rem);
   letter-spacing: -0.04em;
   overflow-wrap: anywhere;
 }
 .card dl {
   display: grid;
-  gap: var(--space-2);
+  gap: var(--space-1);
   margin: 0;
 }
 .card dl div {
@@ -97,7 +97,7 @@
   align-items: center;
   justify-content: space-between;
   gap: var(--space-2);
-  padding-block: var(--space-2);
+  padding-block: var(--space-1);
   border-bottom: 1px solid var(--line);
   font-size: 0.73rem;
 }

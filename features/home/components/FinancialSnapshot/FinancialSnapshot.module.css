@@ -2,8 +2,8 @@
   display: grid;
   min-height: 0;
   container-type: inline-size;
-  gap: var(--space-5);
-  padding: var(--space-5);
+  gap: var(--space-3);
+  padding: var(--space-4);
   border: 1px solid var(--line);
   border-radius: var(--radius-lg);
   background: var(--surface);
@@ -33,7 +33,14 @@
   display: grid;
   grid-template-columns: minmax(0, 0.95fr) minmax(0, 1.05fr);
   align-items: center;
-  gap: var(--space-5);
+  gap: var(--space-3);
+}
+
+.emptyBody {
+  grid-template-columns: auto minmax(0, 1fr);
+}
+.emptyBody .emptyLegend {
+  max-width: 20rem;
 }
 
 @container (max-width: 440px) {
@@ -54,7 +61,7 @@
 
 .donut {
   display: grid;
-  width: min(100%, var(--size-snapshot-donut));
+  width: min(100%, clamp(8.5rem, 15vw, 11.5rem));
   aspect-ratio: 1;
   place-items: center;
   margin: 0 auto;
@@ -69,7 +76,7 @@
   aspect-ratio: 1;
   place-items: center;
   align-content: center;
-  padding: var(--space-3);
+  padding: var(--space-2);
   border: 1px solid var(--line);
   border-radius: 50%;
   background: var(--surface);
@@ -91,7 +98,7 @@
 
 .legend {
   display: grid;
-  gap: var(--space-3);
+  gap: var(--space-2);
 }
 
 .legend div {
@@ -100,7 +107,7 @@
   align-items: center;
   gap: var(--space-2);
   color: var(--muted);
-  font-size: 0.72rem;
+  font-size: 0.69rem;
 }
 
 .legend i {
@@ -111,7 +118,7 @@
 
 .legend strong {
   color: var(--text);
-  font-size: 0.75rem;
+  font-size: 0.71rem;
 }
 
 .category1 {
@@ -135,23 +142,23 @@
 
 .emptyLegend {
   color: var(--muted);
-  font-size: 0.78rem;
-  line-height: 1.5;
+  font-size: 0.72rem;
+  line-height: 1.35;
 }
 
 .card footer {
-  padding: var(--space-3);
+  padding: var(--space-2) var(--space-3);
   border: 1px solid var(--line);
   border-radius: var(--radius-sm);
   color: var(--muted);
-  font-size: 0.72rem;
+  font-size: 0.69rem;
   text-align: center;
 }
 
 @media (max-width: 480px) {
   .card {
     min-height: 0;
-    padding: var(--space-4);
+    padding: var(--space-3);
   }
 
   .body {
@@ -160,7 +167,7 @@
   }
 
   .donut {
-    width: min(100%, 190px);
+    width: min(100%, 10.5rem);
   }
 }
 

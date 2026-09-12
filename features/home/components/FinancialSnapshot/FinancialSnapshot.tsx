@@ -40,7 +40,9 @@ export function FinancialSnapshot({
           {categories.length ? `${categories.length} categorias` : "Sem gastos"}
         </span>
       </header>
-      <div className={styles.body}>
+      <div
+        className={`${styles.body} ${categories.length ? "" : styles.emptyBody}`}
+      >
         <div className={styles.donut} style={donutStyle}>
           <div>
             <small>{categories.length ? "Gastos" : "Sem gastos"}</small>
@@ -63,7 +65,7 @@ export function FinancialSnapshot({
           ) : (
             <div className={styles.emptyLegend}>
               <span>
-                Registre gastos para acompanhar a distribuição por categoria.
+                Registre gastos para ver a distribuição por categoria.
               </span>
             </div>
           )}
