@@ -31,16 +31,21 @@
 
 .body {
   display: grid;
-  grid-template-columns: minmax(0, 0.95fr) minmax(0, 1.05fr);
+  grid-template-columns: minmax(9rem, 0.9fr) minmax(13rem, 1.1fr);
   align-items: center;
   gap: var(--space-3);
 }
 
 .emptyBody {
-  grid-template-columns: auto minmax(0, 1fr);
+  grid-template-columns: clamp(9rem, 18vw, 11.5rem) minmax(13rem, 1fr);
 }
+
+.emptyBody > * {
+  min-width: 0;
+}
+
 .emptyBody .emptyLegend {
-  max-width: 20rem;
+  max-width: none;
 }
 
 @container (max-width: 440px) {
@@ -61,7 +66,8 @@
 
 .donut {
   display: grid;
-  width: min(100%, clamp(8.5rem, 15vw, 11.5rem));
+  width: min(100%, clamp(9rem, 15vw, 11.5rem));
+  min-width: 0;
   aspect-ratio: 1;
   place-items: center;
   margin: 0 auto;
@@ -141,9 +147,11 @@
 }
 
 .emptyLegend {
+  min-width: 0;
   color: var(--muted);
   font-size: 0.72rem;
   line-height: 1.35;
+  overflow-wrap: normal;
 }
 
 .card footer {

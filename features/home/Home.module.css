@@ -1,8 +1,35 @@
 .home {
+  --home-gap: var(--space-3);
   min-width: 0;
   display: grid;
-  gap: var(--space-4);
+  grid-template-areas:
+    "metrics"
+    "dashboard"
+    "highlights"
+    "assistant"
+    "content";
+  gap: var(--home-gap);
   width: 100%;
+}
+
+.metrics {
+  grid-area: metrics;
+}
+
+.dashboard {
+  grid-area: dashboard;
+}
+
+.highlights {
+  grid-area: highlights;
+}
+
+.assistantInsights {
+  grid-area: assistant;
+}
+
+.content {
+  grid-area: content;
 }
 
 .metrics,
@@ -18,16 +45,16 @@
 
 .dashboard {
   display: grid;
-  grid-template-columns: minmax(0, 1.25fr) minmax(20rem, 0.95fr);
-  gap: var(--space-4);
+  grid-template-columns: minmax(0, 1.18fr) minmax(19rem, 0.82fr);
+  gap: var(--home-gap);
   align-items: start;
 }
 
 .assistantInsights {
   display: grid;
-  grid-template-columns: minmax(0, 1.4fr) minmax(17rem, 0.85fr);
+  grid-template-columns: minmax(0, 1.32fr) minmax(16rem, 0.8fr);
   align-items: start;
-  gap: var(--space-4);
+  gap: var(--home-gap);
 }
 
 .assistant :global(.section) {
@@ -80,22 +107,28 @@
   margin-top: 0;
 }
 
-@media (max-width: 767px) {
+/* Tablet portrait keeps the dashboard readable without becoming a scaled phone. */
+@container workspace (min-width: 600px) and (max-width: 860px) {
   .home {
-    gap: var(--space-4);
+    --home-gap: var(--space-3);
   }
 
-  .dashboard,
   .assistantInsights {
     grid-template-columns: 1fr;
-    gap: var(--space-4);
+  }
+
+  .dashboard {
+    grid-template-columns: 1fr;
   }
 }
 
-@container workspace (max-width: 860px) {
+@container workspace (max-width: 599px) {
+  .home {
+    --home-gap: var(--space-3);
+  }
+
   .dashboard,
   .assistantInsights {
     grid-template-columns: 1fr;
-    gap: var(--space-4);
   }
 }

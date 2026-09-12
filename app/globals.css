@@ -29,8 +29,12 @@
   --shadow: 0 12px 40px rgba(31, 42, 34, 0.08);
   --radius: 22px;
   --max: 1180px;
+  --bottom-nav-height: 76px;
+  --bottom-nav-clearance: var(--space-5);
+  --bottom-nav-inset: max(var(--space-2), env(safe-area-inset-bottom));
   --bottom-nav-reserve: calc(
-    72px + max(var(--space-2), env(safe-area-inset-bottom)) + var(--space-4)
+    var(--bottom-nav-height) + var(--bottom-nav-inset) +
+      var(--bottom-nav-clearance)
   );
 }
 
@@ -95,13 +99,13 @@ button {
 
 .app-shell {
   min-height: 100dvh;
-  padding-bottom: var(--bottom-nav-reserve);
 }
 
 .app-workspace {
   min-width: 0;
   container-name: workspace;
   container-type: inline-size;
+  padding-bottom: var(--bottom-nav-reserve);
 }
 
 .topbar {
@@ -1448,10 +1452,10 @@ button {
   position: fixed;
   z-index: 35;
   left: 50%;
-  bottom: max(var(--space-2), env(safe-area-inset-bottom));
+  bottom: var(--bottom-nav-inset);
   transform: translateX(-50%);
   width: min(680px, calc(100% - var(--space-4)));
-  min-height: 72px;
+  block-size: var(--bottom-nav-height);
   padding: var(--space-2) var(--space-3);
   display: grid;
   grid-template-columns: repeat(5, minmax(0, 1fr));
@@ -1547,6 +1551,10 @@ button {
       calc(var(--size-navigation-sidebar) + var(--space-8) + var(--space-6));
   }
 
+  .app-workspace {
+    padding-bottom: 0;
+  }
+
   .topbar {
     width: min(var(--max), 100%);
     padding-top: 0;
@@ -1605,10 +1613,6 @@ button {
 }
 
 @media (max-width: 760px) {
-  .app-shell {
-    padding-bottom: var(--bottom-nav-reserve);
-  }
-
   .topbar {
     width: calc(100% - 24px);
     align-items: flex-start;
@@ -1972,9 +1976,6 @@ button {
   }
 }
 @media (max-width: 1439px), (hover: none), (pointer: coarse) {
-  .app-shell {
-    padding-bottom: var(--bottom-nav-reserve);
-  }
   .fab-wrap {
     bottom: calc(max(var(--space-2), env(safe-area-inset-bottom)) + 6px);
   }
