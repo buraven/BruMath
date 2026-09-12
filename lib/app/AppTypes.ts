@@ -1,6 +1,7 @@
 export type Person = "Bruna" | "Matheus" | "Casal";
 export type NavigationTab =
   | "limits"
+  | "categories"
   | "home"
   | "chat"
   | "stats"

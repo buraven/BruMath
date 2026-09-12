@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import {
+  deriveCategoryDetails,
   deriveCategorySpending,
   deriveFinancialSelectors,
 } from "./financialSelectors";
@@ -125,4 +126,61 @@ test("derives category distribution only from the selected expenses", () => {
     { category: "Transporte", amount: 25, percentage: 16.666666666666664 },
   ]);
   assert.deepEqual(deriveCategorySpending([]), []);
+});
+
+test("derives category detail with profile scope and explicit no-limit states", () => {
+  const expenses = [
+    {
+      id: 1,
+      title: "Mercado",
+      cat: "Alimentação",
+      who: "Bruna" as const,
+      amount: 90,
+      date: "2026-09-02",
+    },
+    {
+      id: 2,
+      title: "Uber",
+      cat: "Transporte",
+      who: "Matheus" as const,
+      amount: 130,
+      date: "2026-09-03",
+    },
+    {
+      id: 3,
+      title: "Cinema",
+      cat: "Lazer",
+      who: "Bruna" as const,
+      amount: 20,
+      date: "2026-09-04",
+    },
+  ];
+
+  const bruna = deriveCategoryDetails({
+    expenses,
+    budgets: { Alimentação: 100, Transporte: 100, Saúde: 0 },
+    profile: "Bruna",
+  });
+
+  assert.deepEqual(
+    bruna.map(({ category, spent, status }) => ({ category, spent, status })),
+    [
+      { category: "Alimentação", spent: 90, status: "warning" },
+      { category: "Lazer", spent: 20, status: "unlimited" },
+      { category: "Saúde", spent: 0, status: "unlimited" },
+      { category: "Transporte", spent: 0, status: "normal" },
+    ],
+  );
+  assert.equal(bruna[0]?.remaining, 10);
+  assert.equal(bruna[1]?.limit, null);
+
+  const casal = deriveCategoryDetails({
+    expenses,
+    budgets: { Alimentação: 100, Transporte: 100 },
+    profile: "Casal",
+  });
+  assert.equal(
+    casal.find((item) => item.category === "Transporte")?.status,
+    "exceeded",
+  );
 });
