@@ -188,7 +188,7 @@ histórico e não alteram a numeração oficial.
 | #49 | `feature/assistant-tools-actions-pr48`      | Tools determinísticas, proposta de action e confirmação. **Concluído.**                                               |
 | #50 | `feature/conversational-ai-pr50`            | Conversational AI: provider LLM server-side, intent, structured outputs e confirmação visual. **Concluído.**          |
 | #51 | `feature/app-state-page-decomposition-pr51` | App State & Page Decomposition. **Concluído.**                                                                        |
-| #52 | `feature/home-shell-fidelity-pr52`          | Home & Shell Fidelity: recuperar a composição oficial de Home, shell e apresentação de limites. **Em implementação.** |
+| #52 | `feature/home-shell-fidelity-pr52`          | Home & Shell Fidelity: recuperar a composição oficial de Home, shell e apresentação de limites. **Concluído.** A fidelidade visual final da Home permanece como pendência explícita para uma revisão/reconstrução futura baseada nos mockups oficiais. |
 | #53 | —                                           | Categorias & Detalhamento.                                                                                            |
 | #54 | —                                           | Faturas & Cartões.                                                                                                    |
 | #55 | —                                           | Calendário & Compromissos.                                                                                            |
