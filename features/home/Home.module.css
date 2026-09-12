@@ -19,7 +19,7 @@
 .dashboard {
   grid-area: primary;
   display: grid;
-  grid-template-columns: minmax(0, 1.18fr) minmax(18rem, 0.82fr);
+  grid-template-columns: minmax(0, 1fr);
   align-items: start;
   gap: var(--home-gap);
 }
@@ -65,7 +65,6 @@
     --home-gap: var(--space-3);
   }
 
-  .dashboard,
   .assistantInsights {
     grid-template-columns: 1fr;
   }
@@ -76,8 +75,14 @@
     --home-gap: var(--space-3);
   }
 
-  .dashboard,
   .assistantInsights {
     grid-template-columns: 1fr;
+  }
+}
+
+/* The dashboard section owns this relationship: wide landscapes are two columns. */
+@media (min-width: 900px) and (orientation: landscape), (min-width: 1100px) {
+  .dashboard {
+    grid-template-columns: minmax(0, 1.18fr) minmax(18rem, 0.82fr);
   }
 }
