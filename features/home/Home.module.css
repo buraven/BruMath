@@ -1,7 +1,7 @@
 .home {
   min-width: 0;
   display: grid;
-  gap: var(--space-5);
+  gap: var(--space-4);
   width: 100%;
 }
 
@@ -10,27 +10,33 @@
 .limits,
 .highlights,
 .assistant,
+.assistantInsights,
 .insights,
 .content {
   min-width: 0;
 }
 
-.assistant {
-  max-width: 48rem;
-}
-
 .dashboard {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: var(--space-5);
+  grid-template-columns: minmax(0, 1.25fr) minmax(20rem, 0.95fr);
+  gap: var(--space-4);
   align-items: start;
+}
+
+.assistantInsights {
+  display: grid;
+  grid-template-columns: minmax(0, 1.4fr) minmax(17rem, 0.85fr);
+  align-items: start;
+  gap: var(--space-4);
+}
+
+.assistant :global(.section) {
+  margin-top: 0;
 }
 
 .content {
   align-items: start;
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: var(--space-5);
+  display: block;
 }
 
 .home :global(.section-title) {
@@ -80,21 +86,15 @@
   }
 
   .dashboard,
-  .content {
+  .assistantInsights {
     grid-template-columns: 1fr;
     gap: var(--space-4);
   }
 }
 
-@media (min-width: 768px) and (max-width: 1023px) {
-  .dashboard {
-    grid-template-columns: 1fr;
-  }
-}
-
 @container workspace (max-width: 860px) {
   .dashboard,
-  .content {
+  .assistantInsights {
     grid-template-columns: 1fr;
     gap: var(--space-4);
   }

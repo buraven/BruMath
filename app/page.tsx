@@ -392,6 +392,21 @@ export default function Page() {
               </div>
               <div className="subtitle">Finanças de Bruna &amp; Matheus</div>
             </div>
+            {tab !== "preferences" && (
+              <div className="topbar-period">
+                <MonthSelector
+                  monthLabel={monthName}
+                  isPreviousActive={viewMonth === addMonths(dateKey(), -1)}
+                  isCurrentActive={viewMonth === dateKey()}
+                  isNextActive={viewMonth === addMonths(dateKey(), 1)}
+                  onPrevious={() => setViewMonth(addMonths(dateKey(), -1))}
+                  onCurrent={() => setViewMonth(dateKey())}
+                  onNext={() => setViewMonth(addMonths(dateKey(), 1))}
+                  onStepPrevious={() => setViewMonth(addMonths(viewMonth, -1))}
+                  onStepNext={() => setViewMonth(addMonths(viewMonth, 1))}
+                />
+              </div>
+            )}
             <div className="topbar-actions">
               <div className="profile-switch" aria-label="Perfil atual">
                 <span className="profile-label">Falando como</span>
@@ -454,20 +469,6 @@ export default function Page() {
           </header>
 
           <main className="page">
-            {tab !== "preferences" && (
-              <MonthSelector
-                monthLabel={monthName}
-                isPreviousActive={viewMonth === addMonths(dateKey(), -1)}
-                isCurrentActive={viewMonth === dateKey()}
-                isNextActive={viewMonth === addMonths(dateKey(), 1)}
-                onPrevious={() => setViewMonth(addMonths(dateKey(), -1))}
-                onCurrent={() => setViewMonth(dateKey())}
-                onNext={() => setViewMonth(addMonths(dateKey(), 1))}
-                onStepPrevious={() => setViewMonth(addMonths(viewMonth, -1))}
-                onStepNext={() => setViewMonth(addMonths(viewMonth, 1))}
-              />
-            )}
-
             {tab === "home" && (
               <NewHome
                 profile={activeProfile}

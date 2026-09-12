@@ -32,13 +32,17 @@ export function Home({
       {highlights ? (
         <section className={styles.highlights}>{highlights}</section>
       ) : null}
-      {assistant ? (
-        <section className={styles.assistant}>{assistant}</section>
+      {assistant || insights ? (
+        <div className={styles.assistantInsights}>
+          {assistant ? (
+            <section className={styles.assistant}>{assistant}</section>
+          ) : null}
+          {insights ? (
+            <section className={styles.insights}>{insights}</section>
+          ) : null}
+        </div>
       ) : null}
       {content ? <section className={styles.content}>{content}</section> : null}
-      {insights ? (
-        <section className={styles.insights}>{insights}</section>
-      ) : null}
     </div>
   );
 }
