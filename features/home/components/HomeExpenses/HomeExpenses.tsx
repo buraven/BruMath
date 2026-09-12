@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 import { ExpenseList } from "../../../../components/finance/ExpenseList";
+import styles from "./HomeExpenses.module.css";
 
 type HomeExpense = {
   id: number;
@@ -29,19 +30,21 @@ export function HomeExpenses({
   renderIcon,
 }: HomeExpensesProps) {
   return (
-    <section className="section">
-      <div className="section-title">
+    <section className={styles.section}>
+      <div className={styles.heading}>
         <h2>Gastos de {monthLabel}</h2>
-        <span className="muted">{expenses.length} registros</span>
+        <span>{expenses.length} registros</span>
       </div>
-      <ExpenseList
-        expenses={expenses}
-        onEdit={onEdit}
-        onDelete={onDelete}
-        formatMoney={formatMoney}
-        formatDate={formatDate}
-        renderIcon={renderIcon}
-      />
+      <div className={styles.list}>
+        <ExpenseList
+          expenses={expenses}
+          onEdit={onEdit}
+          onDelete={onDelete}
+          formatMoney={formatMoney}
+          formatDate={formatDate}
+          renderIcon={renderIcon}
+        />
+      </div>
     </section>
   );
 }

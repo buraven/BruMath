@@ -42,6 +42,7 @@ html {
   min-width: 320px;
   background: var(--bg);
   scroll-behavior: smooth;
+  scroll-padding-block-end: var(--bottom-nav-reserve);
 }
 
 * {
