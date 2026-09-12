@@ -49,6 +49,8 @@ export type FinancialDataSnapshot = {
   income: number;
   budgets: Readonly<Record<string, number>>;
   limits: Readonly<Record<"Bruna" | "Matheus", number>>;
+  /** Whether the persistence source actually contained a BruMath dataset. */
+  hasStoredData?: boolean;
 };
 
 export interface FinancialDataSource {

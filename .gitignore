@@ -1,5 +1,6 @@
 .next
 node_modules
+.env.local
 .eslintcache
 pnpm-debug.log*
 *.tsbuildinfo

@@ -37,24 +37,31 @@ function asNumberRecord(value: unknown): Readonly<Record<string, number>> {
   );
 }
 
-function readStoredData(): StoredFinancialData {
+function readStoredData(): {
+  data: StoredFinancialData;
+  hasStoredData: boolean;
+} {
   assertBrowser();
   const raw = window.localStorage.getItem(STORAGE_KEY);
-  if (!raw) return {};
+  if (!raw) return { data: {}, hasStoredData: false };
 
   try {
     const parsed = JSON.parse(raw) as unknown;
-    return parsed && typeof parsed === "object"
-      ? (parsed as StoredFinancialData)
-      : {};
+    return {
+      data:
+        parsed && typeof parsed === "object"
+          ? (parsed as StoredFinancialData)
+          : {},
+      hasStoredData: true,
+    };
   } catch {
-    return {};
+    return { data: {}, hasStoredData: false };
   }
 }
 
 export class LocalStorageFinancialDataSource implements FinancialDataSource {
   async read(): Promise<FinancialDataSnapshot> {
-    const data = readStoredData();
+    const { data, hasStoredData } = readStoredData();
     const limits = asNumberRecord(data.limits);
 
     return {
@@ -68,6 +75,7 @@ export class LocalStorageFinancialDataSource implements FinancialDataSource {
         Bruna: asNumber(limits.Bruna),
         Matheus: asNumber(limits.Matheus),
       },
+      hasStoredData,
     };
   }
 }

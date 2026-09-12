@@ -7,25 +7,33 @@ import {
   type RefObject,
 } from "react";
 import { Send, Sparkles } from "lucide-react";
+import { AssistantMarkdown } from "../../components/assistant/AssistantMarkdown";
+import type { ConversationQuickAction } from "../../lib/assistant/conversation/contracts";
 import styles from "./AssistantChat.module.css";
 
-type Message = { id: number; role: "assistant" | "user"; text: string };
+type Message = {
+  id: number;
+  role: "assistant" | "user";
+  text: string;
+  status?: "pending";
+};
 type Props = {
   profile: string;
   monthLabel: string;
   messages: Message[];
   value: string;
   onChange: (value: string) => void;
-  onSend: (value?: string) => void;
+  onSend: (value?: string, quickAction?: ConversationQuickAction) => void;
+  isLoading?: boolean;
   messagesRef: RefObject<HTMLDivElement>;
   scrollPosition: MutableRefObject<number>;
 };
-const suggestions = [
-  ["Como estamos este mês?", "Como estamos este mês?"],
-  ["Onde gastamos mais?", "Me dê insights"],
-  ["Próximas parcelas", "Próximas parcelas"],
+const suggestions: readonly [string, string, ConversationQuickAction?][] = [
+  ["Como estamos este mês?", "Como estamos este mês?", "financial-summary"],
+  ["Onde gastamos mais?", "Me dê insights", "insights"],
+  ["Próximas parcelas", "Próximas parcelas", "installments"],
   ["Quanto ainda posso gastar?", "Quanto ainda posso gastar?"],
-  ["Quem me deve?", "Quem me deve?"],
+  ["Quem me deve?", "Quem me deve?", "receivables"],
 ];
 
 export function AssistantChat({
@@ -35,6 +43,7 @@ export function AssistantChat({
   value,
   onChange,
   onSend,
+  isLoading = false,
   messagesRef,
   scrollPosition,
 }: Props) {
@@ -82,17 +91,32 @@ export function AssistantChat({
               {message.role === "user" ? "Você" : "BruMath"}
             </span>
             <div className={styles.bubble}>
-              {index === 0 && message.role === "assistant"
-                ? `Oi, ${profile} 💚 O que vamos organizar hoje?`
-                : message.text}
+              {message.status === "pending" ? (
+                <span className={styles.thinking} aria-label="Pensando">
+                  <i /> <i /> <i /> <span>Pensando…</span>
+                </span>
+              ) : index === 0 && message.role === "assistant" ? (
+                `Oi, ${profile} 💚 O que vamos organizar hoje?`
+              ) : message.role === "assistant" ? (
+                <div className={styles.markdown}>
+                  <AssistantMarkdown content={message.text} />
+                </div>
+              ) : (
+                message.text
+              )}
             </div>
           </div>
         ))}
       </div>
       <footer className={styles.footer}>
         <div className={styles.suggestions} aria-label="Sugestões de perguntas">
-          {suggestions.map(([label, command]) => (
-            <button type="button" key={label} onClick={() => onSend(command)}>
+          {suggestions.map(([label, command, quickAction]) => (
+            <button
+              type="button"
+              key={label}
+              onClick={() => onSend(command, quickAction)}
+              disabled={isLoading}
+            >
               {label}
             </button>
           ))}
@@ -101,7 +125,7 @@ export function AssistantChat({
           className={styles.composer}
           onSubmit={(event) => {
             event.preventDefault();
-            if (value.trim()) onSend();
+            if (value.trim() && !isLoading) onSend();
           }}
         >
           <textarea
@@ -117,13 +141,13 @@ export function AssistantChat({
                 !event.nativeEvent.isComposing
               ) {
                 event.preventDefault();
-                if (value.trim()) onSend();
+                if (value.trim() && !isLoading) onSend();
               }
             }}
           />
           <button
             type="submit"
-            disabled={!value.trim()}
+            disabled={!value.trim() || isLoading}
             aria-label="Enviar mensagem"
           >
             <Send size={20} />

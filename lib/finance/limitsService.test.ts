@@ -1,4 +1,6 @@
-import { describe, expect, it } from "vitest";
+import assert from "node:assert/strict";
+import test from "node:test";
+import type { CategoryLimit } from "./limits";
 import type { Transaction } from "./transactions";
 import type { TransactionRepository } from "./TransactionRepository";
 import { getLimitUsages } from "./limitsService";
@@ -41,18 +43,23 @@ const repository: TransactionRepository = {
   delete: async () => undefined,
 };
 
-describe("getLimitUsages", () => {
-  it("uses real expenses and ignores income", async () => {
-    const limits = [
-      { id: "delivery", label: "Delivery", owner: "Casal", amount: 200 },
-      { id: "gastos-bruna", label: "Gastos da Bru", owner: "Bruna", amount: 350 },
-    ];
+test("getLimitUsages uses real expenses and ignores income", async () => {
+  const limits: CategoryLimit[] = [
+    { id: "delivery", label: "Delivery", owner: "Casal", amount: 200 },
+    { id: "gastos-bruna", label: "Gastos da Bru", owner: "Bruna", amount: 350 },
+  ];
 
-    const usages = await getLimitUsages(repository, limits);
+  const usages = await getLimitUsages(repository, limits);
 
-    expect(usages).toEqual([
-      expect.objectContaining({ spent: 120, limit: 200, remaining: 80 }),
-      expect.objectContaining({ spent: 80, limit: 350, remaining: 270 }),
-    ]);
-  });
+  assert.deepEqual(
+    usages.map(({ spent, amount, remaining }) => ({
+      spent,
+      amount,
+      remaining,
+    })),
+    [
+      { spent: 120, amount: 200, remaining: 80 },
+      { spent: 80, amount: 350, remaining: 270 },
+    ],
+  );
 });

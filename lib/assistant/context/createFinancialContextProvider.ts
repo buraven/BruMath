@@ -10,6 +10,7 @@ import type {
   FinancialContext,
   FinancialContextProvider,
   FinancialContextResult,
+  FinancialDataAvailability,
   FinancialScope,
   FinancialSummary,
   IncomeContextItem,
@@ -248,12 +249,14 @@ function provenanceFor(
 function result<T>(
   value: T,
   scope: FinancialScope,
+  availability: FinancialDataAvailability,
   includesCalculation = false,
 ): FinancialContextResult<T> {
   return {
     value,
     scope: { ...scope },
     provenance: provenanceFor(scope, includesCalculation),
+    availability,
   };
 }
 
@@ -297,31 +300,54 @@ function buildContext(
 export function createFinancialContextProvider(
   source: FinancialDataSource,
 ): FinancialContextProvider {
-  async function readContext(scope: FinancialScope): Promise<FinancialContext> {
-    return buildContext(await source.read(), scope);
+  async function readContext(scope: FinancialScope): Promise<{
+    context: FinancialContext;
+    availability: FinancialDataAvailability;
+  }> {
+    const data = await source.read();
+    const context = buildContext(data, scope);
+    return {
+      context,
+      availability: {
+        source: "brumath-data",
+        hasStoredData: data.hasStoredData ?? true,
+        hasRecordsInScope:
+          context.expenses.length > 0 ||
+          context.income.length > 0 ||
+          context.installments.length > 0 ||
+          context.receivables.length > 0,
+      },
+    };
   }
 
   return {
     async getContext(scope) {
-      return result(await readContext(scope), scope, true);
+      const { context, availability } = await readContext(scope);
+      return result(context, scope, availability, true);
     },
     async getSummary(scope) {
-      return result((await readContext(scope)).summary, scope, true);
+      const { context, availability } = await readContext(scope);
+      return result(context.summary, scope, availability, true);
     },
     async getExpenses(scope) {
-      return result((await readContext(scope)).expenses, scope);
+      const { context, availability } = await readContext(scope);
+      return result(context.expenses, scope, availability);
     },
     async getLimits(scope) {
-      return result((await readContext(scope)).limits, scope, true);
+      const { context, availability } = await readContext(scope);
+      return result(context.limits, scope, availability, true);
     },
     async getInstallments(scope) {
-      return result((await readContext(scope)).installments, scope);
+      const { context, availability } = await readContext(scope);
+      return result(context.installments, scope, availability);
     },
     async getReceivables(scope) {
-      return result((await readContext(scope)).receivables, scope, true);
+      const { context, availability } = await readContext(scope);
+      return result(context.receivables, scope, availability, true);
     },
     async getIncome(scope) {
-      return result((await readContext(scope)).income, scope);
+      const { context, availability } = await readContext(scope);
+      return result(context.income, scope, availability);
     },
   };
 }

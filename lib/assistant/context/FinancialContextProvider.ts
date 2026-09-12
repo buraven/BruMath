@@ -15,6 +15,14 @@ export type FinancialContextResult<T> = {
   value: T;
   scope: FinancialScope;
   provenance: readonly ResponseProvenance[];
+  availability?: FinancialDataAvailability;
+};
+
+/** Communicates coverage without treating an empty result as a financial fact. */
+export type FinancialDataAvailability = {
+  source: "brumath-data";
+  hasStoredData: boolean;
+  hasRecordsInScope: boolean;
 };
 
 export type FinancialSummary = {
