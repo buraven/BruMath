@@ -1,20 +1,9 @@
 "use client";
 
-import {
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-  type FormEvent,
-  type ReactNode,
-} from "react";
+import { useEffect, useMemo, useState } from "react";
 import { ViewportNavigation } from "../components/navigation/ViewportNavigation";
 import {
   CalendarDays,
-  BriefcaseBusiness,
-  Bus,
-  Car,
-  Check,
   ChevronLeft,
   ChevronRight,
   CreditCard,
@@ -25,21 +14,19 @@ import {
   Moon,
   Pencil,
   Plus,
-  PawPrint,
   Receipt,
   Settings2,
   Send,
   Sparkles,
   Sun,
   Tag,
-  Trash2,
-  UserRound,
-  Utensils,
   WalletCards,
   X,
 } from "lucide-react";
-import { MoneyInput } from "../components/ui/MoneyInput";
-import { DateInput } from "../components/ui/DateInput";
+import { ConfirmationDialog } from "../components/ui/ConfirmationDialog";
+import { IncomeFormDialog } from "../components/finance/IncomeFormDialog";
+import { ReceivableFormDialog } from "../components/finance/ReceivableFormDialog";
+import { ReceivePaymentDialog } from "../components/finance/ReceivePaymentDialog";
 import { ExpenseList } from "../components/finance/ExpenseList";
 import { DebtSection } from "../components/finance/DebtSection";
 import { LimitsScreen } from "../features/limits/LimitsScreen";
@@ -48,253 +35,47 @@ import { IncomeSection } from "../components/finance/IncomeSection";
 import { QuickActions } from "../components/finance/QuickActions";
 
 import { NavButton } from "../components/navigation/NavButton";
-import {
-  AppSidebar,
-  type NavigationTab,
-} from "../components/navigation/AppSidebar";
+import { AppSidebar } from "../components/navigation/AppSidebar";
 import { MonthSelector } from "../components/navigation/MonthSelector";
 import { NewHome } from "../features/home/NewHome";
-import {
-  HomeAssistantPreview,
-  type HomeAssistantQuickAction,
-} from "../features/home/components/HomeAssistantPreview/HomeAssistantPreview";
+import { HomeAssistantPreview } from "../features/home/components/HomeAssistantPreview/HomeAssistantPreview";
 import { HomeExpenses } from "../features/home/components/HomeExpenses/HomeExpenses";
 import { HomeInsights } from "../features/home/components/HomeInsights/HomeInsights";
 import { deriveHomeInsights } from "../features/home/components/HomeInsights/radarInsights";
 import { ExpensesScreen } from "../features/expenses/ExpensesScreen";
+import { ExpenseFormDialog } from "../features/expenses/ExpenseFormDialog";
 import { AssistantChat } from "../features/assistant/AssistantChat";
+import { useAssistantController } from "../features/assistant/useAssistantController";
 import { FutureScreen } from "../features/future/FutureScreen";
+import { AdvanceInstallmentsDialog } from "../features/future/AdvanceInstallmentsDialog";
+import { InstallmentFormDialog } from "../features/future/InstallmentFormDialog";
+import { FinancialSettingsDialog } from "../features/limits/FinancialSettingsDialog";
 import { PreferencesScreen } from "../features/preferences/PreferencesScreen";
+import { useThemePreference } from "../features/preferences/useThemePreference";
+import { usePersistedFinancialState } from "../features/app/usePersistedFinancialState";
+import { deriveFinancialSelectors } from "../features/app/financialSelectors";
 import {
-  confirmAction,
-  createActionGateway,
-  createRegisterExpenseAction,
-  createRegisterExpenseProposal,
-} from "../lib/assistant";
+  createExpenseIncomeMutations,
+  createInstallmentMutations,
+  createLimitMutations,
+  createReceivableMutations,
+} from "../features/app/financialMutationControllers";
+import { renderCategoryIcon } from "../features/app/renderCategoryIcon";
 import {
-  requestConversationPlan,
-  resolveConversationPlan,
-} from "../lib/assistant/conversation/ConversationService";
+  DEFAULT_BUDGETS,
+  INITIAL_EXPENSES,
+  INITIAL_INSTALLMENTS,
+} from "../features/app/defaultFinancialData";
 import type {
-  ConversationContext,
-  RegisterExpensePlan,
-} from "../lib/assistant/conversation/contracts";
-import {
-  completeExpenseIntent,
-  createPendingExpenseIntent,
-  pendingExpenseQuestion,
-  resolvePendingExpenseReply,
-} from "../lib/assistant/conversation/conversationContext";
-import { LocalStorageTransactionRepository } from "../lib/finance/LocalStorageTransactionRepository";
-
-type Person = "Bruna" | "Matheus" | "Casal";
-type Tab = NavigationTab;
-type ThemeMode = "light" | "dark" | "system";
-type DebtDestination = "cartao" | "bruna" | "matheus" | "casal";
-
-type Expense = {
-  id: number;
-  title: string;
-  cat: string;
-  who: Person;
-  amount: number;
-  date: string;
-};
-type Installment = {
-  id: number;
-  title: string;
-  category: string;
-  who: Person;
-  amount: number;
-  totalInstallments: number;
-  paidInstallments: number;
-  nextDue: string;
-};
-type Debt = {
-  id: number;
-  person: string;
-  amount: number;
-  destination: DebtDestination;
-  note: string;
-  paid: number;
-  month: string;
-  receivedMonth?: string;
-};
-type IncomeEntry = {
-  id: number;
-  title: string;
-  amount: number;
-  who: Person;
-  date: string;
-  destination: "conta" | "cartao";
-  note: string;
-};
-type ChatMessage = {
-  id: number;
-  role: "assistant" | "user";
-  text: string;
-  status?: "pending";
-};
-type CompactAssistantMessage = { text: string; status?: "pending" };
-type Confirmation = {
-  title: string;
-  description: string;
-  confirmLabel: string;
-  details?: readonly { label: string; value: string }[];
-  destructive?: boolean;
-  onConfirm: () => void;
-};
-
-const DEFAULT_BUDGETS: Record<string, number> = {
-  Casa: 2500,
-  Carro: 3000,
-  Assinaturas: 500,
-  Pets: 650,
-  Alimentação: 1400,
-  Transporte: 800,
-  Lazer: 700,
-  Pessoal: 1000,
-  Trabalho: 300,
-  Outros: 500,
-};
-
-const INITIAL_EXPENSES: Expense[] = [
-  {
-    id: 1,
-    title: "Condomínio",
-    cat: "Casa",
-    who: "Casal",
-    amount: 525,
-    date: "2026-08-01",
-  },
-  {
-    id: 2,
-    title: "Garagem",
-    cat: "Casa",
-    who: "Casal",
-    amount: 300,
-    date: "2026-08-02",
-  },
-  {
-    id: 3,
-    title: "Parcela do carro",
-    cat: "Carro",
-    who: "Casal",
-    amount: 1680,
-    date: "2026-08-03",
-  },
-  {
-    id: 4,
-    title: "Seguro",
-    cat: "Carro",
-    who: "Casal",
-    amount: 500,
-    date: "2026-08-04",
-  },
-  {
-    id: 5,
-    title: "Internet",
-    cat: "Casa",
-    who: "Casal",
-    amount: 100,
-    date: "2026-08-05",
-  },
-  {
-    id: 6,
-    title: "Luz",
-    cat: "Casa",
-    who: "Casal",
-    amount: 165,
-    date: "2026-08-06",
-  },
-  {
-    id: 7,
-    title: "FIES",
-    cat: "Pessoal",
-    who: "Bruna",
-    amount: 553.2,
-    date: "2026-08-07",
-  },
-  {
-    id: 8,
-    title: "Mercado",
-    cat: "Alimentação",
-    who: "Bruna",
-    amount: 50,
-    date: "2026-08-08",
-  },
-  {
-    id: 9,
-    title: "Petisco gatos",
-    cat: "Pets",
-    who: "Casal",
-    amount: 10,
-    date: "2026-08-09",
-  },
-];
-
-const INITIAL_INSTALLMENTS: Installment[] = [
-  {
-    id: 1,
-    title: "Parcela do carro",
-    category: "Carro",
-    who: "Casal",
-    amount: 1680,
-    totalInstallments: 48,
-    paidInstallments: 8,
-    nextDue: "2026-09-10",
-  },
-  {
-    id: 2,
-    title: "Parcela do apartamento",
-    category: "Casa",
-    who: "Casal",
-    amount: 1300,
-    totalInstallments: 120,
-    paidInstallments: 18,
-    nextDue: "2026-09-01",
-  },
-  {
-    id: 3,
-    title: "Globo",
-    category: "Assinaturas",
-    who: "Casal",
-    amount: 24.9,
-    totalInstallments: 12,
-    paidInstallments: 7,
-    nextDue: "2026-09-10",
-  },
-  {
-    id: 4,
-    title: "Rei do Óleo",
-    category: "Carro",
-    who: "Casal",
-    amount: 210,
-    totalInstallments: 6,
-    paidInstallments: 2,
-    nextDue: "2026-09-12",
-  },
-  {
-    id: 5,
-    title: "Hocks",
-    category: "Pessoal",
-    who: "Bruna",
-    amount: 89.9,
-    totalInstallments: 8,
-    paidInstallments: 3,
-    nextDue: "2026-09-15",
-  },
-  {
-    id: 6,
-    title: "Lojão",
-    category: "Pessoal",
-    who: "Matheus",
-    amount: 150,
-    totalInstallments: 10,
-    paidInstallments: 4,
-    nextDue: "2026-09-18",
-  },
-];
+  Confirmation,
+  Debt,
+  Expense,
+  IncomeEntry,
+  Installment,
+  Person,
+  Tab,
+  ThemeMode,
+} from "../lib/app/AppTypes";
 
 const money = (value: number) =>
   value.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
@@ -322,11 +103,6 @@ const addMonths = (key: string, delta: number) => {
   const d = new Date(y, m - 1 + delta, 1);
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
 };
-const shiftDate = (value: string, months: number) => {
-  const [y, m, d] = value.split("-").map(Number);
-  const result = new Date(y, m - 1 + months, Math.min(d, 28));
-  return `${result.getFullYear()}-${String(result.getMonth() + 1).padStart(2, "0")}-${String(result.getDate()).padStart(2, "0")}`;
-};
 const shortDate = (value: string) =>
   value
     ? new Date(`${value}T12:00:00`).toLocaleDateString("pt-BR", {
@@ -334,102 +110,41 @@ const shortDate = (value: string) =>
         month: "2-digit",
       })
     : "—";
-const parseAmount = (text: string) => {
-  const matches = [
-    ...text.matchAll(
-      /(?:r\$\s*)?(\d{1,3}(?:\.\d{3})*(?:,\d{1,2})?|\d+(?:[.,]\d{1,2})?)/gi,
-    ),
-  ];
-  if (!matches.length) return null;
-  const raw = matches[matches.length - 1][1];
-  const value = Number(
-    raw.includes(",") ? raw.replace(/\./g, "").replace(",", ".") : raw,
-  );
-  return Number.isFinite(value) ? value : null;
-};
-
-function categoryFromText(text: string) {
-  const t = text.toLowerCase();
-  if (/café|cafe|doce|doces|padaria|trabalho/.test(t)) return "Trabalho";
-  if (/mercado|comida|restaurante|lanche|ifood|pedido/.test(t))
-    return "Alimentação";
-  if (/uber|99|ônibus|onibus|transporte/.test(t)) return "Transporte";
-  if (/gasolina|posto|carro|óleo|oleo|seguro|pedágio|pedagio/.test(t))
-    return "Carro";
-  if (/gato|pet|ração|racao|veterin/.test(t)) return "Pets";
-  if (/luz|internet|condomínio|condominio|garagem|aluguel|apartamento/.test(t))
-    return "Casa";
-  if (/fies|faculdade|curso|bermuda|relógio|relogio|perfume|loja|hocks/.test(t))
-    return "Pessoal";
-  if (/globo|streaming|assinatura/.test(t)) return "Assinaturas";
-  if (/cinema|filme|passeio|viagem/.test(t)) return "Lazer";
-  return "Outros";
-}
-
-function iconFor(category: string) {
-  if (category === "Carro") return <Car size={19} />;
-  if (category === "Pets") return <PawPrint size={19} />;
-  if (category === "Alimentação") return <Utensils size={19} />;
-  if (category === "Trabalho") return <BriefcaseBusiness size={19} />;
-  if (category === "Transporte") return <Bus size={19} />;
-  if (category === "Casa") return <Home size={19} />;
-  if (category === "Assinaturas") return <CreditCard size={19} />;
-  if (category === "Pessoal") return <UserRound size={19} />;
-  return <Tag size={19} />;
-}
-
-function cleanExpenseTitle(text: string) {
-  return (
-    text
-      .replace(
-        /\b(?:matheus|bruna|bru|theus|casal|nós|nos|juntos|juntas)\b/gi,
-        " ",
-      )
-      .replace(
-        /\b(?:gastei|gasto|paguei|comprei|comprou|compramos|custou|registra|registre|registrar|foi|fomos)\b/gi,
-        " ",
-      )
-      .replace(/\b(?:por|de|no|na|em|com|para|o|a|um|uma)\b/gi, " ")
-      .replace(
-        /(?:r\$\s*)?(\d{1,3}(?:\.\d{3})*(?:,\d{1,2})?|\d+(?:[.,]\d{1,2})?)/i,
-        " ",
-      )
-      .replace(/\s+/g, " ")
-      .trim()
-      .replace(/^[\s:,-]+|[\s:,-]+$/g, "") || "Novo gasto"
-  );
-}
-
-function detectPerson(text: string, fallback: Person): Person {
-  if (/\bmatheus\b|\btheus\b/i.test(text)) return "Matheus";
-  if (/\bbruna\b|\bbru\b/i.test(text)) return "Bruna";
-  if (/\bnós\b|\bnos\b|\bcasal\b|\bjuntos\b|\bjuntas\b|\bfomos\b/i.test(text))
-    return "Casal";
-  return fallback;
-}
-
 export default function Page() {
   const [tab, setTab] = useState<Tab>("home");
-  const [activeProfile, setActiveProfile] = useState<Person>("Bruna");
-  const [theme, setTheme] = useState<ThemeMode>("system");
+  const { theme, applyTheme } = useThemePreference();
   const [themeOpen, setThemeOpen] = useState(false);
   const [quickAddOpen, setQuickAddOpen] = useState(false);
-  const [viewMonth, setViewMonth] = useState(dateKey());
-  const [expenses, setExpenses] = useState<Expense[]>(INITIAL_EXPENSES);
-  const [installments, setInstallments] =
-    useState<Installment[]>(INITIAL_INSTALLMENTS);
-  const [debts, setDebts] = useState<Debt[]>([]);
-  const [incomeEntries, setIncomeEntries] = useState<IncomeEntry[]>([]);
-  const [income, setIncome] = useState(13000);
-  const [budgets, setBudgets] = useState(DEFAULT_BUDGETS);
-  const [limits, setLimits] = useState({ Bruna: 350, Matheus: 350 });
-  const [text, setText] = useState("");
-  const [assistantLoading, setAssistantLoading] = useState(false);
-  const assistantActionGateway = useRef(
-    createActionGateway([
-      createRegisterExpenseAction(new LocalStorageTransactionRepository()),
-    ]),
-  );
+  const {
+    expenses,
+    setExpenses,
+    installments,
+    setInstallments,
+    debts,
+    setDebts,
+    incomeEntries,
+    setIncomeEntries,
+    income,
+    setIncome,
+    budgets,
+    setBudgets,
+    limits,
+    setLimits,
+    activeProfile,
+    setActiveProfile,
+    viewMonth,
+    setViewMonth,
+  } = usePersistedFinancialState({
+    expenses: INITIAL_EXPENSES,
+    installments: INITIAL_INSTALLMENTS,
+    debts: [],
+    incomeEntries: [],
+    income: 13000,
+    budgets: DEFAULT_BUDGETS,
+    limits: { Bruna: 350, Matheus: 350 },
+    activeProfile: "Bruna",
+    viewMonth: dateKey(),
+  });
   const [toast, setToast] = useState("");
   const [modal, setModal] = useState<
     | "none"
@@ -443,129 +158,37 @@ export default function Page() {
   >("none");
   const [advancingInstallment, setAdvancingInstallment] =
     useState<Installment | null>(null);
-  const [advanceCount, setAdvanceCount] = useState("1");
   const [confirmation, setConfirmation] = useState<Confirmation | null>(null);
+  const {
+    text,
+    setText,
+    assistantLoading,
+    chat,
+    compactAssistantMessage,
+    messagesRef,
+    chatScrollTop,
+    send,
+  } = useAssistantController({
+    activeProfile,
+    viewMonth,
+    categories: Object.keys(budgets),
+    setExpenses,
+    setConfirmation,
+    setToast,
+    formatMoney: money,
+    formatDate: shortDate,
+  });
   const [receivingDebt, setReceivingDebt] = useState<Debt | null>(null);
-  const [receiveAmount, setReceiveAmount] = useState("");
   const [editingExpense, setEditingExpense] = useState<Expense | null>(null);
   const [editingInstallment, setEditingInstallment] =
     useState<Installment | null>(null);
   const [editingDebt, setEditingDebt] = useState<Debt | null>(null);
   const [editingIncome, setEditingIncome] = useState<IncomeEntry | null>(null);
   const [mobileMoreOpen, setMobileMoreOpen] = useState(false);
-  const [form, setForm] = useState({
-    title: "",
-    amount: "",
-    cat: "Outros",
-    who: "Bruna" as Person,
-    date: viewMonth + "-01",
-  });
-  const [instForm, setInstForm] = useState({
-    title: "",
-    amount: "",
-    category: "Outros",
-    who: "Bruna" as Person,
-    total: "",
-    paid: "0",
-    nextDue: "",
-  });
-  const [debtForm, setDebtForm] = useState({
-    person: "Amigo",
-    amount: "",
-    paid: "0",
-    destination: "bruna" as DebtDestination,
-    note: "",
-    month: viewMonth,
-  });
-  const [incomeForm, setIncomeForm] = useState({
-    title: "",
-    amount: "",
-    who: "Bruna" as Person,
-    date: viewMonth + "-01",
-    destination: "conta" as "conta" | "cartao",
-    note: "",
-  });
-  const [chat, setChat] = useState<ChatMessage[]>([
-    {
-      id: 1,
-      role: "assistant",
-      text: "Oi! 💚 Estou falando com você como Bruna. Escolha o perfil no topo para definir quem está falando. Se a frase citar Bruna, Matheus ou casal, isso ganha prioridade.",
-    },
-  ]);
-  const [compactAssistantMessage, setCompactAssistantMessage] =
-    useState<CompactAssistantMessage>({
-      text: `Oi, ${activeProfile} 💚 O que vamos organizar hoje?`,
-    });
-  const conversationContext = useRef<ConversationContext>({});
-  const messagesRef = useRef<HTMLDivElement>(null);
-  const chatScrollTop = useRef(0);
-
-  const applyTheme = (mode: ThemeMode) => {
-    setTheme(mode);
+  const selectTheme = (mode: ThemeMode) => {
+    applyTheme(mode);
     setThemeOpen(false);
-    localStorage.setItem("brumath-theme", mode);
-    document.documentElement.dataset.theme = mode;
   };
-
-  useEffect(() => {
-    try {
-      const storedTheme =
-        (localStorage.getItem("brumath-theme") as ThemeMode | null) || "system";
-      setTheme(storedTheme);
-      document.documentElement.dataset.theme = storedTheme;
-      const saved = localStorage.getItem("brumath-data");
-      if (saved) {
-        const data = JSON.parse(saved);
-        if (Array.isArray(data.expenses)) setExpenses(data.expenses);
-        if (Array.isArray(data.installments))
-          setInstallments(data.installments);
-        if (Array.isArray(data.debts))
-          setDebts(
-            data.debts.map((debt: Debt) => ({
-              ...debt,
-              month: debt.month || data.viewMonth || dateKey(),
-            })),
-          );
-        if (Array.isArray(data.incomeEntries))
-          setIncomeEntries(data.incomeEntries);
-        if (typeof data.income === "number") setIncome(data.income);
-        if (data.budgets) setBudgets({ ...DEFAULT_BUDGETS, ...data.budgets });
-        if (data.limits)
-          setLimits({ Bruna: 350, Matheus: 350, ...data.limits });
-        if (data.activeProfile) setActiveProfile(data.activeProfile);
-        if (data.viewMonth) setViewMonth(data.viewMonth);
-      }
-    } catch {
-      document.documentElement.dataset.theme = "system";
-    }
-  }, []);
-
-  useEffect(() => {
-    localStorage.setItem(
-      "brumath-data",
-      JSON.stringify({
-        expenses,
-        installments,
-        debts,
-        incomeEntries,
-        income,
-        budgets,
-        limits,
-        activeProfile,
-        viewMonth,
-      }),
-    );
-  }, [
-    expenses,
-    installments,
-    debts,
-    incomeEntries,
-    income,
-    budgets,
-    limits,
-    activeProfile,
-    viewMonth,
-  ]);
 
   useEffect(() => {
     if (!toast) return;
@@ -582,428 +205,120 @@ export default function Page() {
     };
   }, [modal, confirmation]);
 
-  const monthExpenses = useMemo(
-    () => expenses.filter((e) => e.date.startsWith(viewMonth)),
-    [expenses, viewMonth],
-  );
-  const cats = useMemo(
+  const {
+    monthExpenses,
+    limitItems,
+    monthIncome,
+    totalSpent,
+    extraIncome,
+    monthIncomeTotal,
+    available,
+    monthDebts,
+    debtTotal,
+    activeInstallments,
+    remaining,
+  } = useMemo(
     () =>
-      Object.entries(budgets).map(([category, budget]) => {
-        const spent = monthExpenses
-          .filter((expense) => expense.cat === category)
-          .reduce((sum, expense) => sum + expense.amount, 0);
-        return {
-          category,
-          budget,
-          spent,
-          percent: budget ? Math.min(100, (spent / budget) * 100) : 0,
-        };
+      deriveFinancialSelectors({
+        expenses,
+        installments,
+        debts,
+        incomeEntries,
+        income,
+        budgets,
+        limits,
+        viewMonth,
       }),
-    [budgets, monthExpenses],
+    [
+      expenses,
+      installments,
+      debts,
+      incomeEntries,
+      income,
+      budgets,
+      limits,
+      viewMonth,
+    ],
   );
-  const limitItems = [
-    ...(["Bruna", "Matheus"] as const).map((person) => ({
-      id: person,
-      label: `Gastos de ${person}`,
-      amount: limits[person],
-      spent: monthExpenses
-        .filter((expense) => expense.who === person)
-        .reduce((sum, expense) => sum + expense.amount, 0),
-    })),
-    ...cats.map((item) => ({
-      id: `category:${item.category}`,
-      label: item.category,
-      amount: item.budget,
-      spent: item.spent,
-    })),
-  ];
-  const monthIncome = useMemo(
-    () =>
-      incomeEntries.filter(
-        (e) => e.date.startsWith(viewMonth) && e.destination === "conta",
-      ),
-    [incomeEntries, viewMonth],
-  );
-  const totalSpent = useMemo(
-    () => monthExpenses.reduce((s, e) => s + e.amount, 0),
-    [monthExpenses],
-  );
-  const extraIncome = useMemo(
-    () => monthIncome.reduce((s, e) => s + e.amount, 0),
-    [monthIncome],
-  );
-  const monthIncomeTotal = income + extraIncome;
-  const available = monthIncomeTotal - totalSpent;
-  const monthDebts = useMemo(
-    () =>
-      debts.filter((d) => {
-        const debtMonth = d.month || viewMonth;
-        if (debtMonth > viewMonth) return false;
-        if (d.paid >= d.amount)
-          return d.receivedMonth === viewMonth || debtMonth === viewMonth;
-        return true;
-      }),
-    [debts, viewMonth],
-  );
-  const debtTotal = useMemo(
-    () => monthDebts.reduce((s, d) => s + Math.max(0, d.amount - d.paid), 0),
-    [monthDebts],
-  );
-  const activeInstallments = useMemo(
-    () => installments.filter((i) => i.paidInstallments < i.totalInstallments),
-    [installments],
-  );
-  const remaining = useMemo(
-    () =>
-      activeInstallments.reduce(
-        (s, i) => s + i.totalInstallments - i.paidInstallments,
-        0,
-      ),
-    [activeInstallments],
-  );
-  const futureMonthly = useMemo(
-    () =>
-      installments
-        .filter(
-          (i) =>
-            i.paidInstallments < i.totalInstallments &&
-            i.nextDue.startsWith(viewMonth),
-        )
-        .reduce((s, i) => s + i.amount, 0),
-    [installments, viewMonth],
-  );
-  const resetExpenseForm = (expense?: Expense) =>
-    setForm(
-      expense
-        ? {
-            title: expense.title,
-            amount: String(expense.amount),
-            cat: expense.cat,
-            who: expense.who,
-            date: expense.date,
-          }
-        : {
-            title: "",
-            amount: "",
-            cat: "Outros",
-            who: activeProfile,
-            date: `${viewMonth}-01`,
-          },
-    );
+  const expenseIncomeMutations = createExpenseIncomeMutations({
+    expenses,
+    incomeEntries,
+    setExpenses,
+    setIncomeEntries,
+    setConfirmation,
+    setToast,
+  });
+  const installmentMutations = createInstallmentMutations({
+    installments,
+    setInstallments,
+    setConfirmation,
+    setToast,
+  });
+  const receivableMutations = createReceivableMutations({
+    debts,
+    setDebts,
+    setIncomeEntries,
+    setConfirmation,
+    setToast,
+  });
+  const limitMutations = createLimitMutations({
+    limits,
+    budgets,
+    setLimits,
+    setBudgets,
+  });
   const openNewExpense = () => {
     setQuickAddOpen(false);
     setEditingExpense(null);
-    resetExpenseForm();
     setModal("expense");
   };
   const openNewInstallment = () => {
     setQuickAddOpen(false);
     setEditingInstallment(null);
-    setInstForm({
-      title: "",
-      amount: "",
-      category: "Outros",
-      who: activeProfile,
-      total: "",
-      paid: "0",
-      nextDue: `${addMonths(viewMonth, 1)}-10`,
-    });
     setModal("installment");
   };
   const openNewIncome = () => {
     setQuickAddOpen(false);
     setEditingIncome(null);
-    setIncomeForm({
-      title: "",
-      amount: "",
-      who: activeProfile,
-      date: `${viewMonth}-01`,
-      destination: "conta",
-      note: "",
-    });
     setModal("income");
   };
   const openDebt = (debt?: Debt) => {
-    setDebtForm(
-      debt
-        ? {
-            person: debt.person,
-            amount: String(debt.amount),
-            paid: String(debt.paid),
-            destination: debt.destination,
-            note: debt.note,
-            month: debt.month || viewMonth,
-          }
-        : {
-            person: "Amigo",
-            amount: "",
-            paid: "0",
-            destination: "bruna",
-            note: "",
-            month: viewMonth,
-          },
-    );
     setEditingDebt(debt ?? null);
     setModal("debt");
   };
 
-  const saveExpense = (event: FormEvent) => {
-    event.preventDefault();
-    const amount = Number(form.amount.replace(",", "."));
-    if (!form.title.trim() || !amount || amount < 0)
-      return setToast("Preencha descrição e valor.");
-    const item: Expense = {
-      id: editingExpense?.id ?? Date.now(),
-      title: form.title.trim(),
-      amount,
-      cat: form.cat,
-      who: form.who,
-      date: form.date || viewMonth + "-01",
-    };
-    setExpenses((cur) =>
-      editingExpense
-        ? cur.map((e) => (e.id === item.id ? item : e))
-        : [item, ...cur],
-    );
-    setEditingExpense(null);
-    setModal("none");
-    setToast(editingExpense ? "Gasto atualizado 💚" : "Gasto adicionado 💚");
-  };
-
-  const saveInstallment = (event: FormEvent) => {
-    event.preventDefault();
-    const amount = Number(instForm.amount.replace(",", "."));
-    const total = Number(instForm.total);
-    const paid = Math.max(0, Math.min(Number(instForm.paid) || 0, total));
-    if (!instForm.title.trim() || !amount || amount < 0 || !total || total < 1)
-      return setToast("Preencha os dados da parcela.");
-    const item: Installment = {
-      id: editingInstallment?.id ?? Date.now(),
-      title: instForm.title.trim(),
-      amount,
-      category: instForm.category,
-      who: instForm.who,
-      totalInstallments: total,
-      paidInstallments: paid,
-      nextDue: instForm.nextDue || `${addMonths(viewMonth, 1)}-10`,
-    };
-    setInstallments((cur) =>
-      editingInstallment
-        ? cur.map((i) => (i.id === item.id ? item : i))
-        : [item, ...cur],
-    );
-    setEditingInstallment(null);
-    setModal("none");
-    setToast(
-      editingInstallment ? "Parcela atualizada 💚" : "Parcela adicionada 💚",
-    );
-  };
-
-  const saveDebt = (event: FormEvent) => {
-    event.preventDefault();
-    const amount = Number(debtForm.amount.replace(",", "."));
-    const paid = Number(debtForm.paid.replace(",", ".")) || 0;
-    if (!debtForm.person.trim() || !amount || amount < 0)
-      return setToast("Informe quem deve e o valor.");
-    if (!Number.isFinite(paid) || paid < 0 || paid > amount)
-      return setToast(
-        "O valor recebido precisa ficar entre R$ 0 e o valor total.",
-      );
-    const item: Debt = {
-      id: editingDebt?.id ?? Date.now(),
-      person: debtForm.person.trim(),
-      amount,
-      destination: debtForm.destination,
-      note: debtForm.note.trim(),
-      paid,
-      month: debtForm.month || viewMonth,
-      receivedMonth:
-        paid >= amount
-          ? editingDebt?.receivedMonth || viewMonth
-          : editingDebt?.receivedMonth,
-    };
-    setDebts((cur) =>
-      editingDebt
-        ? cur.map((d) => (d.id === item.id ? item : d))
-        : [item, ...cur],
-    );
-    setEditingDebt(null);
-    setModal("none");
-    setToast(editingDebt ? "Dívida atualizada 💚" : "Dívida adicionada 💚");
-  };
-
-  const saveIncome = (event: FormEvent) => {
-    event.preventDefault();
-    const amount = Number(incomeForm.amount.replace(",", "."));
-    if (!incomeForm.title.trim() || !amount || amount < 0)
-      return setToast("Informe a entrada e o valor.");
-    const item: IncomeEntry = {
-      id: editingIncome?.id ?? Date.now(),
-      title: incomeForm.title.trim(),
-      amount,
-      who: incomeForm.who,
-      date: incomeForm.date || viewMonth + "-01",
-      destination: incomeForm.destination,
-      note: incomeForm.note.trim(),
-    };
-    setIncomeEntries((cur) =>
-      editingIncome
-        ? cur.map((i) => (i.id === item.id ? item : i))
-        : [item, ...cur],
-    );
-    setEditingIncome(null);
-    setModal("none");
-    setToast("Entrada salva 💚");
-  };
-
   const openEditExpense = (expense: Expense) => {
-    resetExpenseForm(expense);
     setEditingExpense(expense);
     setModal("expense");
   };
   const openEditInstallment = (item: Installment) => {
-    setInstForm({
-      title: item.title,
-      amount: String(item.amount),
-      category: item.category,
-      who: item.who,
-      total: String(item.totalInstallments),
-      paid: String(item.paidInstallments),
-      nextDue: item.nextDue,
-    });
     setEditingInstallment(item);
     setModal("installment");
   };
   const openEditIncome = (item: IncomeEntry) => {
-    setIncomeForm({
-      title: item.title,
-      amount: String(item.amount),
-      who: item.who,
-      date: item.date,
-      destination: item.destination,
-      note: item.note,
-    });
     setEditingIncome(item);
     setModal("income");
   };
   const openEditDebt = (debt: Debt) => {
     openDebt(debt);
   };
-  const deleteExpense = (id: number) => {
-    const item = expenses.find((expense) => expense.id === id);
-    if (!item) return;
-    setConfirmation({
-      title: "Excluir gasto",
-      description: `“${item.title}” será removido permanentemente.`,
-      confirmLabel: "Excluir gasto",
-      destructive: true,
-      onConfirm: () => {
-        setExpenses((cur) => cur.filter((expense) => expense.id !== id));
-        setToast("Gasto excluído");
-      },
-    });
-  };
-  const deleteInstallment = (id: number) => {
-    const item = installments.find((installment) => installment.id === id);
-    if (!item) return;
-    setConfirmation({
-      title: "Excluir parcelamento",
-      description: `“${item.title}” será removido permanentemente.`,
-      confirmLabel: "Excluir parcelamento",
-      destructive: true,
-      onConfirm: () => {
-        setInstallments((cur) =>
-          cur.filter((installment) => installment.id !== id),
-        );
-        setToast("Parcela excluída");
-      },
-    });
-  };
-  const deleteDebt = (id: number) => {
-    const item = debts.find((debt) => debt.id === id);
-    if (!item) return;
-    setConfirmation({
-      title: "Excluir valor a receber",
-      description: `“${item.person}” será removido permanentemente.`,
-      confirmLabel: "Excluir valor",
-      destructive: true,
-      onConfirm: () => {
-        setDebts((cur) => cur.filter((debt) => debt.id !== id));
-        setToast("Dívida excluída");
-      },
-    });
-  };
-  const deleteIncome = (id: number) => {
-    const item = incomeEntries.find((entry) => entry.id === id);
-    if (!item) return;
-    setConfirmation({
-      title: "Excluir entrada",
-      description: `“${item.title}” será removida permanentemente.`,
-      confirmLabel: "Excluir entrada",
-      destructive: true,
-      onConfirm: () => {
-        setIncomeEntries((cur) => cur.filter((entry) => entry.id !== id));
-        setToast("Entrada excluída");
-      },
-    });
-  };
-
-  const payInstallment = (id: number, count: number) => {
-    setInstallments((cur) =>
-      cur.map((item) => {
-        if (item.id !== id) return item;
-        const remainingForItem = item.totalInstallments - item.paidInstallments;
-        const actual = Math.min(Math.max(0, count), remainingForItem);
-        const nextPaid = item.paidInstallments + actual;
-        return {
-          ...item,
-          paidInstallments: nextPaid,
-          nextDue:
-            nextPaid >= item.totalInstallments
-              ? item.nextDue
-              : shiftDate(item.nextDue, actual),
-        };
-      }),
-    );
-    setToast(
-      count > 1
-        ? `${count} parcelas adiantadas 💚`
-        : count === 1
-          ? "Parcela marcada como paga 💚"
-          : "Parcela quitada 💚",
-    );
-  };
+  const deleteExpense = expenseIncomeMutations.deleteExpense;
+  const deleteInstallment = installmentMutations.delete;
+  const deleteDebt = receivableMutations.delete;
+  const deleteIncome = expenseIncomeMutations.deleteIncome;
+  const payInstallment = installmentMutations.pay;
 
   const chooseAdvanceInstallments = (item: Installment) => {
     const left = item.totalInstallments - item.paidInstallments;
     if (!left) return;
     setAdvancingInstallment(item);
-    setAdvanceCount(left > 2 ? "2" : "1");
     setModal("advance");
   };
 
-  const chooseQuitInstallment = (item: Installment) => {
-    const left = item.totalInstallments - item.paidInstallments;
-    if (!left) return;
-    setConfirmation({
-      title: "Quitar parcelamento",
-      description: `“${item.title}” tem ${left} parcela${left === 1 ? "" : "s"} restante${left === 1 ? "" : "s"}. Todas serão quitadas.`,
-      confirmLabel: "Confirmar quitação",
-      onConfirm: () => payInstallment(item.id, left),
-    });
-  };
+  const chooseQuitInstallment = installmentMutations.confirmQuit;
 
-  const saveAdvanceInstallments = (event: FormEvent) => {
-    event.preventDefault();
+  const saveAdvanceInstallments = (count: number) => {
     if (!advancingInstallment) return;
-    const left =
-      advancingInstallment.totalInstallments -
-      advancingInstallment.paidInstallments;
-    const count = Number(advanceCount);
-    if (!Number.isInteger(count) || count < 1 || count > left) {
-      setToast(`Digite uma quantidade entre 1 e ${left}.`);
-      return;
-    }
     payInstallment(advancingInstallment.id, count);
     setAdvancingInstallment(null);
     setModal("none");
@@ -1013,278 +328,24 @@ export default function Page() {
     const open = Math.max(0, debt.amount - debt.paid);
     if (!open) return;
     setReceivingDebt(debt);
-    setReceiveAmount("");
     setModal("receive");
   };
 
-  const saveDebtReceipt = (event: FormEvent) => {
-    event.preventDefault();
+  const saveDebtReceipt = (amount: number) => {
     if (!receivingDebt) return;
-    const open = Math.max(0, receivingDebt.amount - receivingDebt.paid);
-    const amount = Number(receiveAmount.replace(",", "."));
-    if (!Number.isFinite(amount) || amount <= 0)
-      return setToast("Informe quanto recebeu.");
-    if (Math.round(amount * 100) > Math.round(open * 100))
-      return setToast(`O máximo que pode registrar agora é ${money(open)}.`);
-    const nextPaid = Math.min(
-      receivingDebt.amount,
-      Math.round((receivingDebt.paid + amount) * 100) / 100,
-    );
-    const destination =
-      receivingDebt.destination === "cartao" ? "cartao" : "conta";
-    setDebts((cur) =>
-      cur.map((d) =>
-        d.id === receivingDebt.id
-          ? { ...d, paid: nextPaid, receivedMonth: viewMonth }
-          : d,
-      ),
-    );
-    setIncomeEntries((cur) => [
-      ...cur,
-      {
-        id: Date.now(),
-        title: `Recebimento de ${receivingDebt.person}`,
-        amount,
-        who: activeProfile,
-        date: `${viewMonth}-01`,
-        destination,
-        note: receivingDebt.note || "Pagamento de dívida",
-      },
-    ]);
+    const nextPaid = receivableMutations.registerReceipt({
+      debt: receivingDebt,
+      amount,
+      month: viewMonth,
+      owner: activeProfile,
+    });
     setReceivingDebt(null);
-    setReceiveAmount("");
     setModal("none");
     setToast(
       nextPaid >= receivingDebt.amount
         ? "Dívida quitada e registrada em O que entra 💚"
         : `${money(amount)} recebido. Restam ${money(receivingDebt.amount - nextPaid)} 💚`,
     );
-  };
-
-  const send = async (
-    preset?: string,
-    responseMode: "compact" | "full" = "full",
-    quickAction?: HomeAssistantQuickAction,
-  ) => {
-    const value = (preset ?? text).trim();
-    if (!value) return;
-    if (assistantLoading) return;
-    const now = Date.now();
-    const conversationRequestId = crypto.randomUUID();
-    const pendingId = now + 1;
-    const completePending = (reply: string) => {
-      if (responseMode === "compact") {
-        setCompactAssistantMessage({ text: reply });
-      } else {
-        setChat((cur) =>
-          cur.map((message) =>
-            message.id === pendingId
-              ? { ...message, text: reply, status: undefined }
-              : message,
-          ),
-        );
-      }
-    };
-    const presentExpenseProposal = (
-      input: RegisterExpensePlan & { owner: Person },
-    ) => {
-      const expenseId = Date.now();
-      const proposal = createRegisterExpenseProposal({
-        id: `expense:${expenseId}`,
-        description: input.description,
-        amount: input.amount,
-        category: input.category,
-        owner: input.owner,
-        date: input.date ?? `${viewMonth}-01`,
-      });
-      conversationContext.current = {};
-      completePending(
-        "Preparei o gasto para você revisar. Ele só será salvo depois da sua confirmação.",
-      );
-      setConfirmation({
-        title: proposal.preview.title,
-        description: `${proposal.preview.description}. Confirme para salvar este gasto.`,
-        confirmLabel: "Confirmar gasto",
-        details: [
-          { label: "Valor", value: money(proposal.payload.amount) },
-          { label: "Descrição", value: proposal.payload.description },
-          { label: "Categoria", value: proposal.payload.category },
-          { label: "Responsável", value: proposal.payload.owner },
-          { label: "Data", value: shortDate(proposal.payload.date) },
-        ],
-        onConfirm: async () => {
-          const confirmed = confirmAction(proposal, {
-            id: `confirmation:${proposal.id}`,
-            proposalId: proposal.id,
-            confirmedAt: new Date().toISOString(),
-          });
-          const result =
-            await assistantActionGateway.current.execute(confirmed);
-          if (!result.ok) {
-            completePending(result.message);
-            return setToast(result.message);
-          }
-          setExpenses((cur) => [
-            {
-              id: expenseId,
-              title: proposal.payload.description,
-              cat: proposal.payload.category,
-              who: proposal.payload.owner,
-              amount: proposal.payload.amount,
-              date: proposal.payload.date,
-            },
-            ...cur,
-          ]);
-          completePending("Gasto registrado com sucesso 💚");
-          setToast("Gasto registrado 💚");
-        },
-      });
-    };
-    if (responseMode === "compact") {
-      setCompactAssistantMessage({ text: "", status: "pending" });
-    } else {
-      setChat((cur) => [
-        ...cur,
-        { id: now, role: "user", text: value },
-        { id: pendingId, role: "assistant", text: "", status: "pending" },
-      ]);
-    }
-    setText("");
-    setAssistantLoading(true);
-    try {
-      const pendingExpense = conversationContext.current.pendingIntent;
-      if (pendingExpense) {
-        const resolved = resolvePendingExpenseReply(
-          pendingExpense,
-          value,
-          Object.keys(budgets),
-        );
-        if (resolved.kind === "cancelled") {
-          conversationContext.current = {};
-          completePending("Tudo bem, cancelei esse lançamento.");
-          return;
-        }
-        if (resolved.kind === "clarifying") {
-          conversationContext.current = { pendingIntent: resolved.intent };
-          completePending(resolved.question);
-          return;
-        }
-        presentExpenseProposal({
-          description: resolved.intent.description,
-          amount: resolved.intent.amount,
-          category: resolved.intent.category,
-          owner: resolved.intent.owner,
-          ...(resolved.intent.date ? { date: resolved.intent.date } : {}),
-        });
-        return;
-      }
-      const response = await requestConversationPlan({
-        message: value,
-        activeProfile,
-        selectedMonth: viewMonth,
-        requestId: conversationRequestId,
-        responseMode,
-        quickAction,
-        ...(conversationContext.current.pendingIntent ||
-        conversationContext.current.lastQuery
-          ? { conversationContext: conversationContext.current }
-          : {}),
-      });
-      if (!response.ok) {
-        conversationContext.current = {};
-        completePending(response.message);
-        return;
-      }
-      if (response.plan.kind === "tool-call") {
-        conversationContext.current = {
-          lastQuery: {
-            toolName: response.plan.toolName,
-            input: response.plan.input,
-          },
-        };
-      } else if (response.plan.kind === "tool-calls") {
-        const primary = response.plan.calls[0];
-        if (primary) {
-          conversationContext.current = {
-            lastQuery: { toolName: primary.toolName, input: primary.input },
-          };
-        }
-      }
-      const plan = await resolveConversationPlan(response.plan, {
-        activeProfile,
-        selectedMonth: viewMonth,
-      });
-      if (plan.kind === "tool-results") {
-        const explanation = await requestConversationPlan({
-          message: value,
-          activeProfile,
-          selectedMonth: viewMonth,
-          toolResults: plan.results,
-          requestId: conversationRequestId,
-          responseMode,
-          quickAction,
-        });
-        completePending(
-          explanation.ok
-            ? explanation.plan.kind === "message"
-              ? explanation.plan.message
-              : "Não consegui concluir essa análise. Tente novamente."
-            : explanation.message,
-        );
-        return;
-      }
-      if (plan.kind === "register-expense") {
-        const intent = createPendingExpenseIntent(plan.input);
-        if (!completeExpenseIntent(intent)) {
-          conversationContext.current = { pendingIntent: intent };
-          completePending(pendingExpenseQuestion(intent));
-          return;
-        }
-        presentExpenseProposal({
-          description: intent.description,
-          amount: intent.amount,
-          category: intent.category,
-          owner: intent.owner,
-          ...(intent.date ? { date: intent.date } : {}),
-        });
-        return;
-      }
-      if (plan.kind === "register-expense-clarification") {
-        conversationContext.current = { pendingIntent: plan.intent };
-        completePending(pendingExpenseQuestion(plan.intent));
-        return;
-      }
-      if (plan.kind === "cancel-pending-intent") {
-        conversationContext.current = {};
-        completePending("Tudo bem, cancelei esse lançamento.");
-        return;
-      }
-      if (plan.kind === "clarification") {
-        conversationContext.current = {};
-      } else if (plan.kind === "tool-call") {
-        conversationContext.current = {
-          lastQuery: { toolName: plan.toolName, input: plan.input },
-        };
-      } else {
-        conversationContext.current = {};
-      }
-      const message =
-        plan.kind === "clarification"
-          ? plan.question
-          : plan.kind === "message"
-            ? plan.message
-            : "Não consegui concluir essa consulta. Tente novamente.";
-      completePending(message);
-      return;
-    } catch {
-      conversationContext.current = {};
-      completePending(
-        "Não foi possível processar sua mensagem agora. Tente novamente.",
-      );
-      return;
-    } finally {
-      setAssistantLoading(false);
-    }
   };
 
   const switchTab = (next: Tab) => {
@@ -1362,7 +423,7 @@ export default function Page() {
                     <button
                       type="button"
                       className={`theme-option ${theme === "light" ? "active" : ""}`}
-                      onClick={() => applyTheme("light")}
+                      onClick={() => selectTheme("light")}
                     >
                       <Sun size={16} />
                       <span>Claro</span>
@@ -1370,7 +431,7 @@ export default function Page() {
                     <button
                       type="button"
                       className={`theme-option ${theme === "dark" ? "active" : ""}`}
-                      onClick={() => applyTheme("dark")}
+                      onClick={() => selectTheme("dark")}
                     >
                       <Moon size={16} />
                       <span>Escuro</span>
@@ -1378,7 +439,7 @@ export default function Page() {
                     <button
                       type="button"
                       className={`theme-option ${theme === "system" ? "active" : ""}`}
-                      onClick={() => applyTheme("system")}
+                      onClick={() => selectTheme("system")}
                     >
                       <Monitor size={16} />
                       <span>Automático</span>
@@ -1441,7 +502,7 @@ export default function Page() {
                       onDelete={deleteExpense}
                       formatMoney={money}
                       formatDate={shortDate}
-                      renderIcon={iconFor}
+                      renderIcon={renderCategoryIcon}
                     />
                   </>
                 }
@@ -1470,7 +531,7 @@ export default function Page() {
                 expenses={selectedMonthExpenses}
                 formatMoney={money}
                 formatDate={shortDate}
-                renderIcon={iconFor}
+                renderIcon={renderCategoryIcon}
                 onCreate={openNewExpense}
                 onEdit={openEditExpense}
                 onDelete={deleteExpense}
@@ -1483,15 +544,15 @@ export default function Page() {
                 items={limitItems}
                 onConfigure={() => {}}
                 onSave={(values) => {
-                  setLimits({ Bruna: values.Bruna, Matheus: values.Matheus });
-                  setBudgets(
-                    Object.fromEntries(
+                  limitMutations.save({
+                    personal: { Bruna: values.Bruna, Matheus: values.Matheus },
+                    categories: Object.fromEntries(
                       Object.keys(budgets).map((category) => [
                         category,
                         values[`category:${category}`],
                       ]),
                     ),
-                  );
+                  });
                   setToast("Limites atualizados 💚");
                 }}
               />
@@ -1505,7 +566,7 @@ export default function Page() {
                 installments={selectedInstallments}
                 formatMoney={money}
                 formatDate={shortDate}
-                renderIcon={iconFor}
+                renderIcon={renderCategoryIcon}
                 onCreate={openNewInstallment}
                 onPay={payInstallment}
                 onAdvance={chooseAdvanceInstallments}
@@ -1648,583 +709,106 @@ export default function Page() {
         </nav>
       </ViewportNavigation>
 
-      {modal !== "none" && (
-        <div
-          className="modal-backdrop"
-          onMouseDown={(e) => {
-            if (e.target === e.currentTarget) setModal("none");
+      {modal === "expense" && (
+        <ExpenseFormDialog
+          expense={editingExpense}
+          categories={Object.keys(budgets)}
+          activeProfile={activeProfile}
+          viewMonth={viewMonth}
+          onSave={(expense, isEditing) => {
+            expenseIncomeMutations.saveExpense(expense, isEditing);
+            setEditingExpense(null);
+            setModal("none");
           }}
-        >
-          <div className="modal-card" role="dialog" aria-modal="true">
-            <div className="modal-header">
-              <div>
-                <span className="eyebrow">
-                  <Receipt size={15} /> BruMath
-                </span>
-                <h2>
-                  {modal === "expense"
-                    ? editingExpense
-                      ? "Editar gasto"
-                      : "Adicionar gasto"
-                    : modal === "installment"
-                      ? editingInstallment
-                        ? "Editar parcela"
-                        : "Nova parcela"
-                      : modal === "debt"
-                        ? editingDebt
-                          ? "Editar quem me deve"
-                          : "Adicionar quem me deve"
-                        : modal === "income"
-                          ? editingIncome
-                            ? "Editar entrada"
-                            : "Nova entrada"
-                          : modal === "receive"
-                            ? "Registrar recebimento"
-                            : modal === "advance"
-                              ? "Adiantar parcelas"
-                              : "Renda e orçamento"}
-                </h2>
-              </div>
-              <button
-                type="button"
-                className="icon-button"
-                onClick={() => {
-                  setAdvancingInstallment(null);
-                  setModal("none");
-                }}
-              >
-                <X size={18} />
-              </button>
-            </div>
-            {modal === "expense" && (
-              <form onSubmit={saveExpense}>
-                <label className="field">
-                  <span>O que foi?</span>
-                  <input
-                    value={form.title}
-                    onChange={(e) =>
-                      setForm({ ...form, title: e.target.value })
-                    }
-                    placeholder="Ex.: Mercado"
-                    required
-                  />
-                </label>
-                <div className="form-grid">
-                  <label className="field">
-                    <span>Valor</span>
-                    <MoneyInput
-                      value={form.amount}
-                      onValueChange={(value) =>
-                        setForm({ ...form, amount: value })
-                      }
-                      placeholder="50,00"
-                      required
-                    />
-                  </label>
-                  <label className="field">
-                    <span>Data</span>
-                    <DateInput
-                      value={form.date}
-                      onValueChange={(value) =>
-                        setForm({ ...form, date: value })
-                      }
-                    />
-                  </label>
-                </div>
-                <div className="form-grid">
-                  <label className="field">
-                    <span>Categoria</span>
-                    <select
-                      value={form.cat}
-                      onChange={(e) =>
-                        setForm({ ...form, cat: e.target.value })
-                      }
-                    >
-                      {Object.keys(budgets).map((c) => (
-                        <option key={c}>{c}</option>
-                      ))}
-                    </select>
-                  </label>
-                  <label className="field">
-                    <span>Quem</span>
-                    <select
-                      value={form.who}
-                      onChange={(e) =>
-                        setForm({ ...form, who: e.target.value as Person })
-                      }
-                    >
-                      <option>Bruna</option>
-                      <option>Matheus</option>
-                      <option>Casal</option>
-                    </select>
-                  </label>
-                </div>
-                <button type="submit" className="primary-button">
-                  <Check size={17} /> Salvar gasto
-                </button>
-              </form>
-            )}
-            {modal === "installment" && (
-              <form onSubmit={saveInstallment}>
-                <label className="field">
-                  <span>Nome</span>
-                  <input
-                    value={instForm.title}
-                    onChange={(e) =>
-                      setInstForm({ ...instForm, title: e.target.value })
-                    }
-                    placeholder="Ex.: Notebook"
-                    required
-                  />
-                </label>
-                <div className="form-grid">
-                  <label className="field">
-                    <span>Valor mensal</span>
-                    <MoneyInput
-                      value={instForm.amount}
-                      onValueChange={(value) =>
-                        setInstForm({ ...instForm, amount: value })
-                      }
-                      placeholder="300,00"
-                      required
-                    />
-                  </label>
-                  <label className="field">
-                    <span>Total de parcelas</span>
-                    <input
-                      type="number"
-                      min="1"
-                      value={instForm.total}
-                      onChange={(e) =>
-                        setInstForm({ ...instForm, total: e.target.value })
-                      }
-                      required
-                    />
-                  </label>
-                </div>
-                <div className="form-grid">
-                  <label className="field">
-                    <span>Já pagas</span>
-                    <input
-                      type="number"
-                      min="0"
-                      value={instForm.paid}
-                      onChange={(e) =>
-                        setInstForm({ ...instForm, paid: e.target.value })
-                      }
-                    />
-                  </label>
-                  <label className="field">
-                    <span>Próximo vencimento</span>
-                    <DateInput
-                      value={instForm.nextDue}
-                      onValueChange={(value) =>
-                        setInstForm({ ...instForm, nextDue: value })
-                      }
-                    />
-                  </label>
-                </div>
-                <div className="form-grid">
-                  <label className="field">
-                    <span>Categoria</span>
-                    <select
-                      value={instForm.category}
-                      onChange={(e) =>
-                        setInstForm({ ...instForm, category: e.target.value })
-                      }
-                    >
-                      {Object.keys(budgets).map((c) => (
-                        <option key={c}>{c}</option>
-                      ))}
-                    </select>
-                  </label>
-                  <label className="field">
-                    <span>Quem</span>
-                    <select
-                      value={instForm.who}
-                      onChange={(e) =>
-                        setInstForm({
-                          ...instForm,
-                          who: e.target.value as Person,
-                        })
-                      }
-                    >
-                      <option>Bruna</option>
-                      <option>Matheus</option>
-                      <option>Casal</option>
-                    </select>
-                  </label>
-                </div>
-                <button type="submit" className="primary-button">
-                  <Check size={17} /> Salvar parcela
-                </button>
-              </form>
-            )}
-            {modal === "debt" && (
-              <form onSubmit={saveDebt}>
-                <label className="field">
-                  <span>Quem deve?</span>
-                  <input
-                    value={debtForm.person}
-                    onChange={(e) =>
-                      setDebtForm({ ...debtForm, person: e.target.value })
-                    }
-                    placeholder="Ex.: João"
-                    required
-                  />
-                </label>
-                <div className="form-grid">
-                  <label className="field">
-                    <span>Valor total</span>
-                    <MoneyInput
-                      value={debtForm.amount}
-                      onValueChange={(value) =>
-                        setDebtForm({ ...debtForm, amount: value })
-                      }
-                      placeholder="13.000,00"
-                      required
-                    />
-                  </label>
-                  <label className="field">
-                    <span>Já recebido</span>
-                    <MoneyInput
-                      maximum={Number(debtForm.amount) || 0}
-                      value={debtForm.paid}
-                      onValueChange={(value) =>
-                        setDebtForm({ ...debtForm, paid: value })
-                      }
-                      placeholder="0,00"
-                    />
-                  </label>
-                </div>
-                <div className="form-grid">
-                  <label className="field">
-                    <span>Mês</span>
-                    <input
-                      type="month"
-                      value={debtForm.month}
-                      onChange={(e) =>
-                        setDebtForm({ ...debtForm, month: e.target.value })
-                      }
-                    />
-                  </label>
-                  <label className="field">
-                    <span>Quando pagar, vai para</span>
-                    <select
-                      value={debtForm.destination}
-                      onChange={(e) =>
-                        setDebtForm({
-                          ...debtForm,
-                          destination: e.target.value as DebtDestination,
-                        })
-                      }
-                    >
-                      <option value="cartao">Cartão</option>
-                      <option value="bruna">Bruna</option>
-                      <option value="matheus">Matheus</option>
-                      <option value="casal">Casal</option>
-                    </select>
-                  </label>
-                </div>
-                <label className="field">
-                  <span>Observação</span>
-                  <input
-                    value={debtForm.note}
-                    onChange={(e) =>
-                      setDebtForm({ ...debtForm, note: e.target.value })
-                    }
-                    placeholder="Ex.: amigo me deve R$ 13 mil"
-                  />
-                </label>
-                <button type="submit" className="primary-button">
-                  <Check size={17} /> Salvar valor a receber
-                </button>
-              </form>
-            )}
-            {modal === "receive" && receivingDebt && (
-              <form onSubmit={saveDebtReceipt}>
-                <div className="receive-summary">
-                  <span>Valor em aberto</span>
-                  <strong>
-                    {money(
-                      Math.max(0, receivingDebt.amount - receivingDebt.paid),
-                    )}
-                  </strong>
-                  <small>
-                    {receivingDebt.person}
-                    {receivingDebt.note ? ` · ${receivingDebt.note}` : ""}
-                  </small>
-                </div>
-                <label className="field">
-                  <span>Quanto você recebeu?</span>
-                  <MoneyInput
-                    autoFocus
-                    value={receiveAmount}
-                    maximum={Math.max(
-                      0,
-                      receivingDebt.amount - receivingDebt.paid,
-                    )}
-                    onValueChange={setReceiveAmount}
-                    placeholder="Ex.: 200,00"
-                    required
-                  />
-                </label>
-                <p className="receive-help">
-                  Você pode receber uma parte agora e o restante continuará em
-                  aberto para os próximos meses.
-                </p>
-                <button type="submit" className="primary-button">
-                  <Check size={17} /> Registrar recebimento
-                </button>
-              </form>
-            )}
-            {modal === "advance" && advancingInstallment && (
-              <form onSubmit={saveAdvanceInstallments}>
-                <div className="receive-summary">
-                  <span>Parcela</span>
-                  <strong>{advancingInstallment.title}</strong>
-                  <small>
-                    Você pode adiantar até{" "}
-                    {advancingInstallment.totalInstallments -
-                      advancingInstallment.paidInstallments}{" "}
-                    parcelas.
-                  </small>
-                </div>
-                <label className="field">
-                  <span>Quantas parcelas deseja adiantar?</span>
-                  <input
-                    autoFocus
-                    type="number"
-                    min="1"
-                    max={
-                      advancingInstallment.totalInstallments -
-                      advancingInstallment.paidInstallments
-                    }
-                    value={advanceCount}
-                    onChange={(event) => setAdvanceCount(event.target.value)}
-                    required
-                  />
-                </label>
-                <div className="modal-actions">
-                  <button
-                    type="button"
-                    className="secondary-button"
-                    onClick={() => {
-                      setAdvancingInstallment(null);
-                      setModal("none");
-                    }}
-                  >
-                    Cancelar
-                  </button>
-                  <button type="submit" className="primary-button">
-                    <Check size={17} /> Confirmar adianto
-                  </button>
-                </div>
-              </form>
-            )}
-            {modal === "income" && (
-              <form onSubmit={saveIncome}>
-                <label className="field">
-                  <span>Entrada</span>
-                  <input
-                    value={incomeForm.title}
-                    onChange={(e) =>
-                      setIncomeForm({ ...incomeForm, title: e.target.value })
-                    }
-                    placeholder="Ex.: Reembolso"
-                    required
-                  />
-                </label>
-                <div className="form-grid">
-                  <label className="field">
-                    <span>Valor</span>
-                    <MoneyInput
-                      value={incomeForm.amount}
-                      onValueChange={(value) =>
-                        setIncomeForm({ ...incomeForm, amount: value })
-                      }
-                      placeholder="500,00"
-                      required
-                    />
-                  </label>
-                  <label className="field">
-                    <span>Data</span>
-                    <DateInput
-                      value={incomeForm.date}
-                      onValueChange={(value) =>
-                        setIncomeForm({ ...incomeForm, date: value })
-                      }
-                    />
-                  </label>
-                </div>
-                <div className="form-grid">
-                  <label className="field">
-                    <span>Quem</span>
-                    <select
-                      value={incomeForm.who}
-                      onChange={(e) =>
-                        setIncomeForm({
-                          ...incomeForm,
-                          who: e.target.value as Person,
-                        })
-                      }
-                    >
-                      <option>Bruna</option>
-                      <option>Matheus</option>
-                      <option>Casal</option>
-                    </select>
-                  </label>
-                  <label className="field">
-                    <span>Destino</span>
-                    <select
-                      value={incomeForm.destination}
-                      onChange={(e) =>
-                        setIncomeForm({
-                          ...incomeForm,
-                          destination: e.target.value as "conta" | "cartao",
-                        })
-                      }
-                    >
-                      <option value="conta">Conta</option>
-                      <option value="cartao">Cartão</option>
-                    </select>
-                  </label>
-                </div>
-                <label className="field">
-                  <span>Observação</span>
-                  <input
-                    value={incomeForm.note}
-                    onChange={(e) =>
-                      setIncomeForm({ ...incomeForm, note: e.target.value })
-                    }
-                  />
-                </label>
-                <button type="submit" className="primary-button">
-                  <Check size={17} /> Salvar entrada
-                </button>
-              </form>
-            )}
-            {modal === "settings" && (
-              <form
-                onSubmit={(e) => {
-                  e.preventDefault();
-                  setModal("none");
-                  setToast("Renda e orçamento atualizados 💚");
-                }}
-              >
-                <label className="field">
-                  <span>Renda mensal base</span>
-                  <MoneyInput
-                    value={income}
-                    onValueChange={(value) => setIncome(Number(value))}
-                  />
-                </label>
-                <div className="form-grid">
-                  <label className="field">
-                    <span>Limite Bruna</span>
-                    <MoneyInput
-                      value={limits.Bruna}
-                      onValueChange={(value) =>
-                        setLimits({ ...limits, Bruna: Number(value) })
-                      }
-                    />
-                  </label>
-                  <label className="field">
-                    <span>Limite Matheus</span>
-                    <MoneyInput
-                      value={limits.Matheus}
-                      onValueChange={(value) =>
-                        setLimits({ ...limits, Matheus: Number(value) })
-                      }
-                    />
-                  </label>
-                </div>
-                <div className="settings-grid">
-                  {Object.entries(budgets).map(([category, value]) => (
-                    <label className="field" key={category}>
-                      <span>Limite {category}</span>
-                      <MoneyInput
-                        value={value}
-                        onValueChange={(nextValue) =>
-                          setBudgets({
-                            ...budgets,
-                            [category]: Number(nextValue),
-                          })
-                        }
-                      />
-                    </label>
-                  ))}
-                </div>
-                <button type="submit" className="primary-button">
-                  <Check size={17} /> Salvar orçamento
-                </button>
-              </form>
-            )}
-          </div>
-        </div>
+          onClose={() => setModal("none")}
+          onInvalid={setToast}
+        />
+      )}
+      {modal === "installment" && (
+        <InstallmentFormDialog
+          installment={editingInstallment}
+          categories={Object.keys(budgets)}
+          activeProfile={activeProfile}
+          defaultNextDue={`${addMonths(viewMonth, 1)}-10`}
+          onSave={(installment, isEditing) => {
+            installmentMutations.save(installment, isEditing);
+            setEditingInstallment(null);
+            setModal("none");
+          }}
+          onClose={() => setModal("none")}
+          onInvalid={setToast}
+        />
+      )}
+      {modal === "debt" && (
+        <ReceivableFormDialog
+          debt={editingDebt}
+          viewMonth={viewMonth}
+          onSave={(debt, isEditing) => {
+            receivableMutations.save(debt, isEditing);
+            setEditingDebt(null);
+            setModal("none");
+          }}
+          onClose={() => setModal("none")}
+          onInvalid={setToast}
+        />
+      )}
+      {modal === "receive" && receivingDebt && (
+        <ReceivePaymentDialog
+          debt={receivingDebt}
+          formatMoney={money}
+          onReceive={saveDebtReceipt}
+          onClose={() => {
+            setReceivingDebt(null);
+            setModal("none");
+          }}
+          onInvalid={setToast}
+        />
+      )}
+      {modal === "advance" && advancingInstallment && (
+        <AdvanceInstallmentsDialog
+          installment={advancingInstallment}
+          onAdvance={saveAdvanceInstallments}
+          onClose={() => {
+            setAdvancingInstallment(null);
+            setModal("none");
+          }}
+          onInvalid={setToast}
+        />
+      )}
+      {modal === "income" && (
+        <IncomeFormDialog
+          income={editingIncome}
+          activeProfile={activeProfile}
+          viewMonth={viewMonth}
+          onSave={(incomeEntry, isEditing) => {
+            expenseIncomeMutations.saveIncome(incomeEntry, isEditing);
+            setEditingIncome(null);
+            setModal("none");
+          }}
+          onClose={() => setModal("none")}
+          onInvalid={setToast}
+        />
+      )}
+      {modal === "settings" && (
+        <FinancialSettingsDialog
+          income={income}
+          limits={limits}
+          budgets={budgets}
+          onIncomeChange={setIncome}
+          onPersonalLimitChange={limitMutations.updatePersonal}
+          onCategoryLimitChange={limitMutations.updateCategory}
+          onSave={() => {
+            setModal("none");
+            setToast("Renda e orçamento atualizados 💚");
+          }}
+          onClose={() => setModal("none")}
+        />
       )}
       {confirmation && (
-        <div
-          className="modal-backdrop"
-          onMouseDown={(event) => {
-            if (event.target === event.currentTarget) setConfirmation(null);
-          }}
-        >
-          <div
-            className="modal-card"
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="confirmation-title"
-          >
-            <div className="modal-header">
-              <div>
-                <span className="eyebrow">
-                  <Receipt size={15} /> BruMath
-                </span>
-                <h2 id="confirmation-title">{confirmation.title}</h2>
-              </div>
-              <button
-                type="button"
-                className="icon-button"
-                onClick={() => setConfirmation(null)}
-                aria-label="Fechar confirmação"
-              >
-                <X size={18} />
-              </button>
-            </div>
-            <p className="confirmation-copy">{confirmation.description}</p>
-            {confirmation.details && (
-              <dl className="confirmation-details">
-                {confirmation.details.map((detail) => (
-                  <div key={detail.label}>
-                    <dt>{detail.label}</dt>
-                    <dd>{detail.value}</dd>
-                  </div>
-                ))}
-              </dl>
-            )}
-            <div className="modal-actions">
-              <button
-                type="button"
-                className="secondary-button"
-                onClick={() => setConfirmation(null)}
-              >
-                Cancelar
-              </button>
-              <button
-                type="button"
-                className={`primary-button ${confirmation.destructive ? "danger-button" : ""}`}
-                onClick={() => {
-                  confirmation.onConfirm();
-                  setConfirmation(null);
-                }}
-              >
-                {confirmation.destructive && <Trash2 size={17} />}
-                {confirmation.confirmLabel}
-              </button>
-            </div>
-          </div>
-        </div>
+        <ConfirmationDialog
+          confirmation={confirmation}
+          onClose={() => setConfirmation(null)}
+        />
       )}
     </>
   );

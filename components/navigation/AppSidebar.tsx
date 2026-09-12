@@ -10,16 +10,9 @@ import {
 } from "lucide-react";
 import { NavButton } from "./NavButton";
 import styles from "./AppSidebar.module.css";
+import type { NavigationTab } from "../../lib/app/AppTypes";
 
-export type NavigationTab =
-  | "limits"
-  | "home"
-  | "chat"
-  | "stats"
-  | "future"
-  | "debts"
-  | "income"
-  | "preferences";
+export type { NavigationTab } from "../../lib/app/AppTypes";
 
 type AppSidebarProps = {
   activeTab: NavigationTab;
