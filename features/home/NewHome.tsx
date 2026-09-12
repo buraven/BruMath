@@ -10,9 +10,12 @@ type NewHomeProps = {
   income: number;
   extraIncome: number;
   expenses: number;
+  categories: Parameters<typeof FinancialSnapshot>[0]["categories"];
   formatMoney: (value: number) => string;
   insights?: ReactNode;
   limits?: ReactNode;
+  highlights?: ReactNode;
+  assistant?: ReactNode;
   upcoming?: ReactNode;
 };
 
@@ -23,9 +26,12 @@ export function NewHome({
   income,
   extraIncome,
   expenses,
+  categories,
   formatMoney,
   insights,
   limits,
+  highlights,
+  assistant,
   upcoming,
 }: NewHomeProps) {
   return (
@@ -44,11 +50,14 @@ export function NewHome({
           balance={balance}
           income={income}
           expenses={expenses}
+          categories={categories}
           formatMoney={formatMoney}
         />
       }
       insights={insights}
       limits={limits}
+      highlights={highlights}
+      assistant={assistant}
       content={upcoming}
     />
   );

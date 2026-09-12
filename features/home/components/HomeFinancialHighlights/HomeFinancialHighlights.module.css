@@ -1,0 +1,163 @@
+.grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  align-items: stretch;
+  gap: var(--space-3);
+}
+
+.card {
+  display: grid;
+  grid-template-rows: auto auto 1fr auto;
+  min-width: 0;
+  gap: var(--space-1);
+  padding: var(--space-3);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+  box-shadow: var(--shadow-card);
+}
+
+.card header {
+  display: grid;
+  grid-template-columns: 30px minmax(0, 1fr);
+  align-items: start;
+  gap: var(--space-2);
+}
+
+.icon {
+  display: grid;
+  width: 30px;
+  height: 30px;
+  place-items: center;
+  border-radius: var(--radius-sm);
+  color: var(--color-accent-strong);
+  background: var(--color-accent-soft);
+}
+
+.receivable {
+  color: var(--color-info);
+  background: var(--color-info-soft);
+}
+
+.upcoming {
+  color: var(--color-secondary);
+  background: color-mix(in srgb, var(--color-secondary) 16%, transparent);
+}
+
+.card h2 {
+  margin: 0;
+  font-size: 0.82rem;
+  letter-spacing: -0.025em;
+}
+
+.card header p,
+.detail {
+  margin: 2px 0 0;
+  color: var(--muted);
+  font-size: 0.68rem;
+  line-height: 1.35;
+}
+
+.card > strong {
+  min-width: 0;
+  font-size: clamp(1rem, 1.35vw, 1.22rem);
+  letter-spacing: -0.045em;
+}
+
+.card dl {
+  display: grid;
+  align-content: start;
+  gap: var(--space-1);
+  margin: 0;
+}
+
+.card dl div,
+.upcomingList li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  color: var(--muted);
+  font-size: 0.69rem;
+}
+
+.card dd {
+  margin: 0;
+  color: var(--text);
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.card button {
+  justify-self: start;
+  padding: 0;
+  border: 0;
+  color: var(--text);
+  background: transparent;
+  cursor: pointer;
+  font-size: 0.7rem;
+  font-weight: 800;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.upcomingList {
+  display: grid;
+  align-content: start;
+  gap: var(--space-1);
+  padding: 0;
+  margin: 0;
+  list-style: none;
+}
+
+.upcomingList li {
+  padding-block: var(--space-1);
+  border-bottom: 1px solid var(--line);
+}
+
+.upcomingList li:last-child {
+  border-bottom: 0;
+}
+
+.upcomingList span {
+  display: grid;
+  min-width: 0;
+  gap: 1px;
+}
+
+.upcomingList strong {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.upcomingList small {
+  color: var(--muted);
+}
+
+.upcomingList b {
+  flex: 0 0 auto;
+  font-size: 0.68rem;
+}
+
+/* Tablet portrait keeps two compact cards before placing the final card below. */
+@media (min-width: 600px) and (orientation: portrait) {
+  .grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .card:last-child {
+    grid-column: 1 / -1;
+  }
+}
+
+/* Wide landscapes keep the three related summaries in their dashboard row. */
+@media (min-width: 900px) and (orientation: landscape), (min-width: 1100px) {
+  .grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .card:last-child {
+    grid-column: auto;
+  }
+}

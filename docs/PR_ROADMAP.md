@@ -130,7 +130,7 @@ determinística disponível.
 Hoje, a implementação concreta é `LocalStorageFinancialDataSource → brumath-data`.
 Futuramente, a mesma fronteira permitirá `SupabaseFinancialDataSource →
 Supabase/PostgreSQL`. Assistant Engine, Tools e UI não devem depender diretamente de
-nenhuma dessas implementações de persistência; os PRs #49–#53 não devem introduzir novo
+nenhuma dessas implementações de persistência; os PRs #49–#58 não devem introduzir novo
 acoplamento ao `localStorage`.
 
 ### Contexto, perfil e conversa
@@ -181,19 +181,23 @@ Os números de roadmap abaixo são os números oficiais dos PRs no GitHub. Nomes
 branches já criadas antes desta equalização são mantidos apenas como registro
 histórico e não alteram a numeração oficial.
 
-| PR  | Branch                                      | Entrega                                                                                                      |
-| --- | ------------------------------------------- | ------------------------------------------------------------------------------------------------------------ |
-| #47 | `feature/assistant-engine-pr46`             | Assistant Engine Foundation. **Concluído.**                                                                  |
-| #48 | `feature/financial-context-engine-pr47`     | Financial Context Engine. **Concluído.**                                                                     |
-| #49 | `feature/assistant-tools-actions-pr48`      | Tools determinísticas, proposta de action e confirmação. **Concluído.**                                      |
-| #50 | `feature/conversational-ai-pr50`            | Conversational AI: provider LLM server-side, intent, structured outputs e confirmação visual. **Concluído.** |
-| #51 | `feature/app-state-page-decomposition-pr51` | App State & Page Decomposition. **Pronto para revisão.**                                                     |
-| #52 | `feature/financial-guardrails-pr51`         | Financial Guardrails: provenance, validação e anti-alucinação financeira.                                    |
-| #53 | `feature/conversation-context-pr52`         | Conversation Context: follow-ups, referências e memória curta.                                               |
-| #54 | `chore/token-cost-optimization-pr53`        | Token & Cost Optimization: seleção de contexto, cache, resumos e roteamento.                                 |
-| #55 | `feature/supabase-persistence-pr54`         | Supabase Persistence: persistência financeira centralizada e migração gradual.                               |
-| #56 | `feature/multi-user-sync-pr55`              | Multi-user & Synchronization: household, membros e sincronização.                                            |
-| #57 | `feature/proactive-insights-pr56`           | Proactive Insights: motor determinístico compartilhado entre Home e Assistente.                              |
+| PR  | Branch                                      | Entrega                                                                                                               |
+| --- | ------------------------------------------- | --------------------------------------------------------------------------------------------------------------------- |
+| #47 | `feature/assistant-engine-pr46`             | Assistant Engine Foundation. **Concluído.**                                                                           |
+| #48 | `feature/financial-context-engine-pr47`     | Financial Context Engine. **Concluído.**                                                                              |
+| #49 | `feature/assistant-tools-actions-pr48`      | Tools determinísticas, proposta de action e confirmação. **Concluído.**                                               |
+| #50 | `feature/conversational-ai-pr50`            | Conversational AI: provider LLM server-side, intent, structured outputs e confirmação visual. **Concluído.**          |
+| #51 | `feature/app-state-page-decomposition-pr51` | App State & Page Decomposition. **Concluído.**                                                                        |
+| #52 | `feature/home-shell-fidelity-pr52`          | Home & Shell Fidelity: recuperar a composição oficial de Home, shell e apresentação de limites. **Concluído.** A fidelidade visual final da Home permanece como pendência explícita para uma revisão/reconstrução futura baseada nos mockups oficiais. |
+| #53 | —                                           | Categorias & Detalhamento.                                                                                            |
+| #54 | —                                           | Faturas & Cartões.                                                                                                    |
+| #55 | —                                           | Calendário & Compromissos.                                                                                            |
+| #56 | —                                           | Financial Guardrails: provenance, validação e anti-alucinação financeira.                                             |
+| #57 | —                                           | Conversation Context: follow-ups, referências e memória curta.                                                        |
+| #58 | —                                           | Token & Cost Optimization: seleção de contexto, cache, resumos e roteamento.                                          |
+| #59 | —                                           | Supabase Persistence: persistência financeira centralizada e migração gradual.                                        |
+| #60 | —                                           | Multi-user & Synchronization: household, membros e sincronização.                                                     |
+| #61 | —                                           | Proactive Insights / Financial Intelligence: motor determinístico compartilhado entre Home e Assistente.              |
 
 ### PR #50 — Conversational AI
 
@@ -260,7 +264,7 @@ rígida quando a arquitetura real indicar alternativa melhor. O #51 não altera 
 financeiras, UI ou persistência compatível; somente redistribui responsabilidades para
 fronteiras explícitas e testáveis.
 
-### PR #55 — Supabase Persistence (futuro)
+### PR #59 — Supabase Persistence (futuro)
 
 Substituir progressivamente a persistência exclusiva em `localStorage` por uma camada
 real baseada em Supabase/PostgreSQL, sem migração big bang. O Financial Context continuará
@@ -271,9 +275,9 @@ banco.
 O planejamento inclui projeto Supabase, PostgreSQL, schema financeiro, repositories e
 adapters, autenticação, Row Level Security, migração segura dos dados existentes,
 importação inicial de `localStorage`, período de compatibilidade/transição, tratamento de
-conflitos e recuperação de erros, com testes. Nada disso é implementado antes do #55.
+conflitos e recuperação de erros, com testes. Nada disso é implementado antes do #59.
 
-### PR #56 — Multi-user & Synchronization (futuro)
+### PR #60 — Multi-user & Synchronization (futuro)
 
 Permitir que Bruna e Matheus usem o mesmo ambiente financeiro em contas e dispositivos
 diferentes. O planejamento inclui usuários autenticados, household/casal, membros,
@@ -284,7 +288,7 @@ O conceito atual `who = Bruna | Matheus | Casal` será evoluído somente quando 
 a persistência suportarem distinguir usuário que criou o registro, responsável financeiro,
 quem pagou e household. Não reinterpretar nem migrar os dados atuais antes dessa etapa.
 
-### PR #57 — Proactive Insights (futuro)
+### PR #61 — Proactive Insights / Financial Intelligence (futuro)
 
 Construir insights somente após Assistant Engine, Financial Context, Tools & Actions,
 Conversational AI, Guardrails, Conversation Context, otimizações de custo, persistência
@@ -298,7 +302,7 @@ determinístico de insights, sem duplicar regras ou textos.
 - conciliação bancária;
 - categorização automática de transações importadas.
 
-Essas evoluções ficam fora do roadmap #47–#57 e não possuem PR atribuído agora.
+Essas evoluções ficam fora do roadmap #47–#61 e não possuem PR atribuído agora.
 
 ### Critérios gerais de conclusão da Fase 2
 

@@ -1,0 +1,31 @@
+.section {
+  display: grid;
+  min-width: 0;
+  gap: var(--space-2);
+}
+
+.heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+
+.heading h2 {
+  margin: 0;
+  font-size: 0.94rem;
+  letter-spacing: -0.035em;
+}
+
+.heading span {
+  color: var(--muted);
+  font-size: 0.7rem;
+}
+
+.list {
+  min-width: 0;
+}
+
+.list :global(.expense-list) {
+  max-height: none;
+}

@@ -1,26 +1,42 @@
 .preview {
+  display: grid;
   min-width: 0;
+  gap: var(--space-1);
 }
+
+.preview :global(.section-title) {
+  margin: 0;
+}
+
+.preview :global(.section-title h2) {
+  font-size: 0.98rem;
+}
+
 .preview :global(.chat-preview) {
   display: grid;
-  padding: var(--space-3);
-  gap: var(--space-2);
+  gap: var(--space-1);
+  padding: var(--space-2);
+  border-radius: var(--radius-lg);
 }
+
 .message {
   min-width: 0;
-  padding: var(--space-3) var(--space-4);
+  padding: var(--space-2);
   overflow-wrap: anywhere;
 }
+
 .compactMarkdown :global(p),
 .compactMarkdown :global(ul),
 .compactMarkdown :global(ol) {
   margin: 0 0 var(--space-1);
 }
+
 .compactMarkdown :global(p:last-child),
 .compactMarkdown :global(ul:last-child),
 .compactMarkdown :global(ol:last-child) {
   margin-bottom: 0;
 }
+
 .compactMarkdown :global(h1),
 .compactMarkdown :global(h2),
 .compactMarkdown :global(h3),
@@ -29,23 +45,46 @@
   font-size: inherit;
   line-height: inherit;
 }
+
 .compactMarkdown :global(ul),
 .compactMarkdown :global(ol) {
   padding-inline-start: var(--space-4);
 }
-.thinking {
-  color: var(--muted);
-}
+
 .preview :global(.bubble),
 .preview :global(.quick-actions),
 .preview :global(.open-chat) {
   margin-block: 0;
 }
+
+.preview :global(.quick-actions) {
+  gap: var(--space-1);
+}
+
+.preview :global(.input-row) {
+  margin-top: 0;
+}
+
+.preview :global(.input-row input) {
+  height: 40px;
+}
+
+.preview :global(.send-button) {
+  min-width: 84px;
+}
+
 .preview summary {
   cursor: pointer;
   color: var(--muted);
-  font-size: 0.75rem;
+  font-size: 0.72rem;
 }
-.preview :global(.section-title) {
-  margin-bottom: var(--space-2);
+
+.thinking {
+  color: var(--muted);
+}
+
+@container workspace (max-width: 599px) {
+  .preview :global(.chat-preview) {
+    padding: var(--space-3);
+  }
 }

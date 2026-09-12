@@ -1,13 +1,11 @@
 .card {
   display: grid;
-  min-height: 0;
-  container-type: inline-size;
-  gap: var(--space-5);
-  padding: var(--space-5);
+  min-width: 0;
+  gap: var(--space-2);
+  padding: var(--space-3);
   border: 1px solid var(--line);
   border-radius: var(--radius-lg);
   background: var(--surface);
-  color: var(--text);
   box-shadow: var(--shadow-card);
 }
 
@@ -20,59 +18,47 @@
 
 .card h2 {
   margin: 0;
-  font-size: 1.02rem;
-  letter-spacing: -0.03em;
+  font-size: 1rem;
+  letter-spacing: -0.035em;
 }
 
 .card header span {
+  flex: 0 0 auto;
   color: var(--muted);
-  font-size: 0.72rem;
+  font-size: 0.7rem;
 }
 
 .body {
   display: grid;
-  grid-template-columns: minmax(0, 0.95fr) minmax(0, 1.05fr);
+  grid-template-columns: minmax(9.5rem, 0.8fr) minmax(13rem, 1.2fr);
   align-items: center;
-  gap: var(--space-5);
+  gap: var(--space-3);
+  min-width: 0;
 }
 
-@container (max-width: 440px) {
-  .card .body {
-    grid-template-columns: 1fr;
-    gap: var(--space-3);
-  }
-  .card .donut {
-    width: min(100%, 180px);
-  }
-  .card .legend div {
-    grid-template-columns: var(--space-2) minmax(0, 1fr);
-  }
-  .legend strong {
-    grid-column: 2;
-  }
+.emptyBody {
+  grid-template-columns: minmax(9.5rem, 0.72fr) minmax(14rem, 1.28fr);
 }
 
 .donut {
   display: grid;
-  width: min(100%, var(--size-snapshot-donut));
-  aspect-ratio: 1;
+  width: min(100%, 10.5rem);
+  min-width: 0;
+  aspect-ratio: 1 / 1;
   place-items: center;
   margin: 0 auto;
   border-radius: 50%;
-  background: conic-gradient(
-    var(--color-accent) var(--spent),
-    var(--surface-soft) 0
-  );
+  background: conic-gradient(var(--categories));
   transform: rotate(-90deg);
 }
 
 .donut > div {
   display: grid;
   width: 68%;
-  aspect-ratio: 1;
+  aspect-ratio: 1 / 1;
   place-items: center;
   align-content: center;
-  padding: var(--space-3);
+  padding: var(--space-2);
   border: 1px solid var(--line);
   border-radius: 50%;
   background: var(--surface);
@@ -83,84 +69,99 @@
 .donut small,
 .donut span {
   color: var(--muted);
-  font-size: 0.68rem;
+  font-size: 0.67rem;
 }
 
 .donut strong {
   margin: var(--space-1) 0;
-  font-size: 1rem;
+  font-size: 0.96rem;
   letter-spacing: -0.04em;
 }
 
 .legend {
   display: grid;
-  gap: var(--space-3);
+  min-width: 0;
+  gap: var(--space-1);
 }
 
-.legend div {
+.legend div:not(.emptyLegend) {
   display: grid;
   grid-template-columns: 10px minmax(0, 1fr) auto;
   align-items: center;
   gap: var(--space-2);
   color: var(--muted);
-  font-size: 0.72rem;
+  font-size: 0.7rem;
 }
 
 .legend i {
   width: var(--space-2);
   height: var(--space-2);
-  border-radius: var(--space-1);
+  border-radius: 50%;
 }
 
 .legend strong {
   color: var(--text);
+  font-size: 0.7rem;
+  white-space: nowrap;
+}
+
+.category1 {
+  background: var(--category-1);
+}
+.category2 {
+  background: var(--category-2);
+}
+.category3 {
+  background: var(--category-3);
+}
+.category4 {
+  background: var(--category-4);
+}
+.category5 {
+  background: var(--category-5);
+}
+.category6 {
+  background: var(--category-6);
+}
+
+.emptyLegend {
+  min-width: 0;
+  color: var(--muted);
   font-size: 0.75rem;
-}
-
-.spent {
-  background: var(--color-accent);
-}
-
-.available {
-  background: var(--color-info);
-}
-
-.income {
-  background: var(--color-secondary);
+  line-height: 1.45;
 }
 
 .card footer {
-  padding: var(--space-3);
+  padding: var(--space-1) var(--space-2);
   border: 1px solid var(--line);
   border-radius: var(--radius-sm);
   color: var(--muted);
-  font-size: 0.72rem;
+  font-size: 0.68rem;
   text-align: center;
 }
 
-@media (max-width: 480px) {
-  .card {
-    min-height: 0;
-    padding: var(--space-4);
-  }
-
-  .body {
+@container (max-width: 470px) {
+  .body,
+  .emptyBody {
     grid-template-columns: 1fr;
-    gap: var(--space-4);
   }
 
   .donut {
-    width: min(100%, 190px);
+    width: min(100%, 10.5rem);
   }
 }
 
-@container workspace (max-width: 620px) {
+@container workspace (max-width: 599px) {
   .card {
-    min-height: 0;
+    padding: var(--space-3);
   }
 
-  .body {
+  .body,
+  .emptyBody {
     grid-template-columns: 1fr;
-    gap: var(--space-4);
+  }
+
+  .donut {
+    width: min(100%, 10.5rem);
   }
 }

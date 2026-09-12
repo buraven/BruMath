@@ -7,6 +7,8 @@ type HomeProps = {
   metrics: ReactNode;
   overview: ReactNode;
   limits?: ReactNode;
+  highlights?: ReactNode;
+  assistant?: ReactNode;
   content?: ReactNode;
   insights?: ReactNode;
 };
@@ -15,6 +17,8 @@ export function Home({
   metrics,
   overview,
   limits,
+  highlights,
+  assistant,
   content,
   insights,
 }: HomeProps) {
@@ -25,10 +29,20 @@ export function Home({
         <section className={styles.overview}>{overview}</section>
         {limits ? <section className={styles.limits}>{limits}</section> : null}
       </div>
-      {content ? <section className={styles.content}>{content}</section> : null}
-      {insights ? (
-        <section className={styles.insights}>{insights}</section>
+      {highlights ? (
+        <section className={styles.highlights}>{highlights}</section>
       ) : null}
+      {assistant || insights ? (
+        <div className={styles.assistantInsights}>
+          {assistant ? (
+            <section className={styles.assistant}>{assistant}</section>
+          ) : null}
+          {insights ? (
+            <section className={styles.insights}>{insights}</section>
+          ) : null}
+        </div>
+      ) : null}
+      {content ? <section className={styles.content}>{content}</section> : null}
     </div>
   );
 }

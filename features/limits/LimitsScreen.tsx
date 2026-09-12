@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { Settings, Tag } from "lucide-react";
+import type { ReactNode } from "react";
 import { MoneyInput } from "../../components/ui/MoneyInput";
 import styles from "./LimitsScreen.module.css";
 import { LimitsDialog } from "./LimitsDialog";
@@ -13,6 +14,7 @@ type Props = {
   compact?: boolean;
   onConfigure: () => void;
   onSave?: (values: Record<string, number>) => void;
+  renderIcon?: (category: string) => ReactNode;
 };
 const money = (value: number) =>
   value.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
@@ -23,6 +25,7 @@ export function LimitsScreen({
   compact = false,
   onConfigure,
   onSave,
+  renderIcon,
 }: Props) {
   const [draft, setDraft] = useState<Record<string, string> | null>(null);
   const alerts = items.filter(
@@ -128,7 +131,13 @@ export function LimitsScreen({
               : styles.normal;
           return (
             <article key={item.id} className={styles.item}>
-              <Tag size={20} aria-hidden="true" />
+              <span className={styles.icon} aria-hidden="true">
+                {item.id.startsWith("category:") && renderIcon ? (
+                  renderIcon(item.label)
+                ) : (
+                  <Tag size={18} />
+                )}
+              </span>
               <div className={styles.content}>
                 <div className={styles.title}>
                   <strong>{item.label}</strong>
