@@ -1,8 +1,8 @@
 .card {
   display: grid;
   min-width: 0;
-  gap: var(--space-3);
-  padding: var(--space-4);
+  gap: var(--space-2);
+  padding: var(--space-3);
   border: 1px solid var(--line);
   border-radius: var(--radius-lg);
   background: var(--surface);
@@ -30,19 +30,19 @@
 
 .body {
   display: grid;
-  grid-template-columns: minmax(10.5rem, 0.84fr) minmax(14rem, 1.16fr);
+  grid-template-columns: minmax(9.5rem, 0.8fr) minmax(13rem, 1.2fr);
   align-items: center;
-  gap: var(--space-4);
+  gap: var(--space-3);
   min-width: 0;
 }
 
 .emptyBody {
-  grid-template-columns: minmax(10.5rem, 0.7fr) minmax(16rem, 1.3fr);
+  grid-template-columns: minmax(9.5rem, 0.72fr) minmax(14rem, 1.28fr);
 }
 
 .donut {
   display: grid;
-  width: min(100%, 11.5rem);
+  width: min(100%, 10.5rem);
   min-width: 0;
   aspect-ratio: 1 / 1;
   place-items: center;
@@ -81,7 +81,7 @@
 .legend {
   display: grid;
   min-width: 0;
-  gap: var(--space-2);
+  gap: var(--space-1);
 }
 
 .legend div:not(.emptyLegend) {
@@ -132,7 +132,7 @@
 }
 
 .card footer {
-  padding: var(--space-2) var(--space-3);
+  padding: var(--space-1) var(--space-2);
   border: 1px solid var(--line);
   border-radius: var(--radius-sm);
   color: var(--muted);

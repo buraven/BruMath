@@ -2,7 +2,7 @@
   display: grid;
   min-width: 0;
   gap: var(--space-2);
-  padding: var(--space-4);
+  padding: var(--space-3);
   border: 1px solid var(--line);
   border-radius: var(--radius-lg);
   background: var(--surface);
@@ -118,7 +118,7 @@
 
 .all {
   width: 100%;
-  min-height: 36px;
+  min-height: 32px;
   margin-top: var(--space-1);
 }
 

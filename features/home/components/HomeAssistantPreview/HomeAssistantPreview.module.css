@@ -1,7 +1,7 @@
 .preview {
   display: grid;
   min-width: 0;
-  gap: var(--space-2);
+  gap: var(--space-1);
 }
 
 .preview :global(.section-title) {
@@ -14,14 +14,14 @@
 
 .preview :global(.chat-preview) {
   display: grid;
-  gap: var(--space-2);
-  padding: var(--space-3);
+  gap: var(--space-1);
+  padding: var(--space-2);
   border-radius: var(--radius-lg);
 }
 
 .message {
   min-width: 0;
-  padding: var(--space-2) var(--space-3);
+  padding: var(--space-2);
   overflow-wrap: anywhere;
 }
 
@@ -58,7 +58,7 @@
 }
 
 .preview :global(.quick-actions) {
-  gap: var(--space-2);
+  gap: var(--space-1);
 }
 
 .preview :global(.input-row) {
@@ -66,11 +66,11 @@
 }
 
 .preview :global(.input-row input) {
-  height: 44px;
+  height: 40px;
 }
 
 .preview :global(.send-button) {
-  min-width: 96px;
+  min-width: 84px;
 }
 
 .preview summary {
