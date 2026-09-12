@@ -32,7 +32,7 @@
 .assistantInsights {
   grid-area: assistant;
   display: grid;
-  grid-template-columns: minmax(0, 1.32fr) minmax(16rem, 0.8fr);
+  grid-template-columns: minmax(0, 1fr);
   align-items: start;
   gap: var(--home-gap);
 }
@@ -64,19 +64,11 @@
   .home {
     --home-gap: var(--space-3);
   }
-
-  .assistantInsights {
-    grid-template-columns: 1fr;
-  }
 }
 
 @container workspace (max-width: 599px) {
   .home {
     --home-gap: var(--space-3);
-  }
-
-  .assistantInsights {
-    grid-template-columns: 1fr;
   }
 }
 
@@ -84,5 +76,12 @@
 @media (min-width: 900px) and (orientation: landscape), (min-width: 1100px) {
   .dashboard {
     grid-template-columns: minmax(0, 1.18fr) minmax(18rem, 0.82fr);
+  }
+}
+
+/* Assistant and insights share a row only when the viewport has room for both. */
+@media (min-width: 900px) and (orientation: landscape), (min-width: 1100px) {
+  .assistantInsights {
+    grid-template-columns: minmax(0, 1.32fr) minmax(16rem, 0.8fr);
   }
 }
