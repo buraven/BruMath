@@ -1,5 +1,6 @@
 import type { TransactionRepository } from "./TransactionRepository";
 import type { Transaction, TransactionOwner } from "./transactions";
+import { BruMathDataRepository } from "../persistence/BruMathDataRepository";
 
 type StoredExpense = {
   id: number;
@@ -25,30 +26,12 @@ type StorageData = {
   incomeEntries?: StoredIncome[];
 };
 
-const STORAGE_KEY = "brumath-data";
-
-function assertBrowser() {
-  if (typeof window === "undefined") {
-    throw new Error("Transaction storage is only available in the browser.");
-  }
-}
-
 function readData(): StorageData {
-  assertBrowser();
-  const raw = window.localStorage.getItem(STORAGE_KEY);
-  if (!raw) return {};
-
-  try {
-    const parsed = JSON.parse(raw) as StorageData;
-    return parsed && typeof parsed === "object" ? parsed : {};
-  } catch {
-    return {};
-  }
+  return new BruMathDataRepository().readStoredData() as StorageData;
 }
 
 function writeData(data: StorageData) {
-  assertBrowser();
-  window.localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+  new BruMathDataRepository().saveStoredData(data);
 }
 
 function expenseToTransaction(expense: StoredExpense): Transaction {
@@ -104,7 +87,9 @@ function transactionToStoredIncome(transaction: Transaction): StoredIncome {
   };
 }
 
-export class LocalStorageTransactionRepository implements TransactionRepository {
+export class LocalStorageTransactionRepository
+  implements TransactionRepository
+{
   async getAll(): Promise<Transaction[]> {
     const data = readData();
     return [
@@ -122,9 +107,15 @@ export class LocalStorageTransactionRepository implements TransactionRepository 
     const data = readData();
 
     if (transaction.type === "expense") {
-      data.expenses = [...(data.expenses ?? []), transactionToStoredExpense(transaction)];
+      data.expenses = [
+        ...(data.expenses ?? []),
+        transactionToStoredExpense(transaction),
+      ];
     } else {
-      data.incomeEntries = [...(data.incomeEntries ?? []), transactionToStoredIncome(transaction)];
+      data.incomeEntries = [
+        ...(data.incomeEntries ?? []),
+        transactionToStoredIncome(transaction),
+      ];
     }
 
     writeData(data);
@@ -138,13 +129,19 @@ export class LocalStorageTransactionRepository implements TransactionRepository 
       const updated = transactionToStoredExpense(transaction);
       const index = expenses.findIndex((expense) => expense.id === updated.id);
       if (index < 0) throw new Error("Expense transaction not found.");
-      data.expenses = expenses.map((expense, currentIndex) => currentIndex === index ? updated : expense);
+      data.expenses = expenses.map((expense, currentIndex) =>
+        currentIndex === index ? updated : expense,
+      );
     } else {
       const incomeEntries = data.incomeEntries ?? [];
       const updated = transactionToStoredIncome(transaction);
-      const index = incomeEntries.findIndex((income) => income.id === updated.id);
+      const index = incomeEntries.findIndex(
+        (income) => income.id === updated.id,
+      );
       if (index < 0) throw new Error("Income transaction not found.");
-      data.incomeEntries = incomeEntries.map((income, currentIndex) => currentIndex === index ? updated : income);
+      data.incomeEntries = incomeEntries.map((income, currentIndex) =>
+        currentIndex === index ? updated : income,
+      );
     }
 
     writeData(data);
@@ -155,10 +152,14 @@ export class LocalStorageTransactionRepository implements TransactionRepository 
 
     if (id.startsWith("expense:")) {
       const numericId = Number(id.replace("expense:", ""));
-      data.expenses = (data.expenses ?? []).filter((expense) => expense.id !== numericId);
+      data.expenses = (data.expenses ?? []).filter(
+        (expense) => expense.id !== numericId,
+      );
     } else if (id.startsWith("income:")) {
       const numericId = Number(id.replace("income:", ""));
-      data.incomeEntries = (data.incomeEntries ?? []).filter((income) => income.id !== numericId);
+      data.incomeEntries = (data.incomeEntries ?? []).filter(
+        (income) => income.id !== numericId,
+      );
     } else {
       throw new Error("Invalid transaction id.");
     }

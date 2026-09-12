@@ -56,6 +56,12 @@ import { PreferencesScreen } from "../features/preferences/PreferencesScreen";
 import { useThemePreference } from "../features/preferences/useThemePreference";
 import { usePersistedFinancialState } from "../features/app/usePersistedFinancialState";
 import { deriveFinancialSelectors } from "../features/app/financialSelectors";
+import {
+  createExpenseIncomeMutations,
+  createInstallmentMutations,
+  createLimitMutations,
+  createReceivableMutations,
+} from "../features/app/financialMutationControllers";
 import { renderCategoryIcon } from "../features/app/renderCategoryIcon";
 import {
   DEFAULT_BUDGETS,
@@ -99,11 +105,6 @@ const addMonths = (key: string, delta: number) => {
   const [y, m] = key.split("-").map(Number);
   const d = new Date(y, m - 1 + delta, 1);
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
-};
-const shiftDate = (value: string, months: number) => {
-  const [y, m, d] = value.split("-").map(Number);
-  const result = new Date(y, m - 1 + months, Math.min(d, 28));
-  return `${result.getFullYear()}-${String(result.getMonth() + 1).padStart(2, "0")}-${String(result.getDate()).padStart(2, "0")}`;
 };
 const shortDate = (value: string) =>
   value
@@ -276,6 +277,33 @@ export default function Page() {
       viewMonth,
     ],
   );
+  const expenseIncomeMutations = createExpenseIncomeMutations({
+    expenses,
+    incomeEntries,
+    setExpenses,
+    setIncomeEntries,
+    setConfirmation,
+    setToast,
+  });
+  const installmentMutations = createInstallmentMutations({
+    installments,
+    setInstallments,
+    setConfirmation,
+    setToast,
+  });
+  const receivableMutations = createReceivableMutations({
+    debts,
+    setDebts,
+    setIncomeEntries,
+    setConfirmation,
+    setToast,
+  });
+  const limitMutations = createLimitMutations({
+    limits,
+    budgets,
+    setLimits,
+    setBudgets,
+  });
   const resetExpenseForm = (expense?: Expense) =>
     setForm(
       expense
@@ -364,14 +392,9 @@ export default function Page() {
       who: form.who,
       date: form.date || viewMonth + "-01",
     };
-    setExpenses((cur) =>
-      editingExpense
-        ? cur.map((e) => (e.id === item.id ? item : e))
-        : [item, ...cur],
-    );
+    expenseIncomeMutations.saveExpense(item, Boolean(editingExpense));
     setEditingExpense(null);
     setModal("none");
-    setToast(editingExpense ? "Gasto atualizado 💚" : "Gasto adicionado 💚");
   };
 
   const saveInstallment = (event: FormEvent) => {
@@ -391,16 +414,9 @@ export default function Page() {
       paidInstallments: paid,
       nextDue: instForm.nextDue || `${addMonths(viewMonth, 1)}-10`,
     };
-    setInstallments((cur) =>
-      editingInstallment
-        ? cur.map((i) => (i.id === item.id ? item : i))
-        : [item, ...cur],
-    );
+    installmentMutations.save(item, Boolean(editingInstallment));
     setEditingInstallment(null);
     setModal("none");
-    setToast(
-      editingInstallment ? "Parcela atualizada 💚" : "Parcela adicionada 💚",
-    );
   };
 
   const saveDebt = (event: FormEvent) => {
@@ -426,14 +442,9 @@ export default function Page() {
           ? editingDebt?.receivedMonth || viewMonth
           : editingDebt?.receivedMonth,
     };
-    setDebts((cur) =>
-      editingDebt
-        ? cur.map((d) => (d.id === item.id ? item : d))
-        : [item, ...cur],
-    );
+    receivableMutations.save(item, Boolean(editingDebt));
     setEditingDebt(null);
     setModal("none");
-    setToast(editingDebt ? "Dívida atualizada 💚" : "Dívida adicionada 💚");
   };
 
   const saveIncome = (event: FormEvent) => {
@@ -450,14 +461,9 @@ export default function Page() {
       destination: incomeForm.destination,
       note: incomeForm.note.trim(),
     };
-    setIncomeEntries((cur) =>
-      editingIncome
-        ? cur.map((i) => (i.id === item.id ? item : i))
-        : [item, ...cur],
-    );
+    expenseIncomeMutations.saveIncome(item, Boolean(editingIncome));
     setEditingIncome(null);
     setModal("none");
-    setToast("Entrada salva 💚");
   };
 
   const openEditExpense = (expense: Expense) => {
@@ -493,90 +499,11 @@ export default function Page() {
   const openEditDebt = (debt: Debt) => {
     openDebt(debt);
   };
-  const deleteExpense = (id: number) => {
-    const item = expenses.find((expense) => expense.id === id);
-    if (!item) return;
-    setConfirmation({
-      title: "Excluir gasto",
-      description: `“${item.title}” será removido permanentemente.`,
-      confirmLabel: "Excluir gasto",
-      destructive: true,
-      onConfirm: () => {
-        setExpenses((cur) => cur.filter((expense) => expense.id !== id));
-        setToast("Gasto excluído");
-      },
-    });
-  };
-  const deleteInstallment = (id: number) => {
-    const item = installments.find((installment) => installment.id === id);
-    if (!item) return;
-    setConfirmation({
-      title: "Excluir parcelamento",
-      description: `“${item.title}” será removido permanentemente.`,
-      confirmLabel: "Excluir parcelamento",
-      destructive: true,
-      onConfirm: () => {
-        setInstallments((cur) =>
-          cur.filter((installment) => installment.id !== id),
-        );
-        setToast("Parcela excluída");
-      },
-    });
-  };
-  const deleteDebt = (id: number) => {
-    const item = debts.find((debt) => debt.id === id);
-    if (!item) return;
-    setConfirmation({
-      title: "Excluir valor a receber",
-      description: `“${item.person}” será removido permanentemente.`,
-      confirmLabel: "Excluir valor",
-      destructive: true,
-      onConfirm: () => {
-        setDebts((cur) => cur.filter((debt) => debt.id !== id));
-        setToast("Dívida excluída");
-      },
-    });
-  };
-  const deleteIncome = (id: number) => {
-    const item = incomeEntries.find((entry) => entry.id === id);
-    if (!item) return;
-    setConfirmation({
-      title: "Excluir entrada",
-      description: `“${item.title}” será removida permanentemente.`,
-      confirmLabel: "Excluir entrada",
-      destructive: true,
-      onConfirm: () => {
-        setIncomeEntries((cur) => cur.filter((entry) => entry.id !== id));
-        setToast("Entrada excluída");
-      },
-    });
-  };
-
-  const payInstallment = (id: number, count: number) => {
-    setInstallments((cur) =>
-      cur.map((item) => {
-        if (item.id !== id) return item;
-        const remainingForItem = item.totalInstallments - item.paidInstallments;
-        const actual = Math.min(Math.max(0, count), remainingForItem);
-        const nextPaid = item.paidInstallments + actual;
-        return {
-          ...item,
-          paidInstallments: nextPaid,
-          nextDue:
-            nextPaid >= item.totalInstallments
-              ? item.nextDue
-              : shiftDate(item.nextDue, actual),
-        };
-      }),
-    );
-    setToast(
-      count > 1
-        ? `${count} parcelas adiantadas 💚`
-        : count === 1
-          ? "Parcela marcada como paga 💚"
-          : "Parcela quitada 💚",
-    );
-  };
+  const deleteExpense = expenseIncomeMutations.deleteExpense;
+  const deleteInstallment = installmentMutations.delete;
+  const deleteDebt = receivableMutations.delete;
+  const deleteIncome = expenseIncomeMutations.deleteIncome;
+  const payInstallment = installmentMutations.pay;
 
   const chooseAdvanceInstallments = (item: Installment) => {
     const left = item.totalInstallments - item.paidInstallments;
@@ -586,16 +513,7 @@ export default function Page() {
     setModal("advance");
   };
 
-  const chooseQuitInstallment = (item: Installment) => {
-    const left = item.totalInstallments - item.paidInstallments;
-    if (!left) return;
-    setConfirmation({
-      title: "Quitar parcelamento",
-      description: `“${item.title}” tem ${left} parcela${left === 1 ? "" : "s"} restante${left === 1 ? "" : "s"}. Todas serão quitadas.`,
-      confirmLabel: "Confirmar quitação",
-      onConfirm: () => payInstallment(item.id, left),
-    });
-  };
+  const chooseQuitInstallment = installmentMutations.confirmQuit;
 
   const saveAdvanceInstallments = (event: FormEvent) => {
     event.preventDefault();
@@ -630,31 +548,12 @@ export default function Page() {
       return setToast("Informe quanto recebeu.");
     if (Math.round(amount * 100) > Math.round(open * 100))
       return setToast(`O máximo que pode registrar agora é ${money(open)}.`);
-    const nextPaid = Math.min(
-      receivingDebt.amount,
-      Math.round((receivingDebt.paid + amount) * 100) / 100,
-    );
-    const destination =
-      receivingDebt.destination === "cartao" ? "cartao" : "conta";
-    setDebts((cur) =>
-      cur.map((d) =>
-        d.id === receivingDebt.id
-          ? { ...d, paid: nextPaid, receivedMonth: viewMonth }
-          : d,
-      ),
-    );
-    setIncomeEntries((cur) => [
-      ...cur,
-      {
-        id: Date.now(),
-        title: `Recebimento de ${receivingDebt.person}`,
-        amount,
-        who: activeProfile,
-        date: `${viewMonth}-01`,
-        destination,
-        note: receivingDebt.note || "Pagamento de dívida",
-      },
-    ]);
+    const nextPaid = receivableMutations.registerReceipt({
+      debt: receivingDebt,
+      amount,
+      month: viewMonth,
+      owner: activeProfile,
+    });
     setReceivingDebt(null);
     setReceiveAmount("");
     setModal("none");
@@ -861,15 +760,15 @@ export default function Page() {
                 items={limitItems}
                 onConfigure={() => {}}
                 onSave={(values) => {
-                  setLimits({ Bruna: values.Bruna, Matheus: values.Matheus });
-                  setBudgets(
-                    Object.fromEntries(
+                  limitMutations.save({
+                    personal: { Bruna: values.Bruna, Matheus: values.Matheus },
+                    categories: Object.fromEntries(
                       Object.keys(budgets).map((category) => [
                         category,
                         values[`category:${category}`],
                       ]),
                     ),
-                  );
+                  });
                   setToast("Limites atualizados 💚");
                 }}
               />
@@ -1503,7 +1402,7 @@ export default function Page() {
                     <MoneyInput
                       value={limits.Bruna}
                       onValueChange={(value) =>
-                        setLimits({ ...limits, Bruna: Number(value) })
+                        limitMutations.updatePersonal("Bruna", Number(value))
                       }
                     />
                   </label>
@@ -1512,7 +1411,7 @@ export default function Page() {
                     <MoneyInput
                       value={limits.Matheus}
                       onValueChange={(value) =>
-                        setLimits({ ...limits, Matheus: Number(value) })
+                        limitMutations.updatePersonal("Matheus", Number(value))
                       }
                     />
                   </label>
@@ -1524,10 +1423,10 @@ export default function Page() {
                       <MoneyInput
                         value={value}
                         onValueChange={(nextValue) =>
-                          setBudgets({
-                            ...budgets,
-                            [category]: Number(nextValue),
-                          })
+                          limitMutations.updateCategory(
+                            category,
+                            Number(nextValue),
+                          )
                         }
                       />
                     </label>

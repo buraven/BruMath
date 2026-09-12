@@ -28,7 +28,7 @@ import {
   pendingExpenseQuestion,
   resolvePendingExpenseReply,
 } from "../../lib/assistant/conversation/conversationContext";
-import { LocalStorageTransactionRepository } from "../../lib/finance/LocalStorageTransactionRepository";
+import { AppStateTransactionRepository } from "../app/AppStateTransactionRepository";
 import type {
   ChatMessage,
   CompactAssistantMessage,
@@ -78,7 +78,9 @@ export function useAssistantController({
   const chatScrollTop = useRef(0);
   const actionGateway = useRef(
     createActionGateway([
-      createRegisterExpenseAction(new LocalStorageTransactionRepository()),
+      createRegisterExpenseAction(
+        new AppStateTransactionRepository(setExpenses),
+      ),
     ]),
   );
 
@@ -145,17 +147,6 @@ export function useAssistantController({
             setToast(result.message);
             return;
           }
-          setExpenses((current) => [
-            {
-              id: expenseId,
-              title: proposal.payload.description,
-              cat: proposal.payload.category,
-              who: proposal.payload.owner,
-              amount: proposal.payload.amount,
-              date: proposal.payload.date,
-            },
-            ...current,
-          ]);
           completePending("Gasto registrado com sucesso 💚");
           setToast("Gasto registrado 💚");
         },
