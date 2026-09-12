@@ -1,6 +1,7 @@
 .card {
   display: grid;
-  gap: var(--space-2);
+  min-width: 0;
+  gap: var(--space-3);
   padding: var(--space-3);
   border: 1px solid var(--line);
   border-radius: var(--radius-lg);
@@ -10,48 +11,54 @@
 
 .card h2 {
   margin: 0;
-  font-size: 1rem;
+  font-size: 0.98rem;
+  letter-spacing: -0.035em;
 }
+
 .items {
   display: grid;
   gap: var(--space-2);
 }
-.card[data-insight-count="1"] .items {
-  gap: 0;
-}
+
 .item {
-  display: flex;
-  align-items: flex-start;
+  display: grid;
+  grid-template-columns: 28px minmax(0, 1fr);
+  align-items: start;
   gap: var(--space-2);
   min-width: 0;
 }
+
 .icon {
   display: grid;
-  flex: 0 0 auto;
   width: 28px;
   height: 28px;
   place-items: center;
   border-radius: var(--radius-sm);
 }
+
 .attention {
   color: var(--color-warning);
   background: var(--color-warning-soft);
 }
+
 .info {
   color: var(--color-info);
   background: var(--color-info-soft);
 }
+
 .positive {
   color: var(--color-accent);
   background: var(--color-accent-soft);
 }
+
 .item strong {
   display: block;
-  font-size: 0.77rem;
+  font-size: 0.74rem;
 }
+
 .item p {
   margin: var(--space-1) 0 0;
   color: var(--muted);
-  font-size: 0.7rem;
-  line-height: 1.35;
+  font-size: 0.68rem;
+  line-height: 1.4;
 }
