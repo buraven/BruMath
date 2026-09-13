@@ -5,6 +5,8 @@ import type {
   PersistedExpense,
   PersistedIncomeEntry,
   PersistedInstallment,
+  PersistedCreditCard,
+  PersistedInvoicePayment,
 } from "./FinancialDataSource";
 import { resolvePersonalLimits } from "../../finance/personalLimits";
 
@@ -80,6 +82,8 @@ export class LocalStorageFinancialDataSource implements FinancialDataSource {
         Bruna: asNumber(limits.Bruna),
         Matheus: asNumber(limits.Matheus),
       }),
+      creditCards: asArray<PersistedCreditCard>(data.creditCards),
+      invoicePayments: asArray<PersistedInvoicePayment>(data.invoicePayments),
       hasStoredData,
     };
   }

@@ -6,6 +6,7 @@ import {
 } from "../../finance/personalLimits";
 import type { CategoryLimit } from "../../finance/limits";
 import { isWithinProfileScope } from "../../finance/profileScope";
+import { deriveInvoices } from "../../finance/invoices";
 import {
   normalizeTransactionAmount,
   type Transaction,
@@ -23,6 +24,7 @@ import type {
   LimitContextItem,
   ReceivableContextItem,
   ExpenseContextItem,
+  InvoiceContextItem,
 } from "./FinancialContextProvider";
 import type {
   FinancialDataSnapshot,
@@ -279,6 +281,23 @@ function buildContext(
     0,
   );
   const baseIncome = Math.max(0, data.income);
+  const invoices: readonly InvoiceContextItem[] = deriveInvoices({
+    cards: data.creditCards ?? [],
+    expenses: data.expenses,
+    installments: data.installments,
+    payments: data.invoicePayments ?? [],
+    profile: scope.profile,
+    referenceMonth: scope.month,
+  }).map((invoice) => ({
+    id: invoice.id,
+    cardName: invoice.card.name,
+    owner: invoice.card.owner,
+    referenceMonth: invoice.referenceMonth,
+    dueDate: invoice.dueDate,
+    total: invoice.total,
+    availableCredit: invoice.availableCredit,
+    status: invoice.status,
+  }));
 
   return {
     summary: {
@@ -296,6 +315,7 @@ function buildContext(
     installments,
     receivables,
     income,
+    invoices,
   };
 }
 
@@ -317,7 +337,8 @@ export function createFinancialContextProvider(
           context.expenses.length > 0 ||
           context.income.length > 0 ||
           context.installments.length > 0 ||
-          context.receivables.length > 0,
+          context.receivables.length > 0 ||
+          context.invoices.length > 0,
       },
     };
   }
@@ -350,6 +371,10 @@ export function createFinancialContextProvider(
     async getIncome(scope) {
       const { context, availability } = await readContext(scope);
       return result(context.income, scope, availability);
+    },
+    async getInvoices(scope) {
+      const { context, availability } = await readContext(scope);
+      return result(context.invoices, scope, availability, true);
     },
   };
 }

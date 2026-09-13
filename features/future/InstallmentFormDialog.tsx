@@ -5,13 +5,14 @@ import { Check } from "lucide-react";
 import { DateInput } from "../../components/ui/DateInput";
 import { FormDialog } from "../../components/ui/FormDialog";
 import { MoneyInput } from "../../components/ui/MoneyInput";
-import type { Installment, Person } from "../../lib/app/AppTypes";
+import type { CreditCard, Installment, Person } from "../../lib/app/AppTypes";
 
 type Props = {
   installment: Installment | null;
   categories: readonly string[];
   activeProfile: Person;
   defaultNextDue: string;
+  creditCards: readonly CreditCard[];
   onSave: (installment: Installment, isEditing: boolean) => void;
   onClose: () => void;
   onInvalid: (message: string) => void;
@@ -22,6 +23,7 @@ export function InstallmentFormDialog({
   categories,
   activeProfile,
   defaultNextDue,
+  creditCards,
   onSave,
   onClose,
   onInvalid,
@@ -36,6 +38,9 @@ export function InstallmentFormDialog({
           total: String(installment.totalInstallments),
           paid: String(installment.paidInstallments),
           nextDue: installment.nextDue,
+          creditCardId: installment.creditCardId
+            ? String(installment.creditCardId)
+            : "",
         }
       : {
           title: "",
@@ -45,6 +50,7 @@ export function InstallmentFormDialog({
           total: "",
           paid: "0",
           nextDue: defaultNextDue,
+          creditCardId: "",
         },
   );
 
@@ -79,6 +85,9 @@ export function InstallmentFormDialog({
               totalInstallments: total,
               paidInstallments: paid,
               nextDue: form.nextDue || defaultNextDue,
+              ...(form.creditCardId
+                ? { creditCardId: Number(form.creditCardId) }
+                : {}),
             },
             Boolean(installment),
           );
@@ -118,6 +127,24 @@ export function InstallmentFormDialog({
             />
           </label>
         </div>
+        <label className="field">
+          <span>Cartão</span>
+          <select
+            value={form.creditCardId}
+            onChange={(event) =>
+              setForm({ ...form, creditCardId: event.target.value })
+            }
+          >
+            <option value="">Nenhum</option>
+            {creditCards
+              .filter((card) => card.active)
+              .map((card) => (
+                <option key={card.id} value={card.id}>
+                  {card.name}
+                </option>
+              ))}
+          </select>
+        </label>
         <div className="form-grid">
           <label className="field">
             <span>Já pagas</span>

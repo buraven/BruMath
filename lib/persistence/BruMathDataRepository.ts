@@ -18,6 +18,8 @@ export type AppFinancialDataDefaults = Pick<
   | "budgets"
   | "limits"
   | "personalLimits"
+  | "creditCards"
+  | "invoicePayments"
   | "activeProfile"
   | "viewMonth"
 >;
@@ -73,6 +75,12 @@ export class BruMathDataRepository {
         data.limits,
         defaults.personalLimits,
       ),
+      creditCards: Array.isArray(data.creditCards)
+        ? data.creditCards
+        : defaults.creditCards,
+      invoicePayments: Array.isArray(data.invoicePayments)
+        ? data.invoicePayments
+        : defaults.invoicePayments,
       activeProfile: data.activeProfile ?? defaults.activeProfile,
       viewMonth: data.viewMonth ?? defaults.viewMonth,
     };

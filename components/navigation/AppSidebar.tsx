@@ -7,6 +7,7 @@ import {
   Settings2,
   Sparkles,
   WalletCards,
+  CreditCard,
 } from "lucide-react";
 import { NavButton } from "./NavButton";
 import styles from "./AppSidebar.module.css";
@@ -28,6 +29,7 @@ const items = [
   { tab: "future", label: "Futuro", icon: <CalendarDays size={18} /> },
   { tab: "debts", label: "Quem me deve", icon: <WalletCards size={18} /> },
   { tab: "income", label: "Entradas & extras", icon: <Sparkles size={18} /> },
+  { tab: "invoices", label: "Faturas", icon: <CreditCard size={18} /> },
   { tab: "preferences", label: "Preferências", icon: <Settings2 size={18} /> },
 ] as const;
 

@@ -28,6 +28,7 @@ const financialContext: FinancialContextProvider = {
       installments: [],
       receivables: [],
       income: [],
+      invoices: [],
     },
     scope: { profile: "Bruna", month: "2026-09" },
     provenance: [],
@@ -64,6 +65,11 @@ const financialContext: FinancialContextProvider = {
     provenance: [],
   }),
   getIncome: async () => ({
+    value: [],
+    scope: { profile: "Bruna", month: "2026-09" },
+    provenance: [],
+  }),
+  getInvoices: async () => ({
     value: [],
     scope: { profile: "Bruna", month: "2026-09" },
     provenance: [],

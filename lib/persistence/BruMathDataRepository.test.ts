@@ -12,6 +12,8 @@ const defaults = {
   budgets: { Casa: 2_500 },
   limits: { Bruna: 350, Matheus: 350 },
   personalLimits: DEFAULT_PERSONAL_LIMITS,
+  creditCards: [],
+  invoicePayments: [],
   activeProfile: "Bruna" as const,
   viewMonth: "2026-09",
 };

@@ -50,6 +50,8 @@ import { AdvanceInstallmentsDialog } from "../features/future/AdvanceInstallment
 import { InstallmentFormDialog } from "../features/future/InstallmentFormDialog";
 import { FinancialSettingsDialog } from "../features/limits/FinancialSettingsDialog";
 import { PreferencesScreen } from "../features/preferences/PreferencesScreen";
+import { InvoicesScreen } from "../features/invoices/InvoicesScreen";
+import { CreditCardFormDialog } from "../features/invoices/CreditCardFormDialog";
 import { useThemePreference } from "../features/preferences/useThemePreference";
 import { usePersistedFinancialState } from "../features/app/usePersistedFinancialState";
 import {
@@ -69,10 +71,12 @@ import {
   DEFAULT_BUDGETS,
   INITIAL_EXPENSES,
   INITIAL_INSTALLMENTS,
+  INITIAL_CREDIT_CARDS,
 } from "../features/app/defaultFinancialData";
 import { DEFAULT_PERSONAL_LIMITS } from "../lib/finance/personalLimits";
 import type {
   Confirmation,
+  CreditCard as CreditCardModel,
   Debt,
   Expense,
   IncomeEntry,
@@ -81,6 +85,11 @@ import type {
   Tab,
   ThemeMode,
 } from "../lib/app/AppTypes";
+import {
+  deriveInvoices,
+  registerInvoicePayment,
+  type DerivedInvoice,
+} from "../lib/finance/invoices";
 
 const money = (value: number) =>
   value.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
@@ -137,6 +146,10 @@ export default function Page() {
     setLimits,
     personalLimits,
     setPersonalLimits,
+    creditCards,
+    setCreditCards,
+    invoicePayments,
+    setInvoicePayments,
     activeProfile,
     setActiveProfile,
     viewMonth,
@@ -150,6 +163,8 @@ export default function Page() {
     budgets: DEFAULT_BUDGETS,
     limits: { Bruna: 350, Matheus: 350 },
     personalLimits: DEFAULT_PERSONAL_LIMITS,
+    creditCards: INITIAL_CREDIT_CARDS,
+    invoicePayments: [],
     activeProfile: "Bruna",
     viewMonth: dateKey(),
   });
@@ -163,6 +178,7 @@ export default function Page() {
     | "receive"
     | "advance"
     | "settings"
+    | "card"
   >("none");
   const [advancingInstallment, setAdvancingInstallment] =
     useState<Installment | null>(null);
@@ -192,6 +208,7 @@ export default function Page() {
     useState<Installment | null>(null);
   const [editingDebt, setEditingDebt] = useState<Debt | null>(null);
   const [editingIncome, setEditingIncome] = useState<IncomeEntry | null>(null);
+  const [editingCard, setEditingCard] = useState<CreditCardModel | null>(null);
   const [mobileMoreOpen, setMobileMoreOpen] = useState(false);
   const selectTheme = (mode: ThemeMode) => {
     applyTheme(mode);
@@ -279,6 +296,53 @@ export default function Page() {
     setBudgets,
     setPersonalLimits,
   });
+  const invoices = useMemo(
+    () =>
+      deriveInvoices({
+        cards: creditCards,
+        expenses,
+        installments,
+        payments: invoicePayments,
+        profile: activeProfile,
+        referenceMonth: viewMonth,
+      }),
+    [
+      creditCards,
+      expenses,
+      installments,
+      invoicePayments,
+      activeProfile,
+      viewMonth,
+    ],
+  );
+  const saveCreditCard = (card: CreditCardModel, editing: boolean) => {
+    setCreditCards((current) =>
+      editing
+        ? current.map((item) => (item.id === card.id ? card : item))
+        : [...current, card],
+    );
+    setEditingCard(null);
+    setModal("none");
+    setToast(editing ? "Cartão atualizado 💚" : "Cartão adicionado 💚");
+  };
+  const payInvoice = (invoice: DerivedInvoice) => {
+    setConfirmation({
+      title: "Pagar fatura",
+      description: `A fatura ${invoice.card.name} será marcada como paga. As compras originais não serão alteradas.`,
+      confirmLabel: "Confirmar pagamento",
+      onConfirm: () => {
+        setInvoicePayments((current) =>
+          registerInvoicePayment(
+            current,
+            invoice,
+            new Date().toISOString().slice(0, 10),
+            Date.now(),
+          ),
+        );
+        setToast("Fatura marcada como paga 💚");
+      },
+    });
+  };
   const openNewExpense = () => {
     setQuickAddOpen(false);
     setEditingExpense(null);
@@ -613,6 +677,27 @@ export default function Page() {
               />
             )}
 
+            {tab === "invoices" && (
+              <InvoicesScreen
+                monthLabel={monthName}
+                invoices={invoices}
+                cards={creditCards}
+                formatMoney={money}
+                formatDate={shortDate}
+                onCreateCard={() => {
+                  setEditingCard(null);
+                  setModal("card");
+                }}
+                onEditCard={(card) => {
+                  setEditingCard(card);
+                  setModal("card");
+                }}
+                onPay={payInvoice}
+                onEditExpense={openEditExpense}
+                onDeleteExpense={deleteExpense}
+              />
+            )}
+
             {tab === "future" && (
               <FutureScreen
                 monthKey={viewMonth}
@@ -704,6 +789,9 @@ export default function Page() {
             <button type="button" onClick={() => switchTab("income")}>
               <Sparkles size={17} /> Entradas &amp; extras
             </button>
+            <button type="button" onClick={() => switchTab("invoices")}>
+              <Receipt size={17} /> Faturas
+            </button>
             <button type="button" onClick={() => switchTab("preferences")}>
               <Settings2 size={17} /> Preferências
             </button>
@@ -737,7 +825,8 @@ export default function Page() {
               tab === "income" ||
               tab === "categories" ||
               tab === "limits" ||
-              tab === "preferences"
+              tab === "preferences" ||
+              tab === "invoices"
             }
             onClick={() => setMobileMoreOpen((open) => !open)}
             icon={<MoreHorizontal size={19} />}
@@ -750,6 +839,7 @@ export default function Page() {
         <ExpenseFormDialog
           expense={editingExpense}
           categories={DEFAULT_CATEGORIES}
+          creditCards={creditCards}
           activeProfile={activeProfile}
           viewMonth={viewMonth}
           onSave={(expense, isEditing) => {
@@ -767,6 +857,7 @@ export default function Page() {
           categories={DEFAULT_CATEGORIES}
           activeProfile={activeProfile}
           defaultNextDue={`${addMonths(viewMonth, 1)}-10`}
+          creditCards={creditCards}
           onSave={(installment, isEditing) => {
             installmentMutations.save(installment, isEditing);
             setEditingInstallment(null);
@@ -839,6 +930,15 @@ export default function Page() {
             setToast("Renda e orçamento atualizados 💚");
           }}
           onClose={() => setModal("none")}
+        />
+      )}
+      {modal === "card" && (
+        <CreditCardFormDialog
+          card={editingCard}
+          activeProfile={activeProfile}
+          onSave={saveCreditCard}
+          onClose={() => setModal("none")}
+          onInvalid={setToast}
         />
       )}
       {confirmation && (

@@ -133,6 +133,18 @@ const snapshot: FinancialDataSnapshot = {
   ],
   budgets: { Casa: 500, Carro: 400, Alimentação: 300 },
   limits: { Bruna: 350, Matheus: 450 },
+  creditCards: [
+    {
+      id: 1,
+      name: "Nubank Bruna",
+      owner: "Bruna",
+      creditLimit: 1_000,
+      closingDay: 20,
+      dueDay: 27,
+      active: true,
+    },
+  ],
+  invoicePayments: [],
 };
 
 const provider = createFinancialContextProvider({ read: async () => snapshot });
@@ -245,6 +257,35 @@ test("uses the same explicit personal buckets as Home selectors", async () => {
     limits.value.find((limit) => limit.id === "category:Alimentação")?.spent,
     130,
   );
+});
+
+test("projects derived card invoices without changing financial totals", async () => {
+  const invoiceSnapshot: FinancialDataSnapshot = {
+    ...snapshot,
+    expenses: [
+      ...snapshot.expenses,
+      {
+        id: 6,
+        title: "Compra no cartão",
+        cat: "Alimentação",
+        who: "Bruna",
+        amount: 80,
+        date: "2026-09-18",
+        creditCardId: 1,
+      },
+    ],
+  };
+  const invoiceProvider = createFinancialContextProvider({
+    read: async () => invoiceSnapshot,
+  });
+  const context = await invoiceProvider.getContext({
+    profile: "Bruna",
+    month: "2026-09",
+  });
+
+  assert.equal(context.value.summary.expenses, 180);
+  assert.equal(context.value.invoices[0]?.total, 80);
+  assert.equal(context.value.invoices[0]?.status, "open");
 });
 
 test("supports category filtering for expenses and category limits", async () => {

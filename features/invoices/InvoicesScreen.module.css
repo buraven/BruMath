@@ -1,0 +1,273 @@
+.screen {
+  display: grid;
+  gap: 20px;
+}
+.header,
+.detailHeader {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  align-items: start;
+}
+.header h1,
+.detailHeader h1 {
+  margin: 4px 0;
+  font-size: clamp(1.65rem, 3vw, 2.2rem);
+}
+.header p,
+.detailHeader p {
+  margin: 0;
+  color: var(--muted);
+}
+.eyebrow {
+  display: inline-flex;
+  gap: 7px;
+  align-items: center;
+  color: var(--accent);
+  font-size: 0.78rem;
+  font-weight: 700;
+}
+.metrics {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+}
+.metrics article,
+.invoiceCard,
+.empty,
+.invoiceSummary,
+.entries {
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  background: var(--surface);
+}
+.metrics article {
+  padding: 16px;
+  display: grid;
+  gap: 6px;
+}
+.metrics span,
+.metrics small {
+  color: var(--muted);
+}
+.metrics strong {
+  font-size: 1.25rem;
+}
+.filters {
+  display: flex;
+  gap: 6px;
+  border-bottom: 1px solid var(--line);
+}
+.filters button {
+  border: 0;
+  background: none;
+  color: var(--muted);
+  padding: 9px 12px;
+}
+.filters .activeFilter {
+  color: var(--accent);
+  border-bottom: 2px solid var(--accent);
+  font-weight: 700;
+}
+.list {
+  display: grid;
+  gap: 14px;
+}
+.invoiceCard {
+  padding: 18px;
+  display: grid;
+  gap: 14px;
+}
+.invoiceHead,
+.invoiceInfo,
+.progressMeta,
+.categorySummary {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+.invoiceHead > div {
+  display: grid;
+  gap: 2px;
+  margin-right: auto;
+}
+.invoiceHead small {
+  color: var(--muted);
+}
+.cardIcon {
+  display: grid;
+  place-items: center;
+  width: 38px;
+  height: 38px;
+  border-radius: 10px;
+  color: #fff;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+.purple {
+  background: #6d28d9;
+}
+.orange {
+  background: #ea580c;
+}
+.blue {
+  background: #0284c7;
+}
+.open,
+.paid {
+  padding: 4px 8px;
+  border-radius: 7px;
+  font-size: 0.75rem;
+  font-weight: 700;
+}
+.open {
+  color: #65a30d;
+  background: #ecfccb;
+}
+.paid {
+  color: #15803d;
+  background: #dcfce7;
+}
+.invoiceInfo {
+  justify-content: space-between;
+}
+.invoiceInfo span,
+.progressMeta {
+  color: var(--muted);
+  font-size: 0.82rem;
+}
+.invoiceInfo strong {
+  display: block;
+  color: var(--text);
+  font-size: 1rem;
+}
+.progressMeta {
+  justify-content: space-between;
+}
+.progressMeta strong {
+  color: var(--accent);
+}
+progress {
+  width: 100%;
+  accent-color: var(--accent);
+}
+.categorySummary {
+  flex-wrap: wrap;
+  border-top: 1px solid var(--line);
+  padding-top: 12px;
+}
+.categorySummary span {
+  display: flex;
+  gap: 8px;
+  color: var(--muted);
+  font-size: 0.82rem;
+}
+.categorySummary strong {
+  color: var(--text);
+}
+.detailButton,
+.back {
+  border: 0;
+  background: none;
+  color: var(--accent);
+  font-weight: 700;
+  text-align: left;
+  padding: 0;
+}
+.empty {
+  display: grid;
+  justify-items: center;
+  text-align: center;
+  padding: 44px 20px;
+  gap: 10px;
+  color: var(--muted);
+}
+.empty h2,
+.empty p {
+  margin: 0;
+}
+.detailGrid {
+  display: grid;
+  grid-template-columns: minmax(230px, 0.75fr) minmax(0, 1.25fr);
+  gap: 18px;
+}
+.invoiceSummary,
+.entries {
+  padding: 18px;
+}
+.invoiceSummary {
+  display: grid;
+  align-content: start;
+  gap: 12px;
+}
+.invoiceSummary > span,
+.invoiceSummary p {
+  color: var(--muted);
+  margin: 0;
+}
+.invoiceSummary > strong {
+  font-size: 1.8rem;
+}
+.entries header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+}
+.entries h2 {
+  margin: 0;
+}
+.installments {
+  display: grid;
+  gap: 8px;
+  margin: 14px 0 0;
+  padding: 0;
+  list-style: none;
+}
+.installments li {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 11px 0;
+  border-top: 1px solid var(--line);
+}
+.installments li span {
+  display: grid;
+  gap: 3px;
+}
+.installments small {
+  color: var(--muted);
+}
+.back {
+  display: inline-flex;
+  gap: 6px;
+  align-items: center;
+}
+@media (max-width: 900px) {
+  .metrics {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .detailGrid {
+    grid-template-columns: 1fr;
+  }
+}
+@media (max-width: 560px) {
+  .header,
+  .detailHeader {
+    flex-direction: column;
+  }
+  .header > button {
+    width: 100%;
+  }
+  .invoiceInfo {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 8px;
+  }
+  .metrics article {
+    padding: 13px;
+  }
+  .invoiceCard {
+    padding: 14px;
+  }
+}
