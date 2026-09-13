@@ -90,6 +90,38 @@
   color: var(--text);
 }
 
+/* Tablet portrait has room for the period label, but not for it and the
+   three presets as four competing columns. Keep every control visible by
+   giving presets their own row; landscape keeps the compact single row. */
+@media (min-width: 761px) and (max-width: 1099px) and (orientation: portrait) {
+  .bar {
+    width: 100%;
+    min-width: 0;
+    grid-template-columns: 42px minmax(0, 1fr) 42px;
+    grid-template-areas:
+      "previous current next"
+      "presets presets presets";
+  }
+
+  .current {
+    grid-area: current;
+  }
+
+  .arrow:first-child {
+    grid-area: previous;
+  }
+
+  .arrow:last-child {
+    grid-area: next;
+  }
+
+  .presets {
+    grid-area: presets;
+    min-width: 0;
+    padding-bottom: 2px;
+  }
+}
+
 @media (max-width: 760px) {
   .bar {
     grid-template-columns: 40px minmax(120px, 1fr) 40px;

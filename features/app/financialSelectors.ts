@@ -3,13 +3,106 @@ import type {
   Expense,
   IncomeEntry,
   Installment,
+  Person,
 } from "../../lib/app/AppTypes";
+import { isWithinProfileScope } from "../../lib/finance/profileScope";
 
 export type CategorySpending = {
   category: string;
   amount: number;
   percentage: number;
 };
+
+export type CategoryLimitStatus =
+  | "normal"
+  | "warning"
+  | "exceeded"
+  | "unlimited";
+
+export type CategoryDetail = {
+  category: string;
+  spent: number;
+  limit: number | null;
+  remaining: number | null;
+  percentage: number | null;
+  status: CategoryLimitStatus;
+  expenses: readonly Expense[];
+};
+
+/**
+ * Matches the existing Financial Context semantics: an individual profile sees
+ * only its own records, while Casal represents the shared view of all records.
+ */
+export function filterExpensesForProfile(
+  expenses: readonly Expense[],
+  profile: Person,
+): readonly Expense[] {
+  return expenses.filter((expense) =>
+    isWithinProfileScope(expense.who, profile),
+  );
+}
+
+/**
+ * Presentation selector for the Categories feature. It only groups the
+ * selected-month expenses and exposes the already configured category limits;
+ * it does not persist or redefine any financial rule.
+ */
+export function deriveCategoryDetails({
+  expenses,
+  budgets,
+  profile,
+}: {
+  expenses: readonly Expense[];
+  budgets: Readonly<Record<string, number>>;
+  profile: Person;
+}): readonly CategoryDetail[] {
+  const scopedExpenses = filterExpensesForProfile(expenses, profile);
+  const spendingByCategory = new Map(
+    deriveCategorySpending(scopedExpenses).map((item) => [
+      item.category,
+      item.amount,
+    ]),
+  );
+  const categories = new Set([
+    ...Object.keys(budgets),
+    ...scopedExpenses.map((expense) => expense.cat),
+  ]);
+
+  return [...categories]
+    .map((category) => {
+      const spent = spendingByCategory.get(category) ?? 0;
+      const configuredLimit = budgets[category];
+      const limit =
+        typeof configuredLimit === "number" && configuredLimit > 0
+          ? configuredLimit
+          : null;
+      const percentage = limit === null ? null : (spent / limit) * 100;
+      const remaining = limit === null ? null : limit - spent;
+      let status: CategoryLimitStatus = "unlimited";
+      if (limit !== null) {
+        status =
+          spent > limit
+            ? "exceeded"
+            : percentage !== null && percentage >= 80
+              ? "warning"
+              : "normal";
+      }
+
+      return {
+        category,
+        spent,
+        limit,
+        remaining,
+        percentage,
+        status,
+        expenses: scopedExpenses
+          .filter((expense) => expense.cat === category)
+          .slice()
+          .sort((a, b) => b.date.localeCompare(a.date) || b.id - a.id),
+      };
+    })
+    .sort((a, b) => b.spent - a.spent || a.category.localeCompare(b.category));
+}
 
 /**
  * Presentation-only aggregation for the Home chart. Financial totals continue
@@ -46,6 +139,7 @@ type FinancialSelectorsInput = {
   budgets: Record<string, number>;
   limits: Record<"Bruna" | "Matheus", number>;
   viewMonth: string;
+  profile: Person;
 };
 
 export function deriveFinancialSelectors({
@@ -57,9 +151,11 @@ export function deriveFinancialSelectors({
   budgets,
   limits,
   viewMonth,
+  profile,
 }: FinancialSelectorsInput) {
-  const monthExpenses = expenses.filter((expense) =>
-    expense.date.startsWith(viewMonth),
+  const monthExpenses = filterExpensesForProfile(
+    expenses.filter((expense) => expense.date.startsWith(viewMonth)),
+    profile,
   );
   const categories = Object.entries(budgets).map(([category, budget]) => {
     const spent = monthExpenses
@@ -73,14 +169,16 @@ export function deriveFinancialSelectors({
     };
   });
   const limitItems = [
-    ...(["Bruna", "Matheus"] as const).map((person) => ({
-      id: person,
-      label: `Gastos de ${person}`,
-      amount: limits[person],
-      spent: monthExpenses
-        .filter((expense) => expense.who === person)
-        .reduce((sum, expense) => sum + expense.amount, 0),
-    })),
+    ...(["Bruna", "Matheus"] as const)
+      .filter((person) => profile === "Casal" || person === profile)
+      .map((person) => ({
+        id: person,
+        label: `Gastos de ${person}`,
+        amount: limits[person],
+        spent: monthExpenses
+          .filter((expense) => expense.who === person)
+          .reduce((sum, expense) => sum + expense.amount, 0),
+      })),
     ...categories.map((item) => ({
       id: `category:${item.category}`,
       label: item.category,

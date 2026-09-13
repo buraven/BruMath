@@ -27,6 +27,7 @@ import { ReceivePaymentDialog } from "../components/finance/ReceivePaymentDialog
 import { ExpenseList } from "../components/finance/ExpenseList";
 import { DebtSection } from "../components/finance/DebtSection";
 import { LimitsScreen } from "../features/limits/LimitsScreen";
+import { CategoriesScreen } from "../features/categories/CategoriesScreen";
 import { HomeLimits } from "../features/home/components/Limits/HomeLimits";
 import { IncomeSection } from "../components/finance/IncomeSection";
 import { QuickActions } from "../components/finance/QuickActions";
@@ -230,6 +231,7 @@ export default function Page() {
         budgets,
         limits,
         viewMonth,
+        profile: activeProfile,
       }),
     [
       expenses,
@@ -240,6 +242,7 @@ export default function Page() {
       budgets,
       limits,
       viewMonth,
+      activeProfile,
     ],
   );
   const expenseIncomeMutations = createExpenseIncomeMutations({
@@ -483,7 +486,7 @@ export default function Page() {
                 limits={
                   <HomeLimits
                     items={limitItems}
-                    onConfigure={() => switchTab("limits")}
+                    onConfigure={() => switchTab("categories")}
                     renderIcon={renderCategoryIcon}
                   />
                 }
@@ -578,6 +581,21 @@ export default function Page() {
               />
             )}
 
+            {tab === "categories" && (
+              <CategoriesScreen
+                monthLabel={monthName}
+                profile={activeProfile}
+                expenses={monthExpenses}
+                budgets={budgets}
+                onConfigureLimits={() => switchTab("limits")}
+                onEditExpense={openEditExpense}
+                onDeleteExpense={deleteExpense}
+                formatMoney={money}
+                formatDate={shortDate}
+                renderIcon={renderCategoryIcon}
+              />
+            )}
+
             {tab === "future" && (
               <FutureScreen
                 monthKey={viewMonth}
@@ -657,8 +675,11 @@ export default function Page() {
             <button type="button" onClick={() => switchTab("stats")}>
               <Receipt size={17} /> Gastos
             </button>
+            <button type="button" onClick={() => switchTab("categories")}>
+              <Tag size={17} /> Categorias
+            </button>
             <button type="button" onClick={() => switchTab("limits")}>
-              <Tag size={17} /> Limites e categorias
+              <Tag size={17} /> Limites
             </button>
             <button type="button" onClick={() => switchTab("debts")}>
               <WalletCards size={17} /> Quem me deve
@@ -697,6 +718,7 @@ export default function Page() {
               tab === "stats" ||
               tab === "debts" ||
               tab === "income" ||
+              tab === "categories" ||
               tab === "limits" ||
               tab === "preferences"
             }
