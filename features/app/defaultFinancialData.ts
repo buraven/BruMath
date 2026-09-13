@@ -65,7 +65,7 @@ export const INITIAL_EXPENSES: Expense[] = [
   {
     id: 7,
     title: "FIES",
-    cat: "Pessoal",
+    cat: "Educação",
     who: "Bruna",
     amount: 553.2,
     date: "2026-08-07",

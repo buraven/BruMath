@@ -3,6 +3,7 @@ import {
   Bus,
   Car,
   CreditCard,
+  GraduationCap,
   Home,
   PawPrint,
   Tag,
@@ -19,5 +20,6 @@ export function renderCategoryIcon(category: string) {
   if (category === "Casa") return <Home size={19} />;
   if (category === "Assinaturas") return <CreditCard size={19} />;
   if (category === "Pessoal") return <UserRound size={19} />;
+  if (category === "Educação") return <GraduationCap size={19} />;
   return <Tag size={19} />;
 }

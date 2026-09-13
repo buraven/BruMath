@@ -218,9 +218,22 @@ test("reconciles August expenses and limits for every official profile scope", (
     bruna.limitItems.some((item) => item.id === "Matheus"),
     false,
   );
-  assert.equal(
-    bruna.limitItems.find((item) => item.id === "category:Pessoal")?.spent,
-    553.2,
+  const brunaCategories = deriveCategoryDetails({
+    expenses: bruna.monthExpenses,
+    budgets: DEFAULT_BUDGETS,
+    profile: "Bruna",
+  });
+  assert.deepEqual(
+    brunaCategories.find((category) => category.category === "Educação"),
+    {
+      category: "Educação",
+      spent: 553.2,
+      limit: null,
+      remaining: null,
+      percentage: null,
+      status: "unlimited",
+      expenses: [INITIAL_EXPENSES[6]],
+    },
   );
   assert.equal(
     bruna.limitItems.find((item) => item.id === "category:Alimentação")?.spent,
@@ -255,7 +268,7 @@ test("reconciles August expenses and limits for every official profile scope", (
     1090,
   );
   assert.equal(
-    categories.find((category) => category.category === "Pessoal")?.spent,
+    categories.find((category) => category.category === "Educação")?.spent,
     553.2,
   );
   assert.equal(
