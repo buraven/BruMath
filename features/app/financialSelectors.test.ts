@@ -5,6 +5,7 @@ import {
   deriveCategorySpending,
   deriveFinancialSelectors,
 } from "./financialSelectors";
+import { DEFAULT_BUDGETS, INITIAL_EXPENSES } from "./defaultFinancialData";
 
 test("derives the existing month, limit and receivable values without mixing periods", () => {
   const result = deriveFinancialSelectors({
@@ -73,6 +74,7 @@ test("derives the existing month, limit and receivable values without mixing per
     budgets: { Alimentação: 400 },
     limits: { Bruna: 350, Matheus: 350 },
     viewMonth: "2026-09",
+    profile: "Casal",
   });
 
   assert.equal(result.totalSpent, 100);
@@ -182,5 +184,86 @@ test("derives category detail with profile scope and explicit no-limit states", 
   assert.equal(
     casal.find((item) => item.category === "Transporte")?.status,
     "exceeded",
+  );
+});
+
+test("reconciles August expenses and limits for every official profile scope", () => {
+  const baseInput = {
+    expenses: INITIAL_EXPENSES,
+    installments: [],
+    debts: [],
+    incomeEntries: [],
+    income: 13_000,
+    budgets: DEFAULT_BUDGETS,
+    limits: { Bruna: 350, Matheus: 350 },
+    viewMonth: "2026-08",
+  };
+  const bruna = deriveFinancialSelectors({ ...baseInput, profile: "Bruna" });
+  const matheus = deriveFinancialSelectors({
+    ...baseInput,
+    profile: "Matheus",
+  });
+  const casal = deriveFinancialSelectors({ ...baseInput, profile: "Casal" });
+
+  assert.equal(bruna.totalSpent, 603.2);
+  assert.deepEqual(
+    bruna.monthExpenses.map((expense) => expense.title),
+    ["FIES", "Mercado"],
+  );
+  assert.deepEqual(
+    bruna.limitItems.find((item) => item.id === "Bruna"),
+    { id: "Bruna", label: "Gastos de Bruna", amount: 350, spent: 603.2 },
+  );
+  assert.equal(
+    bruna.limitItems.some((item) => item.id === "Matheus"),
+    false,
+  );
+  assert.equal(
+    bruna.limitItems.find((item) => item.id === "category:Pessoal")?.spent,
+    553.2,
+  );
+  assert.equal(
+    bruna.limitItems.find((item) => item.id === "category:Alimentação")?.spent,
+    50,
+  );
+
+  assert.equal(matheus.totalSpent, 0);
+  assert.deepEqual(matheus.monthExpenses, []);
+  assert.deepEqual(
+    matheus.limitItems.find((item) => item.id === "Matheus"),
+    { id: "Matheus", label: "Gastos de Matheus", amount: 350, spent: 0 },
+  );
+
+  assert.equal(casal.totalSpent, 3883.2);
+  assert.equal(casal.monthExpenses.length, INITIAL_EXPENSES.length);
+  assert.deepEqual(
+    casal.monthExpenses.map((expense) => expense.title),
+    INITIAL_EXPENSES.map((expense) => expense.title),
+  );
+
+  const categories = deriveCategoryDetails({
+    expenses: casal.monthExpenses,
+    budgets: DEFAULT_BUDGETS,
+    profile: "Casal",
+  });
+  assert.equal(
+    categories.find((category) => category.category === "Carro")?.spent,
+    2180,
+  );
+  assert.equal(
+    categories.find((category) => category.category === "Casa")?.spent,
+    1090,
+  );
+  assert.equal(
+    categories.find((category) => category.category === "Pessoal")?.spent,
+    553.2,
+  );
+  assert.equal(
+    categories.find((category) => category.category === "Alimentação")?.spent,
+    50,
+  );
+  assert.equal(
+    categories.find((category) => category.category === "Pets")?.spent,
+    10,
   );
 });

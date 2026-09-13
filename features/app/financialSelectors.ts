@@ -5,6 +5,7 @@ import type {
   Installment,
   Person,
 } from "../../lib/app/AppTypes";
+import { isWithinProfileScope } from "../../lib/finance/profileScope";
 
 export type CategorySpending = {
   category: string;
@@ -36,9 +37,9 @@ export function filterExpensesForProfile(
   expenses: readonly Expense[],
   profile: Person,
 ): readonly Expense[] {
-  return profile === "Casal"
-    ? expenses
-    : expenses.filter((expense) => expense.who === profile);
+  return expenses.filter((expense) =>
+    isWithinProfileScope(expense.who, profile),
+  );
 }
 
 /**
@@ -138,6 +139,7 @@ type FinancialSelectorsInput = {
   budgets: Record<string, number>;
   limits: Record<"Bruna" | "Matheus", number>;
   viewMonth: string;
+  profile: Person;
 };
 
 export function deriveFinancialSelectors({
@@ -149,9 +151,11 @@ export function deriveFinancialSelectors({
   budgets,
   limits,
   viewMonth,
+  profile,
 }: FinancialSelectorsInput) {
-  const monthExpenses = expenses.filter((expense) =>
-    expense.date.startsWith(viewMonth),
+  const monthExpenses = filterExpensesForProfile(
+    expenses.filter((expense) => expense.date.startsWith(viewMonth)),
+    profile,
   );
   const categories = Object.entries(budgets).map(([category, budget]) => {
     const spent = monthExpenses
@@ -165,14 +169,16 @@ export function deriveFinancialSelectors({
     };
   });
   const limitItems = [
-    ...(["Bruna", "Matheus"] as const).map((person) => ({
-      id: person,
-      label: `Gastos de ${person}`,
-      amount: limits[person],
-      spent: monthExpenses
-        .filter((expense) => expense.who === person)
-        .reduce((sum, expense) => sum + expense.amount, 0),
-    })),
+    ...(["Bruna", "Matheus"] as const)
+      .filter((person) => profile === "Casal" || person === profile)
+      .map((person) => ({
+        id: person,
+        label: `Gastos de ${person}`,
+        amount: limits[person],
+        spent: monthExpenses
+          .filter((expense) => expense.who === person)
+          .reduce((sum, expense) => sum + expense.amount, 0),
+      })),
     ...categories.map((item) => ({
       id: `category:${item.category}`,
       label: item.category,

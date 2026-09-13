@@ -231,6 +231,7 @@ export default function Page() {
         budgets,
         limits,
         viewMonth,
+        profile: activeProfile,
       }),
     [
       expenses,
@@ -241,6 +242,7 @@ export default function Page() {
       budgets,
       limits,
       viewMonth,
+      activeProfile,
     ],
   );
   const expenseIncomeMutations = createExpenseIncomeMutations({

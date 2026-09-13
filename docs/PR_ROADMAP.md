@@ -199,6 +199,15 @@ histórico e não alteram a numeração oficial.
 | #60 | —                                           | Multi-user & Synchronization: household, membros e sincronização.                                                                                                                                                                                      |
 | #61 | —                                           | Proactive Insights / Financial Intelligence: motor determinístico compartilhado entre Home e Assistente.                                                                                                                                               |
 
+### Perfil e limites — regra vigente
+
+- **Bruna** e **Matheus** consultam somente registros cujo `who` corresponde ao
+  perfil selecionado. **Casal** é a visão consolidada e inclui registros de
+  Bruna, Matheus e Casal.
+- Limites pessoais são apurados por responsável (`who`); limites por categoria
+  são apurados pela categoria. Uma mesma despesa pode aparecer nas duas visões
+  de controle, mas os limites não são somados nem representam dois gastos.
+
 ### PR #50 — Conversational AI
 
 Os providers OpenAI e Gemini permanecem exclusivamente server-side, configurados por

@@ -1,6 +1,7 @@
 import { aggregateExpenses } from "../../finance/aggregations";
 import { calculateIntegratedLimitUsages } from "../../finance/limitIntegration";
 import type { CategoryLimit } from "../../finance/limits";
+import { isWithinProfileScope } from "../../finance/profileScope";
 import {
   normalizeTransactionAmount,
   type Transaction,
@@ -26,13 +27,6 @@ import type {
 } from "./FinancialDataSource";
 
 const PERSONAL_LIMIT_IDS = new Set(["gastos-bruna", "gastos-matheus"]);
-
-function belongsToProfile(
-  owner: string,
-  profile: FinancialScope["profile"],
-): boolean {
-  return profile === "Casal" || owner === profile;
-}
 
 function belongsToReceivableProfile(
   debt: PersistedDebt,
@@ -66,7 +60,7 @@ function normalizeExpenses(
     .filter(
       (expense) =>
         matchesMonth(expense.date, scope.month) &&
-        belongsToProfile(expense.who, scope.profile) &&
+        isWithinProfileScope(expense.who, scope.profile) &&
         (!scope.category || expense.cat === scope.category),
     )
     .map((expense) => ({
@@ -95,7 +89,7 @@ function normalizeIncome(
     .filter(
       (income) =>
         matchesMonth(income.date, scope.month) &&
-        belongsToProfile(income.who, scope.profile),
+        isWithinProfileScope(income.who, scope.profile),
     )
     .map((income) => ({
       id: `income:${income.id}`,
@@ -115,7 +109,7 @@ function normalizeInstallments(
     .filter(
       (installment) =>
         installment.paidInstallments < installment.totalInstallments &&
-        belongsToProfile(installment.who, scope.profile) &&
+        isWithinProfileScope(installment.who, scope.profile) &&
         (!scope.category || installment.category === scope.category),
     )
     .map((installment) => ({
