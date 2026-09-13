@@ -147,7 +147,8 @@
 .progressMeta strong {
   color: var(--accent);
 }
-progress {
+.invoiceCard progress,
+.invoiceSummary progress {
   width: 100%;
   accent-color: var(--accent);
 }
