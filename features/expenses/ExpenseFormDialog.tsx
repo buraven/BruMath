@@ -6,6 +6,14 @@ import { DateInput } from "../../components/ui/DateInput";
 import { FormDialog } from "../../components/ui/FormDialog";
 import { MoneyInput } from "../../components/ui/MoneyInput";
 import type { Expense, Person } from "../../lib/app/AppTypes";
+import { PERSONAL_LIMIT_BUCKETS } from "../../lib/finance/personalLimits";
+import type { PersonalLimitBucket } from "../../lib/finance/personalLimitBuckets";
+
+const personalLimitLabels: Record<PersonalLimitBucket, string> = {
+  bruna_nails: "Bruna — Unha",
+  bruna_personal: "Bruna — Pessoal",
+  matheus_personal: "Matheus — Pessoal",
+};
 
 type Props = {
   expense: Expense | null;
@@ -34,6 +42,7 @@ export function ExpenseFormDialog({
           cat: expense.cat,
           who: expense.who,
           date: expense.date,
+          personalLimitBucket: expense.personalLimitBucket ?? "",
         }
       : {
           title: "",
@@ -41,6 +50,7 @@ export function ExpenseFormDialog({
           cat: "Outros",
           who: activeProfile,
           date: `${viewMonth}-01`,
+          personalLimitBucket: "",
         },
   );
 
@@ -65,6 +75,12 @@ export function ExpenseFormDialog({
               cat: form.cat,
               who: form.who,
               date: form.date || `${viewMonth}-01`,
+              ...(form.personalLimitBucket
+                ? {
+                    personalLimitBucket:
+                      form.personalLimitBucket as PersonalLimitBucket,
+                  }
+                : {}),
             },
             Boolean(expense),
           );
@@ -127,6 +143,25 @@ export function ExpenseFormDialog({
             </select>
           </label>
         </div>
+        <label className="field">
+          <span>Usar limite pessoal</span>
+          <select
+            value={form.personalLimitBucket}
+            onChange={(event) =>
+              setForm({
+                ...form,
+                personalLimitBucket: event.target.value,
+              })
+            }
+          >
+            <option value="">Nenhum</option>
+            {PERSONAL_LIMIT_BUCKETS.map((bucket) => (
+              <option key={bucket} value={bucket}>
+                {personalLimitLabels[bucket]}
+              </option>
+            ))}
+          </select>
+        </label>
         <button type="submit" className="primary-button">
           <Check size={17} /> Salvar gasto
         </button>

@@ -204,9 +204,15 @@ histórico e não alteram a numeração oficial.
 - **Bruna** e **Matheus** consultam somente registros cujo `who` corresponde ao
   perfil selecionado. **Casal** é a visão consolidada e inclui registros de
   Bruna, Matheus e Casal.
-- Limites pessoais são apurados por responsável (`who`); limites por categoria
-  são apurados pela categoria. Uma mesma despesa pode aparecer nas duas visões
-  de controle, mas os limites não são somados nem representam dois gastos.
+- Responsável (`who`) e franquia pessoal são dimensões independentes. Um gasto
+  só consome franquia pessoal quando possui `personalLimitBucket` explícito:
+  `bruna_nails`, `bruna_personal` ou `matheus_personal`. Registros legados sem
+  esse campo não consomem franquia por inferência.
+- A Bruna possui R$ 500 de franquia pessoal, divididos em Unha (R$ 150) e
+  Pessoal cotidiano (R$ 350); Matheus possui Pessoal (R$ 350). Limites por
+  categoria continuam independentes. Uma despesa pode aparecer nas duas
+  visões de controle, mas os limites não são somados nem representam dois
+  gastos.
 
 ### PR #50 — Conversational AI
 

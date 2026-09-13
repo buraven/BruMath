@@ -1,4 +1,6 @@
 import type { AssistantProfile } from "../contracts";
+import type { PersonalLimitBucket } from "../../finance/personalLimitBuckets";
+import type { PersonalLimitConfiguration } from "../../finance/personalLimits";
 
 export type PersistedExpense = {
   id: number;
@@ -7,6 +9,7 @@ export type PersistedExpense = {
   who: AssistantProfile;
   amount: number;
   date: string;
+  personalLimitBucket?: PersonalLimitBucket;
 };
 
 export type PersistedInstallment = {
@@ -49,6 +52,7 @@ export type FinancialDataSnapshot = {
   income: number;
   budgets: Readonly<Record<string, number>>;
   limits: Readonly<Record<"Bruna" | "Matheus", number>>;
+  personalLimits?: PersonalLimitConfiguration;
   /** Whether the persistence source actually contained a BruMath dataset. */
   hasStoredData?: boolean;
 };

@@ -1,4 +1,5 @@
 import type { AppFinancialData, Debt } from "../app/AppTypes";
+import { resolvePersonalLimits } from "../finance/personalLimits";
 
 const STORAGE_KEY = "brumath-data";
 
@@ -16,6 +17,7 @@ export type AppFinancialDataDefaults = Pick<
   | "income"
   | "budgets"
   | "limits"
+  | "personalLimits"
   | "activeProfile"
   | "viewMonth"
 >;
@@ -66,6 +68,11 @@ export class BruMathDataRepository {
       limits: data.limits
         ? { ...defaults.limits, ...data.limits }
         : defaults.limits,
+      personalLimits: resolvePersonalLimits(
+        data.personalLimits,
+        data.limits,
+        defaults.personalLimits,
+      ),
       activeProfile: data.activeProfile ?? defaults.activeProfile,
       viewMonth: data.viewMonth ?? defaults.viewMonth,
     };

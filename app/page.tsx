@@ -65,10 +65,12 @@ import {
 import { renderCategoryIcon } from "../features/app/renderCategoryIcon";
 import { HomeFinancialHighlights } from "../features/home/components/HomeFinancialHighlights/HomeFinancialHighlights";
 import {
+  DEFAULT_CATEGORIES,
   DEFAULT_BUDGETS,
   INITIAL_EXPENSES,
   INITIAL_INSTALLMENTS,
 } from "../features/app/defaultFinancialData";
+import { DEFAULT_PERSONAL_LIMITS } from "../lib/finance/personalLimits";
 import type {
   Confirmation,
   Debt,
@@ -133,6 +135,8 @@ export default function Page() {
     setBudgets,
     limits,
     setLimits,
+    personalLimits,
+    setPersonalLimits,
     activeProfile,
     setActiveProfile,
     viewMonth,
@@ -145,6 +149,7 @@ export default function Page() {
     income: 13000,
     budgets: DEFAULT_BUDGETS,
     limits: { Bruna: 350, Matheus: 350 },
+    personalLimits: DEFAULT_PERSONAL_LIMITS,
     activeProfile: "Bruna",
     viewMonth: dateKey(),
   });
@@ -174,7 +179,7 @@ export default function Page() {
   } = useAssistantController({
     activeProfile,
     viewMonth,
-    categories: Object.keys(budgets),
+    categories: [...DEFAULT_CATEGORIES],
     setExpenses,
     setConfirmation,
     setToast,
@@ -229,7 +234,7 @@ export default function Page() {
         incomeEntries,
         income,
         budgets,
-        limits,
+        personalLimits,
         viewMonth,
         profile: activeProfile,
       }),
@@ -240,7 +245,7 @@ export default function Page() {
       incomeEntries,
       income,
       budgets,
-      limits,
+      personalLimits,
       viewMonth,
       activeProfile,
     ],
@@ -269,8 +274,10 @@ export default function Page() {
   const limitMutations = createLimitMutations({
     limits,
     budgets,
+    personalLimits,
     setLimits,
     setBudgets,
+    setPersonalLimits,
   });
   const openNewExpense = () => {
     setQuickAddOpen(false);
@@ -567,7 +574,17 @@ export default function Page() {
                 onConfigure={() => {}}
                 onSave={(values) => {
                   limitMutations.save({
-                    personal: { Bruna: values.Bruna, Matheus: values.Matheus },
+                    personal: {
+                      bruna_nails:
+                        values["personal:bruna_nails"] ??
+                        personalLimits.bruna_nails,
+                      bruna_personal:
+                        values["personal:bruna_personal"] ??
+                        personalLimits.bruna_personal,
+                      matheus_personal:
+                        values["personal:matheus_personal"] ??
+                        personalLimits.matheus_personal,
+                    },
                     categories: Object.fromEntries(
                       Object.keys(budgets).map((category) => [
                         category,
@@ -732,7 +749,7 @@ export default function Page() {
       {modal === "expense" && (
         <ExpenseFormDialog
           expense={editingExpense}
-          categories={Object.keys(budgets)}
+          categories={DEFAULT_CATEGORIES}
           activeProfile={activeProfile}
           viewMonth={viewMonth}
           onSave={(expense, isEditing) => {
@@ -747,7 +764,7 @@ export default function Page() {
       {modal === "installment" && (
         <InstallmentFormDialog
           installment={editingInstallment}
-          categories={Object.keys(budgets)}
+          categories={DEFAULT_CATEGORIES}
           activeProfile={activeProfile}
           defaultNextDue={`${addMonths(viewMonth, 1)}-10`}
           onSave={(installment, isEditing) => {
@@ -812,7 +829,7 @@ export default function Page() {
       {modal === "settings" && (
         <FinancialSettingsDialog
           income={income}
-          limits={limits}
+          personalLimits={personalLimits}
           budgets={budgets}
           onIncomeChange={setIncome}
           onPersonalLimitChange={limitMutations.updatePersonal}

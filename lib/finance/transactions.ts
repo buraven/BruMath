@@ -9,6 +9,7 @@ export type Transaction = {
   owner: TransactionOwner;
   type: TransactionType;
   date: string;
+  personalLimitBucket?: PersonalLimitBucket;
   installment?: {
     current: number;
     total: number;
@@ -26,3 +27,4 @@ export function isExpense(transaction: Transaction): boolean {
 export function isIncome(transaction: Transaction): boolean {
   return transaction.type === "income";
 }
+import type { PersonalLimitBucket } from "./personalLimitBuckets";

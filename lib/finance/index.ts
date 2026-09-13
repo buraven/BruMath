@@ -6,3 +6,5 @@ export * from "./limitIntegration";
 export * from "./TransactionRepository";
 export * from "./LocalStorageTransactionRepository";
 export * from "./limitsService";
+export * from "./personalLimits";
+export * from "./personalLimitBuckets";

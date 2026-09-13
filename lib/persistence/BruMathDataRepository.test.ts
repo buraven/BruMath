@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { BruMathDataRepository } from "./BruMathDataRepository";
+import { DEFAULT_PERSONAL_LIMITS } from "../finance/personalLimits";
 
 const defaults = {
   expenses: [],
@@ -10,6 +11,7 @@ const defaults = {
   income: 13_000,
   budgets: { Casa: 2_500 },
   limits: { Bruna: 350, Matheus: 350 },
+  personalLimits: DEFAULT_PERSONAL_LIMITS,
   activeProfile: "Bruna" as const,
   viewMonth: "2026-09",
 };
@@ -53,6 +55,7 @@ test("loads the existing brumath-data shape and keeps legacy debt months compati
     assert.equal(loaded.debts[0]?.month, "2026-08");
     assert.equal(loaded.income, 13_000);
     assert.deepEqual(loaded.limits, { Bruna: 350, Matheus: 350 });
+    assert.deepEqual(loaded.personalLimits, DEFAULT_PERSONAL_LIMITS);
 
     repository.save(loaded);
     assert.deepEqual(JSON.parse(values.get("brumath-data") ?? "{}"), loaded);

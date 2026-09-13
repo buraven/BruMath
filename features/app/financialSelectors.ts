@@ -6,6 +6,11 @@ import type {
   Person,
 } from "../../lib/app/AppTypes";
 import { isWithinProfileScope } from "../../lib/finance/profileScope";
+import {
+  calculatePersonalLimitUsages,
+  resolvePersonalLimits,
+  type PersonalLimitConfiguration,
+} from "../../lib/finance/personalLimits";
 
 export type CategorySpending = {
   category: string;
@@ -137,7 +142,9 @@ type FinancialSelectorsInput = {
   incomeEntries: IncomeEntry[];
   income: number;
   budgets: Record<string, number>;
-  limits: Record<"Bruna" | "Matheus", number>;
+  personalLimits?: PersonalLimitConfiguration;
+  /** Legacy input retained while existing callers migrate to bucket limits. */
+  limits?: Record<"Bruna" | "Matheus", number>;
   viewMonth: string;
   profile: Person;
 };
@@ -149,6 +156,7 @@ export function deriveFinancialSelectors({
   incomeEntries,
   income,
   budgets,
+  personalLimits,
   limits,
   viewMonth,
   profile,
@@ -169,16 +177,10 @@ export function deriveFinancialSelectors({
     };
   });
   const limitItems = [
-    ...(["Bruna", "Matheus"] as const)
-      .filter((person) => profile === "Casal" || person === profile)
-      .map((person) => ({
-        id: person,
-        label: `Gastos de ${person}`,
-        amount: limits[person],
-        spent: monthExpenses
-          .filter((expense) => expense.who === person)
-          .reduce((sum, expense) => sum + expense.amount, 0),
-      })),
+    ...calculatePersonalLimitUsages(
+      resolvePersonalLimits(personalLimits, limits),
+      monthExpenses,
+    ).filter((limit) => profile === "Casal" || limit.owner === profile),
     ...categories.map((item) => ({
       id: `category:${item.category}`,
       label: item.category,

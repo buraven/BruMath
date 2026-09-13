@@ -25,6 +25,7 @@ import {
   profiles,
 } from "./ConversationPlanParser";
 import type { ConversationProviderAdapter } from "./ConversationProviderAdapter.server";
+import { PERSONAL_LIMIT_BUCKETS } from "../../finance/personalLimits";
 
 const toolParameters = {
   type: "object",
@@ -60,6 +61,10 @@ const tools: FunctionDeclaration[] = [
         category: { type: "string" },
         owner: { type: "string", enum: [...profiles] },
         date: { type: "string", description: "YYYY-MM-DD" },
+        personalLimitBucket: {
+          type: "string",
+          enum: [...PERSONAL_LIMIT_BUCKETS],
+        },
       },
       required: ["description", "amount", "category", "owner"],
     },
@@ -76,6 +81,10 @@ const tools: FunctionDeclaration[] = [
         category: { type: "string" },
         owner: { type: "string", enum: [...profiles] },
         date: { type: "string", description: "YYYY-MM-DD" },
+        personalLimitBucket: {
+          type: "string",
+          enum: [...PERSONAL_LIMIT_BUCKETS],
+        },
       },
     },
   },
@@ -98,6 +107,7 @@ const instructions = [
   "Para 'onde gastamos mais', use getExpenseRanking sem categoria. Nunca exija categoria nessa pergunta geral.",
   "Quando houver cadastro de gasto pendente, use clarify_register_expense até completar os campos faltantes ou cancel_pending_intent se a pessoa desistir.",
   "Para mutações, nunca assuma o responsável pelo perfil ativo: só informe owner quando Bruna, Matheus ou Casal tiver sido explicitamente indicado. Sem owner explícito, mantenha o gasto pendente e pergunte.",
+  "Limite pessoal é independente de responsável e categoria. Só informe personalLimitBucket quando a pessoa for explícita: unha da Bruna = bruna_nails; almoço/café/snack/doce pessoal da Bruna = bruna_personal; cabelo ou crédito mensal do Matheus = matheus_personal. FIES, mercado da casa, saúde, casa, carro, pets e assinaturas compartilhadas usam null. Se essa classificação for materialmente ambígua, peça esclarecimento antes da proposta.",
   "Para insights solicitados, peça os dados determinísticos estritamente necessários antes de analisar.",
   "Para insights gerais, planeje no máximo quatro consultas independentes e nunca repita uma tool com o mesmo escopo. Priorize resumo, limites, parcelas e recebíveis; só peça consultas adicionais se forem materialmente necessárias.",
   "Uma proposta de gasto nunca confirma nem executa uma ação.",

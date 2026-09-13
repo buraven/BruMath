@@ -52,3 +52,34 @@ test("represents cancellation as a non-mutating typed plan", () => {
     kind: "cancel-pending-intent",
   });
 });
+
+test("preserves an explicit personal-limit bucket without inferring one", () => {
+  assert.deepEqual(
+    parseFunctionPlan("propose_register_expense", {
+      description: "Almoço no trabalho",
+      amount: 32,
+      category: "Alimentação",
+      owner: "Bruna",
+      personalLimitBucket: "bruna_personal",
+    }),
+    {
+      kind: "register-expense",
+      input: {
+        description: "Almoço no trabalho",
+        amount: 32,
+        category: "Alimentação",
+        owner: "Bruna",
+        personalLimitBucket: "bruna_personal",
+      },
+    },
+  );
+  assert.equal(
+    parseFunctionPlan("propose_register_expense", {
+      description: "FIES",
+      amount: 553.2,
+      category: "Educação",
+      owner: "Bruna",
+    })?.kind,
+    "register-expense",
+  );
+});

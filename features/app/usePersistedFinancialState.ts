@@ -14,6 +14,7 @@ export function usePersistedFinancialState(defaults: AppFinancialData) {
   const [income, setIncome] = useState(initial.income);
   const [budgets, setBudgets] = useState(initial.budgets);
   const [limits, setLimits] = useState(initial.limits);
+  const [personalLimits, setPersonalLimits] = useState(initial.personalLimits);
   const [activeProfile, setActiveProfile] = useState(initial.activeProfile);
   const [viewMonth, setViewMonth] = useState(initial.viewMonth);
 
@@ -27,6 +28,7 @@ export function usePersistedFinancialState(defaults: AppFinancialData) {
       setIncome(data.income);
       setBudgets(data.budgets);
       setLimits(data.limits);
+      setPersonalLimits(data.personalLimits);
       setActiveProfile(data.activeProfile);
       setViewMonth(data.viewMonth);
     } catch {
@@ -43,6 +45,7 @@ export function usePersistedFinancialState(defaults: AppFinancialData) {
       income,
       budgets,
       limits,
+      personalLimits,
       activeProfile,
       viewMonth,
     });
@@ -54,6 +57,7 @@ export function usePersistedFinancialState(defaults: AppFinancialData) {
     income,
     budgets,
     limits,
+    personalLimits,
     activeProfile,
     viewMonth,
   ]);
@@ -73,6 +77,8 @@ export function usePersistedFinancialState(defaults: AppFinancialData) {
     setBudgets,
     limits,
     setLimits,
+    personalLimits,
+    setPersonalLimits,
     activeProfile,
     setActiveProfile,
     viewMonth,

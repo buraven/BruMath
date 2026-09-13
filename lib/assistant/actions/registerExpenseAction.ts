@@ -1,5 +1,7 @@
 import type { TransactionRepository } from "../../finance/TransactionRepository";
 import type { TransactionOwner } from "../../finance/transactions";
+import { isPersonalLimitBucket } from "../../finance/personalLimits";
+import type { PersonalLimitBucket } from "../../finance/personalLimitBuckets";
 import type {
   ActionExecutor,
   ActionResult,
@@ -16,6 +18,7 @@ export type RegisterExpenseInput = {
   category: string;
   owner: TransactionOwner;
   date: string;
+  personalLimitBucket?: PersonalLimitBucket;
 };
 
 export type RegisterExpenseProposal = AssistantActionProposal & {
@@ -40,7 +43,9 @@ function isRegisterExpenseInput(value: unknown): value is RegisterExpenseInput {
       input.owner === "Matheus" ||
       input.owner === "Casal") &&
     typeof input.date === "string" &&
-    /^\d{4}-\d{2}-\d{2}$/.test(input.date)
+    /^\d{4}-\d{2}-\d{2}$/.test(input.date) &&
+    (input.personalLimitBucket === undefined ||
+      isPersonalLimitBucket(input.personalLimitBucket))
   );
 }
 
@@ -99,6 +104,9 @@ export function createRegisterExpenseAction(
         owner: input.owner,
         type: "expense",
         date: input.date,
+        ...(input.personalLimitBucket
+          ? { personalLimitBucket: input.personalLimitBucket }
+          : {}),
       });
 
       return {

@@ -3,13 +3,15 @@
 import { Check } from "lucide-react";
 import { FormDialog } from "../../components/ui/FormDialog";
 import { MoneyInput } from "../../components/ui/MoneyInput";
+import type { PersonalLimitBucket } from "../../lib/finance/personalLimitBuckets";
+import type { PersonalLimitConfiguration } from "../../lib/finance/personalLimits";
 
 type Props = {
   income: number;
-  limits: Record<"Bruna" | "Matheus", number>;
+  personalLimits: PersonalLimitConfiguration;
   budgets: Record<string, number>;
   onIncomeChange: (value: number) => void;
-  onPersonalLimitChange: (person: "Bruna" | "Matheus", value: number) => void;
+  onPersonalLimitChange: (bucket: PersonalLimitBucket, value: number) => void;
   onCategoryLimitChange: (category: string, value: number) => void;
   onSave: () => void;
   onClose: () => void;
@@ -17,7 +19,7 @@ type Props = {
 
 export function FinancialSettingsDialog({
   income,
-  limits,
+  personalLimits,
   budgets,
   onIncomeChange,
   onPersonalLimitChange,
@@ -40,26 +42,43 @@ export function FinancialSettingsDialog({
             onValueChange={(value) => onIncomeChange(Number(value))}
           />
         </label>
+        <p>
+          <strong>
+            Limite pessoal da Bruna: R${" "}
+            {(
+              personalLimits.bruna_nails + personalLimits.bruna_personal
+            ).toFixed(2)}
+          </strong>
+        </p>
         <div className="form-grid">
           <label className="field">
-            <span>Limite Bruna</span>
+            <span>Bruna — Unha</span>
             <MoneyInput
-              value={limits.Bruna}
+              value={personalLimits.bruna_nails}
               onValueChange={(value) =>
-                onPersonalLimitChange("Bruna", Number(value))
+                onPersonalLimitChange("bruna_nails", Number(value))
               }
             />
           </label>
           <label className="field">
-            <span>Limite Matheus</span>
+            <span>Bruna — Pessoal</span>
             <MoneyInput
-              value={limits.Matheus}
+              value={personalLimits.bruna_personal}
               onValueChange={(value) =>
-                onPersonalLimitChange("Matheus", Number(value))
+                onPersonalLimitChange("bruna_personal", Number(value))
               }
             />
           </label>
         </div>
+        <label className="field">
+          <span>Matheus — Pessoal</span>
+          <MoneyInput
+            value={personalLimits.matheus_personal}
+            onValueChange={(value) =>
+              onPersonalLimitChange("matheus_personal", Number(value))
+            }
+          />
+        </label>
         <div className="settings-grid">
           {Object.entries(budgets).map(([category, value]) => (
             <label className="field" key={category}>

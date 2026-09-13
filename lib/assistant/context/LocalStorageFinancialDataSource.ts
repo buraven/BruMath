@@ -6,6 +6,7 @@ import type {
   PersistedIncomeEntry,
   PersistedInstallment,
 } from "./FinancialDataSource";
+import { resolvePersonalLimits } from "../../finance/personalLimits";
 
 const STORAGE_KEY = "brumath-data";
 
@@ -75,6 +76,10 @@ export class LocalStorageFinancialDataSource implements FinancialDataSource {
         Bruna: asNumber(limits.Bruna),
         Matheus: asNumber(limits.Matheus),
       },
+      personalLimits: resolvePersonalLimits(data.personalLimits, {
+        Bruna: asNumber(limits.Bruna),
+        Matheus: asNumber(limits.Matheus),
+      }),
       hasStoredData,
     };
   }

@@ -41,6 +41,7 @@ function proposal() {
     category: "Alimentação",
     owner: "Bruna",
     date: "2026-09-08",
+    personalLimitBucket: "bruna_personal",
   });
 }
 
@@ -96,6 +97,7 @@ test("persists exactly the confirmed register-expense payload once", async () =>
     owner: "Bruna",
     type: "expense",
     date: "2026-09-08",
+    personalLimitBucket: "bruna_personal",
   });
 });
 

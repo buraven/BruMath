@@ -39,6 +39,9 @@ export class AppStateTransactionRepository implements TransactionRepository {
         who: transaction.owner,
         amount: transaction.amount,
         date: transaction.date,
+        ...(transaction.personalLimitBucket
+          ? { personalLimitBucket: transaction.personalLimitBucket }
+          : {}),
       },
       ...current,
     ]);

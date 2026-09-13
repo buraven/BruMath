@@ -5,6 +5,7 @@ import {
   deriveCategorySpending,
   deriveFinancialSelectors,
 } from "./financialSelectors";
+import { DEFAULT_PERSONAL_LIMITS } from "../../lib/finance/personalLimits";
 import { DEFAULT_BUDGETS, INITIAL_EXPENSES } from "./defaultFinancialData";
 
 test("derives the existing month, limit and receivable values without mixing periods", () => {
@@ -83,16 +84,20 @@ test("derives the existing month, limit and receivable values without mixing per
   assert.equal(result.available, 950);
   assert.equal(result.debtTotal, 200);
   assert.equal(result.remaining, 2);
-  assert.deepEqual(result.limitItems, [
-    { id: "Bruna", label: "Gastos de Bruna", amount: 350, spent: 100 },
-    { id: "Matheus", label: "Gastos de Matheus", amount: 350, spent: 0 },
+  assert.deepEqual(
+    result.limitItems.find((item) => item.id === "personal:bruna_total"),
     {
-      id: "category:Alimentação",
-      label: "Alimentação",
-      amount: 400,
-      spent: 100,
+      id: "personal:bruna_total",
+      label: "Bruna — Total pessoal",
+      owner: "Bruna",
+      amount: 500,
+      spent: 0,
     },
-  ]);
+  );
+  assert.equal(
+    result.limitItems.find((item) => item.id === "category:Alimentação")?.spent,
+    100,
+  );
 });
 
 test("derives category distribution only from the selected expenses", () => {
@@ -211,11 +216,17 @@ test("reconciles August expenses and limits for every official profile scope", (
     ["FIES", "Mercado"],
   );
   assert.deepEqual(
-    bruna.limitItems.find((item) => item.id === "Bruna"),
-    { id: "Bruna", label: "Gastos de Bruna", amount: 350, spent: 603.2 },
+    bruna.limitItems.find((item) => item.id === "personal:bruna_total"),
+    {
+      id: "personal:bruna_total",
+      label: "Bruna — Total pessoal",
+      owner: "Bruna",
+      amount: 500,
+      spent: 0,
+    },
   );
   assert.equal(
-    bruna.limitItems.some((item) => item.id === "Matheus"),
+    bruna.limitItems.some((item) => item.id === "personal:matheus_personal"),
     false,
   );
   const brunaCategories = deriveCategoryDetails({
@@ -243,8 +254,14 @@ test("reconciles August expenses and limits for every official profile scope", (
   assert.equal(matheus.totalSpent, 0);
   assert.deepEqual(matheus.monthExpenses, []);
   assert.deepEqual(
-    matheus.limitItems.find((item) => item.id === "Matheus"),
-    { id: "Matheus", label: "Gastos de Matheus", amount: 350, spent: 0 },
+    matheus.limitItems.find((item) => item.id === "personal:matheus_personal"),
+    {
+      id: "personal:matheus_personal",
+      label: "Matheus — Pessoal",
+      owner: "Matheus",
+      amount: 350,
+      spent: 0,
+    },
   );
 
   assert.equal(casal.totalSpent, 3883.2);
@@ -278,5 +295,91 @@ test("reconciles August expenses and limits for every official profile scope", (
   assert.equal(
     categories.find((category) => category.category === "Pets")?.spent,
     10,
+  );
+});
+
+test("uses only explicit personal buckets while retaining independent category totals", () => {
+  const result = deriveFinancialSelectors({
+    expenses: [
+      {
+        id: 1,
+        title: "FIES",
+        cat: "Educação",
+        who: "Bruna",
+        amount: 553.2,
+        date: "2026-08-01",
+      },
+      {
+        id: 2,
+        title: "Mercado",
+        cat: "Alimentação",
+        who: "Bruna",
+        amount: 50,
+        date: "2026-08-02",
+      },
+      {
+        id: 3,
+        title: "Almoço",
+        cat: "Alimentação",
+        who: "Bruna",
+        amount: 30,
+        date: "2026-08-03",
+        personalLimitBucket: "bruna_personal",
+      },
+      {
+        id: 4,
+        title: "Unha",
+        cat: "Pessoal",
+        who: "Bruna",
+        amount: 40,
+        date: "2026-08-04",
+        personalLimitBucket: "bruna_nails",
+      },
+      {
+        id: 5,
+        title: "Cabelo",
+        cat: "Pessoal",
+        who: "Matheus",
+        amount: 80,
+        date: "2026-08-05",
+        personalLimitBucket: "matheus_personal",
+      },
+    ],
+    installments: [],
+    debts: [],
+    incomeEntries: [],
+    income: 0,
+    budgets: { Alimentação: 100, Pessoal: 100 },
+    personalLimits: DEFAULT_PERSONAL_LIMITS,
+    viewMonth: "2026-08",
+    profile: "Casal",
+  });
+
+  assert.equal(result.totalSpent, 753.2);
+  assert.equal(
+    result.limitItems.find((item) => item.id === "personal:bruna_nails")?.spent,
+    40,
+  );
+  assert.equal(
+    result.limitItems.find((item) => item.id === "personal:bruna_personal")
+      ?.spent,
+    30,
+  );
+  assert.equal(
+    result.limitItems.find((item) => item.id === "personal:bruna_total")?.spent,
+    70,
+  );
+  assert.equal(
+    result.limitItems.find((item) => item.id === "personal:matheus_personal")
+      ?.spent,
+    80,
+  );
+  assert.equal(
+    result.limitItems.find((item) => item.id === "category:Alimentação")?.spent,
+    80,
+  );
+  assert.equal(
+    result.limitItems.find((item) => item.id === "category:Pessoal")?.spent,
+    120,
   );
 });
