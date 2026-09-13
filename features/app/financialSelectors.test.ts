@@ -382,4 +382,64 @@ test("uses only explicit personal buckets while retaining independent category t
     result.limitItems.find((item) => item.id === "category:Pessoal")?.spent,
     120,
   );
+  assert.equal(
+    deriveCategorySpending(result.monthExpenses).reduce(
+      (total, category) => total + category.amount,
+      0,
+    ),
+    result.totalSpent,
+  );
+});
+
+test("recalculates a personal allowance when an expense bucket is changed or removed", () => {
+  const baseExpense = {
+    id: 1,
+    title: "Almoço",
+    cat: "Alimentação",
+    who: "Bruna" as const,
+    amount: 30,
+    date: "2026-08-03",
+  };
+  const select = (personalLimitBucket?: "bruna_personal" | "bruna_nails") =>
+    deriveFinancialSelectors({
+      expenses: [
+        {
+          ...baseExpense,
+          ...(personalLimitBucket ? { personalLimitBucket } : {}),
+        },
+      ],
+      installments: [],
+      debts: [],
+      incomeEntries: [],
+      income: 0,
+      budgets: { Alimentação: 100 },
+      personalLimits: DEFAULT_PERSONAL_LIMITS,
+      viewMonth: "2026-08",
+      profile: "Bruna",
+    });
+
+  const personal = select("bruna_personal");
+  const nails = select("bruna_nails");
+  const none = select();
+  assert.equal(
+    personal.limitItems.find((item) => item.id === "personal:bruna_personal")
+      ?.spent,
+    30,
+  );
+  assert.equal(
+    nails.limitItems.find((item) => item.id === "personal:bruna_nails")?.spent,
+    30,
+  );
+  assert.equal(
+    none.limitItems.find((item) => item.id === "personal:bruna_total")?.spent,
+    0,
+  );
+  for (const result of [personal, nails, none]) {
+    assert.equal(result.totalSpent, 30);
+    assert.equal(
+      result.limitItems.find((item) => item.id === "category:Alimentação")
+        ?.spent,
+      30,
+    );
+  }
 });
