@@ -13,6 +13,7 @@ import type {
   IncomeEntry,
   Installment,
 } from "../../lib/app/AppTypes";
+import { DEFAULT_PERSONAL_LIMITS } from "../../lib/finance/personalLimits";
 
 function setter<T>(initial: T) {
   let value = initial;
@@ -48,10 +49,20 @@ test("manual expense and income mutations update the shared snapshot only after 
       who: "Bruna",
       amount: 40,
       date: "2026-09-01",
+      personalLimitBucket: "bruna_personal",
     },
     false,
   );
   assert.equal(expenses.value.length, 1);
+  assert.equal(expenses.value[0]?.personalLimitBucket, "bruna_personal");
+  controller.saveExpense(
+    {
+      ...expenses.value[0]!,
+      personalLimitBucket: undefined,
+    },
+    true,
+  );
+  assert.equal(expenses.value[0]?.personalLimitBucket, undefined);
   createExpenseIncomeMutations({
     expenses: expenses.value,
     incomeEntries: income.value,
@@ -91,6 +102,7 @@ test("installment, receivable and limit mutations preserve their existing determ
   ]);
   const income = setter([] as IncomeEntry[]);
   const limits = setter({ Bruna: 350, Matheus: 350 });
+  const personalLimits = setter({ ...DEFAULT_PERSONAL_LIMITS });
   const budgets = setter<Record<string, number>>({ Alimentação: 100 });
   const confirmation = setter<Confirmation | null>(null);
   const toast = setter("");
@@ -120,11 +132,14 @@ test("installment, receivable and limit mutations preserve their existing determ
   const limitController = createLimitMutations({
     limits: limits.value,
     budgets: budgets.value,
+    personalLimits: personalLimits.value,
     setLimits: limits.set,
     setBudgets: budgets.set,
+    setPersonalLimits: personalLimits.set,
   });
-  limitController.updatePersonal("Bruna", 400);
+  limitController.updatePersonal("bruna_personal", 400);
   limitController.updateCategory("Alimentação", 150);
   assert.equal(limits.value.Bruna, 400);
+  assert.equal(personalLimits.value.bruna_personal, 400);
   assert.equal(budgets.value.Alimentação, 150);
 });

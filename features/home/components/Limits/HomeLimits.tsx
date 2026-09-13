@@ -14,9 +14,7 @@ export function HomeLimits({
   onConfigure: () => void;
   renderIcon: (category: string) => ReactNode;
 }) {
-  const personal = items.filter(
-    (item) => item.id === "Bruna" || item.id === "Matheus",
-  );
+  const personal = items.filter((item) => item.id.startsWith("personal:"));
   const categories = items
     .filter((item) => item.id.startsWith("category:"))
     .map((item, order) => ({ ...item, order }));

@@ -1,4 +1,5 @@
 import type { CategoryLimit } from "../../finance/limits";
+import type { PersonalLimitBucket } from "../../finance/personalLimitBuckets";
 import type {
   AssistantMonth,
   AssistantProfile,
@@ -40,6 +41,7 @@ export type ExpenseContextItem = {
   category: string;
   owner: AssistantProfile;
   date: string;
+  personalLimitBucket?: PersonalLimitBucket;
 };
 
 export type LimitContextItem = CategoryLimit & {

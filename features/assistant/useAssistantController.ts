@@ -119,6 +119,9 @@ export function useAssistantController({
         category: input.category,
         owner: input.owner,
         date: input.date ?? `${viewMonth}-01`,
+        ...(input.personalLimitBucket
+          ? { personalLimitBucket: input.personalLimitBucket }
+          : {}),
       });
       conversationContext.current = {};
       completePending(
@@ -134,6 +137,20 @@ export function useAssistantController({
           { label: "Categoria", value: proposal.payload.category },
           { label: "Responsável", value: proposal.payload.owner },
           { label: "Data", value: formatDate(proposal.payload.date) },
+          ...(proposal.payload.personalLimitBucket
+            ? [
+                {
+                  label: "Limite pessoal",
+                  value:
+                    proposal.payload.personalLimitBucket === "bruna_nails"
+                      ? "Bruna — Unha"
+                      : proposal.payload.personalLimitBucket ===
+                          "bruna_personal"
+                        ? "Bruna — Pessoal"
+                        : "Matheus — Pessoal",
+                },
+              ]
+            : []),
         ],
         onConfirm: async () => {
           const confirmed = confirmAction(proposal, {
@@ -189,6 +206,9 @@ export function useAssistantController({
           category: resolved.intent.category,
           owner: resolved.intent.owner,
           ...(resolved.intent.date ? { date: resolved.intent.date } : {}),
+          ...(resolved.intent.personalLimitBucket
+            ? { personalLimitBucket: resolved.intent.personalLimitBucket }
+            : {}),
         });
         return;
       }
@@ -262,6 +282,9 @@ export function useAssistantController({
           category: intent.category,
           owner: intent.owner,
           ...(intent.date ? { date: intent.date } : {}),
+          ...(intent.personalLimitBucket
+            ? { personalLimitBucket: intent.personalLimitBucket }
+            : {}),
         });
         return;
       }

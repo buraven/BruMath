@@ -1,5 +1,6 @@
 import type { AssistantProfile, AssistantRequest } from "../contracts";
 import type { FinancialToolName } from "../tools/financialTools";
+import type { PersonalLimitBucket } from "../../finance/personalLimitBuckets";
 
 export type ConversationToolInput = {
   profile?: AssistantProfile;
@@ -21,6 +22,7 @@ export type RegisterExpensePlan = {
   category: string;
   owner?: AssistantProfile;
   date?: string;
+  personalLimitBucket?: PersonalLimitBucket;
 };
 
 export type PendingExpenseIntent = {
@@ -30,6 +32,7 @@ export type PendingExpenseIntent = {
   category?: string;
   owner?: AssistantProfile;
   date?: string;
+  personalLimitBucket?: PersonalLimitBucket;
   missingFields: readonly ("description" | "category" | "owner")[];
 };
 

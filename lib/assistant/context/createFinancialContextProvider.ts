@@ -1,6 +1,11 @@
 import { aggregateExpenses } from "../../finance/aggregations";
 import { calculateIntegratedLimitUsages } from "../../finance/limitIntegration";
+import {
+  calculatePersonalLimitUsages,
+  resolvePersonalLimits,
+} from "../../finance/personalLimits";
 import type { CategoryLimit } from "../../finance/limits";
+import { isWithinProfileScope } from "../../finance/profileScope";
 import {
   normalizeTransactionAmount,
   type Transaction,
@@ -25,15 +30,6 @@ import type {
   PersistedDebt,
 } from "./FinancialDataSource";
 
-const PERSONAL_LIMIT_IDS = new Set(["gastos-bruna", "gastos-matheus"]);
-
-function belongsToProfile(
-  owner: string,
-  profile: FinancialScope["profile"],
-): boolean {
-  return profile === "Casal" || owner === profile;
-}
-
 function belongsToReceivableProfile(
   debt: PersistedDebt,
   profile: FinancialScope["profile"],
@@ -55,6 +51,9 @@ function toExpenseTransaction(expense: ExpenseContextItem): Transaction {
     owner: expense.owner,
     type: "expense",
     date: expense.date,
+    ...(expense.personalLimitBucket
+      ? { personalLimitBucket: expense.personalLimitBucket }
+      : {}),
   };
 }
 
@@ -66,7 +65,7 @@ function normalizeExpenses(
     .filter(
       (expense) =>
         matchesMonth(expense.date, scope.month) &&
-        belongsToProfile(expense.who, scope.profile) &&
+        isWithinProfileScope(expense.who, scope.profile) &&
         (!scope.category || expense.cat === scope.category),
     )
     .map((expense) => ({
@@ -84,6 +83,9 @@ function normalizeExpenses(
       category: expense.cat,
       owner: expense.who,
       date: expense.date,
+      ...(expense.personalLimitBucket
+        ? { personalLimitBucket: expense.personalLimitBucket }
+        : {}),
     }));
 }
 
@@ -95,7 +97,7 @@ function normalizeIncome(
     .filter(
       (income) =>
         matchesMonth(income.date, scope.month) &&
-        belongsToProfile(income.who, scope.profile),
+        isWithinProfileScope(income.who, scope.profile),
     )
     .map((income) => ({
       id: `income:${income.id}`,
@@ -115,7 +117,7 @@ function normalizeInstallments(
     .filter(
       (installment) =>
         installment.paidInstallments < installment.totalInstallments &&
-        belongsToProfile(installment.who, scope.profile) &&
+        isWithinProfileScope(installment.who, scope.profile) &&
         (!scope.category || installment.category === scope.category),
     )
     .map((installment) => ({
@@ -173,20 +175,6 @@ function normalizeLimits(
   scope: FinancialScope,
   expenses: readonly ExpenseContextItem[],
 ): readonly LimitContextItem[] {
-  const personalLimits: CategoryLimit[] = [
-    {
-      id: "gastos-bruna",
-      label: "Gastos de Bruna",
-      owner: "Bruna",
-      amount: data.limits.Bruna,
-    },
-    {
-      id: "gastos-matheus",
-      label: "Gastos de Matheus",
-      owner: "Matheus",
-      amount: data.limits.Matheus,
-    },
-  ];
   const categoryLimits: CategoryLimit[] = Object.entries(data.budgets).map(
     ([label, amount]) => ({
       id: `category:${label}`,
@@ -195,24 +183,38 @@ function normalizeLimits(
       amount,
     }),
   );
-  const includedLimits = [...personalLimits, ...categoryLimits].filter(
-    (limit) => {
-      if (scope.category) return limit.id === `category:${scope.category}`;
-      return (
-        scope.profile === "Casal" ||
-        !PERSONAL_LIMIT_IDS.has(limit.id) ||
-        limit.owner === scope.profile
-      );
-    },
-  );
-  const spending = aggregateExpenses(expenses.map(toExpenseTransaction));
+  if (scope.category) {
+    const limit = categoryLimits.find(
+      (item) => item.id === `category:${scope.category}`,
+    );
+    if (!limit) return [];
+    const spending = aggregateExpenses(expenses.map(toExpenseTransaction));
+    return calculateIntegratedLimitUsages([limit], spending).map((item) => ({
+      ...item,
+      kind: "category" as const,
+    }));
+  }
 
-  return calculateIntegratedLimitUsages(includedLimits, spending).map(
-    (limit) => ({
+  const personal = calculatePersonalLimitUsages(
+    resolvePersonalLimits(data.personalLimits, data.limits),
+    expenses,
+  )
+    .filter(
+      (limit) => scope.profile === "Casal" || limit.owner === scope.profile,
+    )
+    .map((limit) => ({
       ...limit,
-      kind: PERSONAL_LIMIT_IDS.has(limit.id) ? "personal" : "category",
-    }),
-  );
+      remaining: Math.max(0, limit.amount - limit.spent),
+      percentage: limit.amount > 0 ? (limit.spent / limit.amount) * 100 : 0,
+      exceeded: limit.spent > limit.amount,
+      kind: "personal" as const,
+    }));
+  const spending = aggregateExpenses(expenses.map(toExpenseTransaction));
+  const categories = calculateIntegratedLimitUsages(
+    categoryLimits,
+    spending,
+  ).map((limit) => ({ ...limit, kind: "category" as const }));
+  return [...personal, ...categories];
 }
 
 function provenanceFor(

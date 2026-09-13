@@ -27,6 +27,7 @@ import { ReceivePaymentDialog } from "../components/finance/ReceivePaymentDialog
 import { ExpenseList } from "../components/finance/ExpenseList";
 import { DebtSection } from "../components/finance/DebtSection";
 import { LimitsScreen } from "../features/limits/LimitsScreen";
+import { CategoriesScreen } from "../features/categories/CategoriesScreen";
 import { HomeLimits } from "../features/home/components/Limits/HomeLimits";
 import { IncomeSection } from "../components/finance/IncomeSection";
 import { QuickActions } from "../components/finance/QuickActions";
@@ -64,10 +65,12 @@ import {
 import { renderCategoryIcon } from "../features/app/renderCategoryIcon";
 import { HomeFinancialHighlights } from "../features/home/components/HomeFinancialHighlights/HomeFinancialHighlights";
 import {
+  DEFAULT_CATEGORIES,
   DEFAULT_BUDGETS,
   INITIAL_EXPENSES,
   INITIAL_INSTALLMENTS,
 } from "../features/app/defaultFinancialData";
+import { DEFAULT_PERSONAL_LIMITS } from "../lib/finance/personalLimits";
 import type {
   Confirmation,
   Debt,
@@ -132,6 +135,8 @@ export default function Page() {
     setBudgets,
     limits,
     setLimits,
+    personalLimits,
+    setPersonalLimits,
     activeProfile,
     setActiveProfile,
     viewMonth,
@@ -144,6 +149,7 @@ export default function Page() {
     income: 13000,
     budgets: DEFAULT_BUDGETS,
     limits: { Bruna: 350, Matheus: 350 },
+    personalLimits: DEFAULT_PERSONAL_LIMITS,
     activeProfile: "Bruna",
     viewMonth: dateKey(),
   });
@@ -173,7 +179,7 @@ export default function Page() {
   } = useAssistantController({
     activeProfile,
     viewMonth,
-    categories: Object.keys(budgets),
+    categories: [...DEFAULT_CATEGORIES],
     setExpenses,
     setConfirmation,
     setToast,
@@ -228,8 +234,9 @@ export default function Page() {
         incomeEntries,
         income,
         budgets,
-        limits,
+        personalLimits,
         viewMonth,
+        profile: activeProfile,
       }),
     [
       expenses,
@@ -238,8 +245,9 @@ export default function Page() {
       incomeEntries,
       income,
       budgets,
-      limits,
+      personalLimits,
       viewMonth,
+      activeProfile,
     ],
   );
   const expenseIncomeMutations = createExpenseIncomeMutations({
@@ -266,8 +274,10 @@ export default function Page() {
   const limitMutations = createLimitMutations({
     limits,
     budgets,
+    personalLimits,
     setLimits,
     setBudgets,
+    setPersonalLimits,
   });
   const openNewExpense = () => {
     setQuickAddOpen(false);
@@ -483,7 +493,7 @@ export default function Page() {
                 limits={
                   <HomeLimits
                     items={limitItems}
-                    onConfigure={() => switchTab("limits")}
+                    onConfigure={() => switchTab("categories")}
                     renderIcon={renderCategoryIcon}
                   />
                 }
@@ -564,7 +574,17 @@ export default function Page() {
                 onConfigure={() => {}}
                 onSave={(values) => {
                   limitMutations.save({
-                    personal: { Bruna: values.Bruna, Matheus: values.Matheus },
+                    personal: {
+                      bruna_nails:
+                        values["personal:bruna_nails"] ??
+                        personalLimits.bruna_nails,
+                      bruna_personal:
+                        values["personal:bruna_personal"] ??
+                        personalLimits.bruna_personal,
+                      matheus_personal:
+                        values["personal:matheus_personal"] ??
+                        personalLimits.matheus_personal,
+                    },
                     categories: Object.fromEntries(
                       Object.keys(budgets).map((category) => [
                         category,
@@ -574,6 +594,21 @@ export default function Page() {
                   });
                   setToast("Limites atualizados 💚");
                 }}
+                renderIcon={renderCategoryIcon}
+              />
+            )}
+
+            {tab === "categories" && (
+              <CategoriesScreen
+                monthLabel={monthName}
+                profile={activeProfile}
+                expenses={monthExpenses}
+                budgets={budgets}
+                onConfigureLimits={() => switchTab("limits")}
+                onEditExpense={openEditExpense}
+                onDeleteExpense={deleteExpense}
+                formatMoney={money}
+                formatDate={shortDate}
                 renderIcon={renderCategoryIcon}
               />
             )}
@@ -657,8 +692,11 @@ export default function Page() {
             <button type="button" onClick={() => switchTab("stats")}>
               <Receipt size={17} /> Gastos
             </button>
+            <button type="button" onClick={() => switchTab("categories")}>
+              <Tag size={17} /> Categorias
+            </button>
             <button type="button" onClick={() => switchTab("limits")}>
-              <Tag size={17} /> Limites e categorias
+              <Tag size={17} /> Limites
             </button>
             <button type="button" onClick={() => switchTab("debts")}>
               <WalletCards size={17} /> Quem me deve
@@ -697,6 +735,7 @@ export default function Page() {
               tab === "stats" ||
               tab === "debts" ||
               tab === "income" ||
+              tab === "categories" ||
               tab === "limits" ||
               tab === "preferences"
             }
@@ -710,7 +749,7 @@ export default function Page() {
       {modal === "expense" && (
         <ExpenseFormDialog
           expense={editingExpense}
-          categories={Object.keys(budgets)}
+          categories={DEFAULT_CATEGORIES}
           activeProfile={activeProfile}
           viewMonth={viewMonth}
           onSave={(expense, isEditing) => {
@@ -725,7 +764,7 @@ export default function Page() {
       {modal === "installment" && (
         <InstallmentFormDialog
           installment={editingInstallment}
-          categories={Object.keys(budgets)}
+          categories={DEFAULT_CATEGORIES}
           activeProfile={activeProfile}
           defaultNextDue={`${addMonths(viewMonth, 1)}-10`}
           onSave={(installment, isEditing) => {
@@ -790,7 +829,7 @@ export default function Page() {
       {modal === "settings" && (
         <FinancialSettingsDialog
           income={income}
-          limits={limits}
+          personalLimits={personalLimits}
           budgets={budgets}
           onIncomeChange={setIncome}
           onPersonalLimitChange={limitMutations.updatePersonal}

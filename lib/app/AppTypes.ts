@@ -1,6 +1,7 @@
 export type Person = "Bruna" | "Matheus" | "Casal";
 export type NavigationTab =
   | "limits"
+  | "categories"
   | "home"
   | "chat"
   | "stats"
@@ -19,6 +20,8 @@ export type Expense = {
   who: Person;
   amount: number;
   date: string;
+  /** Optional by design: historic records never consume a personal allowance. */
+  personalLimitBucket?: PersonalLimitBucket;
 };
 
 export type Installment = {
@@ -89,6 +92,9 @@ export type AppFinancialData = {
   income: number;
   budgets: Record<string, number>;
   limits: Record<"Bruna" | "Matheus", number>;
+  personalLimits: PersonalLimitConfiguration;
   activeProfile: Person;
   viewMonth: string;
 };
+import type { PersonalLimitBucket } from "../finance/personalLimitBuckets";
+import type { PersonalLimitConfiguration } from "../finance/personalLimits";

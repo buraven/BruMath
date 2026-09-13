@@ -1,5 +1,6 @@
 import type { TransactionRepository } from "./TransactionRepository";
 import type { Transaction, TransactionOwner } from "./transactions";
+import type { PersonalLimitBucket } from "./personalLimitBuckets";
 import { BruMathDataRepository } from "../persistence/BruMathDataRepository";
 
 type StoredExpense = {
@@ -9,6 +10,7 @@ type StoredExpense = {
   who: TransactionOwner;
   amount: number;
   date: string;
+  personalLimitBucket?: PersonalLimitBucket;
 };
 
 type StoredIncome = {
@@ -43,6 +45,9 @@ function expenseToTransaction(expense: StoredExpense): Transaction {
     owner: expense.who,
     type: "expense",
     date: expense.date,
+    ...(expense.personalLimitBucket
+      ? { personalLimitBucket: expense.personalLimitBucket }
+      : {}),
   };
 }
 
@@ -69,6 +74,9 @@ function transactionToStoredExpense(transaction: Transaction): StoredExpense {
     who: transaction.owner,
     amount: transaction.amount,
     date: transaction.date,
+    ...(transaction.personalLimitBucket
+      ? { personalLimitBucket: transaction.personalLimitBucket }
+      : {}),
   };
 }
 

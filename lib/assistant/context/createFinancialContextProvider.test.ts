@@ -154,7 +154,7 @@ test("builds a deterministic household context for a month", async () => {
   assert.equal(context.value.income.length, 2);
   assert.equal(context.value.installments.length, 2);
   assert.equal(context.value.installments[0]?.dueInSelectedMonth, true);
-  assert.equal(context.value.limits.length, 5);
+  assert.equal(context.value.limits.length, 7);
   assert.equal(context.provenance[0]?.kind, "fact");
   assert.equal(context.provenance.at(-1)?.kind, "calculation");
 });
@@ -177,11 +177,11 @@ test("filters context by Bruna and preserves the global base income", async () =
     receivablesOutstanding: 150,
   });
   assert.equal(
-    limits.value.some((limit) => limit.id === "gastos-bruna"),
+    limits.value.some((limit) => limit.id === "personal:bruna_total"),
     true,
   );
   assert.equal(
-    limits.value.some((limit) => limit.id === "gastos-matheus"),
+    limits.value.some((limit) => limit.id === "personal:matheus_personal"),
     false,
   );
 });
@@ -197,8 +197,53 @@ test("filters context by Matheus, including only his receivables and income", as
   assert.equal(context.value.summary.extraIncome, 0);
   assert.equal(context.value.summary.receivablesOutstanding, 0);
   assert.equal(
-    context.value.limits.some((limit) => limit.id === "gastos-matheus"),
+    context.value.limits.some(
+      (limit) => limit.id === "personal:matheus_personal",
+    ),
     true,
+  );
+});
+
+test("uses the same explicit personal buckets as Home selectors", async () => {
+  const bucketSnapshot: FinancialDataSnapshot = {
+    ...snapshot,
+    expenses: [
+      ...snapshot.expenses,
+      {
+        id: 5,
+        title: "Almoço no trabalho",
+        cat: "Alimentação",
+        who: "Bruna",
+        amount: 30,
+        date: "2026-09-07",
+        personalLimitBucket: "bruna_personal",
+      },
+    ],
+    personalLimits: {
+      bruna_nails: 150,
+      bruna_personal: 350,
+      matheus_personal: 350,
+    },
+  };
+  const bucketProvider = createFinancialContextProvider({
+    read: async () => bucketSnapshot,
+  });
+  const limits = await bucketProvider.getLimits({
+    profile: "Bruna",
+    month: "2026-09",
+  });
+
+  assert.equal(
+    limits.value.find((limit) => limit.id === "personal:bruna_total")?.spent,
+    30,
+  );
+  assert.equal(
+    limits.value.find((limit) => limit.id === "personal:bruna_personal")?.spent,
+    30,
+  );
+  assert.equal(
+    limits.value.find((limit) => limit.id === "category:Alimentação")?.spent,
+    130,
   );
 });
 

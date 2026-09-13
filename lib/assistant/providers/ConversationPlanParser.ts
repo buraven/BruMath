@@ -5,6 +5,7 @@ import type {
   RegisterExpensePlan,
 } from "../conversation/contracts";
 import type { FinancialToolName } from "../tools/financialTools";
+import { isPersonalLimitBucket } from "../../finance/personalLimits";
 
 export const financialToolNames = [
   "getFinancialSummary",
@@ -61,6 +62,9 @@ export function parseRegisterExpense(
     amount: input.amount,
     category: input.category.trim(),
     ...(isProfile(input.owner) ? { owner: input.owner } : {}),
+    ...(isPersonalLimitBucket(input.personalLimitBucket)
+      ? { personalLimitBucket: input.personalLimitBucket }
+      : {}),
     ...(typeof input.date === "string" && /^\d{4}-\d{2}-\d{2}$/.test(input.date)
       ? { date: input.date }
       : {}),
@@ -85,6 +89,9 @@ function parseExpenseClarification(value: unknown): ConversationPlan | null {
       ? input.category.trim()
       : undefined;
   const owner = isProfile(input.owner) ? input.owner : undefined;
+  const personalLimitBucket = isPersonalLimitBucket(input.personalLimitBucket)
+    ? input.personalLimitBucket
+    : undefined;
   const date =
     typeof input.date === "string" && /^\d{4}-\d{2}-\d{2}$/.test(input.date)
       ? input.date
@@ -103,6 +110,7 @@ function parseExpenseClarification(value: unknown): ConversationPlan | null {
       ...(description ? { description } : {}),
       ...(category ? { category } : {}),
       ...(owner ? { owner } : {}),
+      ...(personalLimitBucket ? { personalLimitBucket } : {}),
       ...(date ? { date } : {}),
       missingFields,
     },

@@ -90,6 +90,9 @@ export function createPendingExpenseIntent(
     ...(input.category ? { category: input.category } : {}),
     ...(input.owner ? { owner: input.owner } : {}),
     ...(input.date ? { date: input.date } : {}),
+    ...(input.personalLimitBucket
+      ? { personalLimitBucket: input.personalLimitBucket }
+      : {}),
     missingFields,
   };
 }
@@ -142,6 +145,9 @@ export function resolvePendingExpenseReply(
     ...(description ? { description } : {}),
     ...(category ? { category } : {}),
     ...(owner ? { owner } : {}),
+    ...(pending.personalLimitBucket
+      ? { personalLimitBucket: pending.personalLimitBucket }
+      : {}),
     missingFields,
   };
   if (completeExpenseIntent(intent)) {

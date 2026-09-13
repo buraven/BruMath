@@ -1,5 +1,19 @@
 import type { Expense, Installment } from "../../lib/app/AppTypes";
 
+export const DEFAULT_CATEGORIES = [
+  "Casa",
+  "Carro",
+  "Alimentação",
+  "Pets",
+  "Assinaturas",
+  "Saúde",
+  "Educação",
+  "Pessoal",
+  "Lazer",
+  "Trabalho",
+  "Outros",
+] as const;
+
 export const DEFAULT_BUDGETS: Record<string, number> = {
   Casa: 2500,
   Carro: 3000,
@@ -65,7 +79,7 @@ export const INITIAL_EXPENSES: Expense[] = [
   {
     id: 7,
     title: "FIES",
-    cat: "Pessoal",
+    cat: "Educação",
     who: "Bruna",
     amount: 553.2,
     date: "2026-08-07",

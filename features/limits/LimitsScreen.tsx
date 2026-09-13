@@ -92,17 +92,19 @@ export function LimitsScreen({
               limite.
             </p>
             <div className={styles.fields}>
-              {items.map((item) => (
-                <label className="field" key={item.id}>
-                  <span>{item.label}</span>
-                  <MoneyInput
-                    value={draft[item.id]}
-                    onValueChange={(value) =>
-                      setDraft({ ...draft, [item.id]: value })
-                    }
-                  />
-                </label>
-              ))}
+              {items
+                .filter((item) => item.id !== "personal:bruna_total")
+                .map((item) => (
+                  <label className="field" key={item.id}>
+                    <span>{item.label}</span>
+                    <MoneyInput
+                      value={draft[item.id]}
+                      onValueChange={(value) =>
+                        setDraft({ ...draft, [item.id]: value })
+                      }
+                    />
+                  </label>
+                ))}
             </div>
             <div className={styles.actions}>
               <button type="submit" className={styles.primary}>

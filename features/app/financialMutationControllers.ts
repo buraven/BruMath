@@ -7,6 +7,8 @@ import type {
   Installment,
   Person,
 } from "../../lib/app/AppTypes";
+import type { PersonalLimitBucket } from "../../lib/finance/personalLimitBuckets";
+import type { PersonalLimitConfiguration } from "../../lib/finance/personalLimits";
 
 type CommonDependencies = {
   setConfirmation: Dispatch<SetStateAction<Confirmation | null>>;
@@ -231,27 +233,40 @@ export function createReceivableMutations({
 export function createLimitMutations({
   limits,
   budgets,
+  personalLimits,
   setLimits,
   setBudgets,
+  setPersonalLimits,
 }: {
   limits: { Bruna: number; Matheus: number };
   budgets: Record<string, number>;
+  personalLimits: PersonalLimitConfiguration;
   setLimits: Dispatch<SetStateAction<{ Bruna: number; Matheus: number }>>;
   setBudgets: Dispatch<SetStateAction<Record<string, number>>>;
+  setPersonalLimits: Dispatch<SetStateAction<PersonalLimitConfiguration>>;
 }) {
   return {
     save({
       personal,
       categories,
     }: {
-      personal: { Bruna: number; Matheus: number };
+      personal: PersonalLimitConfiguration;
       categories: Record<string, number>;
     }) {
-      setLimits({ Bruna: personal.Bruna, Matheus: personal.Matheus });
+      setPersonalLimits(personal);
+      setLimits({
+        Bruna: personal.bruna_personal,
+        Matheus: personal.matheus_personal,
+      });
       setBudgets((current) => ({ ...current, ...categories }));
     },
-    updatePersonal(person: "Bruna" | "Matheus", value: number) {
-      setLimits({ ...limits, [person]: value });
+    updatePersonal(bucket: PersonalLimitBucket, value: number) {
+      const next = { ...personalLimits, [bucket]: value };
+      setPersonalLimits(next);
+      setLimits({
+        Bruna: next.bruna_personal,
+        Matheus: next.matheus_personal,
+      });
     },
     updateCategory(category: string, value: number) {
       setBudgets({ ...budgets, [category]: value });
