@@ -214,11 +214,5 @@ export function deriveInvoices({
           ),
       } satisfies DerivedInvoice;
     })
-    .filter(
-      (invoice) =>
-        invoice.total > 0 ||
-        referenceMonth >=
-          monthKey(new Date().getFullYear(), new Date().getMonth()),
-    )
     .sort((a, b) => a.dueDate.localeCompare(b.dueDate));
 }

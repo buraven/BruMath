@@ -67,7 +67,7 @@ test("derives one invoice from linked expenses without changing expense totals",
   );
 });
 
-test("keeps ownership scope and supports card reassignment or removal", () => {
+test("keeps ownership scope while cards remain visible without purchases", () => {
   const cards = [
     card,
     { ...card, id: 2, name: "Nubank Matheus", owner: "Matheus" as const },
@@ -79,8 +79,8 @@ test("keeps ownership scope and supports card reassignment or removal", () => {
       payments: [],
       profile: "Matheus",
       referenceMonth: "2026-08",
-    }).length,
-    0,
+    })[0]?.card.id,
+    2,
   );
   assert.equal(
     deriveInvoices({
@@ -90,7 +90,7 @@ test("keeps ownership scope and supports card reassignment or removal", () => {
       profile: "Casal",
       referenceMonth: "2026-08",
     }).length,
-    1,
+    2,
   );
   assert.equal(
     deriveInvoices({
@@ -109,9 +109,24 @@ test("keeps ownership scope and supports card reassignment or removal", () => {
       payments: [],
       profile: "Casal",
       referenceMonth: "2026-08",
-    }).length,
+    })[0]?.total,
     0,
   );
+});
+
+test("keeps a persisted card visible when its selected invoice is empty", () => {
+  const [invoice] = deriveInvoices({
+    cards: [card],
+    expenses: [],
+    payments: [],
+    profile: "Bruna",
+    referenceMonth: "2026-01",
+  });
+
+  assert.equal(invoice?.card.id, card.id);
+  assert.equal(invoice?.total, 0);
+  assert.equal(invoice?.expenses.length, 0);
+  assert.equal(invoice?.status, "open");
 });
 
 test("adds a card installment to its cycle without manufacturing an expense", () => {
