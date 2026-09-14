@@ -21,6 +21,7 @@ type Props = {
   activeProfile: Person;
   viewMonth: string;
   creditCards: readonly CreditCard[];
+  initialCreditCardId?: number;
   onSave: (expense: Expense, isEditing: boolean) => void;
   onClose: () => void;
   onInvalid: (message: string) => void;
@@ -32,6 +33,7 @@ export function ExpenseFormDialog({
   activeProfile,
   viewMonth,
   creditCards,
+  initialCreditCardId,
   onSave,
   onClose,
   onInvalid,
@@ -56,7 +58,7 @@ export function ExpenseFormDialog({
           who: activeProfile,
           date: `${viewMonth}-01`,
           personalLimitBucket: "",
-          creditCardId: "",
+          creditCardId: initialCreditCardId ? String(initialCreditCardId) : "",
         },
   );
 
@@ -116,7 +118,13 @@ export function ExpenseFormDialog({
           >
             <option value="">Nenhum</option>
             {creditCards
-              .filter((card) => card.active)
+              .filter(
+                (card) =>
+                  card.active &&
+                  (form.who === "Casal" ||
+                    card.owner === "Casal" ||
+                    card.owner === form.who),
+              )
               .map((card) => (
                 <option key={card.id} value={card.id}>
                   {card.name} · {card.owner}

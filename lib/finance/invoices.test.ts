@@ -193,3 +193,76 @@ test("filters derived statuses and records a full payment once", () => {
     1,
   );
 });
+
+test("a cardless expense stays outside the invoice while a linked purchase is derived once", () => {
+  const cardless = expense({ creditCardId: undefined });
+  const linked = expense({ id: 2, amount: 25, creditCardId: card.id });
+  const [invoice] = deriveInvoices({
+    cards: [card],
+    expenses: [cardless, linked],
+    payments: [],
+    profile: "Bruna",
+    referenceMonth: "2026-08",
+  });
+
+  assert.equal(invoice?.total, 25);
+  assert.deepEqual(
+    invoice?.expenses.map((item) => item.id),
+    [linked.id],
+  );
+  assert.equal(cardless.amount + linked.amount, 125);
+});
+
+test("editing a purchase date or card moves its derived invoice without creating another expense", () => {
+  const secondCard: CreditCard = {
+    ...card,
+    id: 2,
+    name: "Nubank Bruna reserva",
+  };
+  const original = expense({ date: "2026-08-20" });
+  const moved = {
+    ...original,
+    creditCardId: secondCard.id,
+    date: "2026-08-21",
+  };
+
+  const august = deriveInvoices({
+    cards: [card, secondCard],
+    expenses: [moved],
+    payments: [],
+    profile: "Bruna",
+    referenceMonth: "2026-08",
+  });
+  const september = deriveInvoices({
+    cards: [card, secondCard],
+    expenses: [moved],
+    payments: [],
+    profile: "Bruna",
+    referenceMonth: "2026-09",
+  });
+
+  assert.equal(august.find((invoice) => invoice.card.id === card.id)?.total, 0);
+  assert.equal(
+    august.find((invoice) => invoice.card.id === secondCard.id)?.total,
+    0,
+  );
+  assert.equal(
+    september.find((invoice) => invoice.card.id === secondCard.id)?.total,
+    100,
+  );
+  assert.equal(september.flatMap((invoice) => invoice.expenses).length, 1);
+});
+
+test("deleting the linked expense clears its invoice and a zero invoice cannot be paid", () => {
+  const [invoice] = deriveInvoices({
+    cards: [card],
+    expenses: [],
+    payments: [],
+    profile: "Bruna",
+    referenceMonth: "2026-08",
+  });
+
+  assert.ok(invoice);
+  assert.equal(invoice.total, 0);
+  assert.deepEqual(registerInvoicePayment([], invoice, "2026-08-27", 7), []);
+});

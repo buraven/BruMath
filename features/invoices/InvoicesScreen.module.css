@@ -370,15 +370,20 @@
 }
 .entries header {
   display: flex;
+  align-items: center;
   justify-content: space-between;
   gap: 10px;
   margin-bottom: 11px;
+}
+.entries header > div {
+  min-width: 0;
 }
 .entries h2 {
   margin: 0;
   font-size: 1rem;
 }
 .entries header span {
+  display: block;
   color: var(--muted);
   font-size: 0.72rem;
 }
@@ -446,6 +451,10 @@
   .detailGrid {
     grid-template-columns: 1fr;
   }
+
+  .entries header {
+    align-items: flex-start;
+  }
 }
 
 @media (max-width: 560px) {
@@ -494,5 +503,12 @@
   .filters .activeFilter::after {
     right: 7px;
     left: 7px;
+  }
+  .entries header {
+    align-items: stretch;
+    flex-direction: column;
+  }
+  .entries header button {
+    width: 100%;
   }
 }

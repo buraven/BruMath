@@ -204,6 +204,7 @@ export default function Page() {
   });
   const [receivingDebt, setReceivingDebt] = useState<Debt | null>(null);
   const [editingExpense, setEditingExpense] = useState<Expense | null>(null);
+  const [expenseCardPreset, setExpenseCardPreset] = useState<number>();
   const [editingInstallment, setEditingInstallment] =
     useState<Installment | null>(null);
   const [editingDebt, setEditingDebt] = useState<Debt | null>(null);
@@ -346,6 +347,7 @@ export default function Page() {
   const openNewExpense = () => {
     setQuickAddOpen(false);
     setEditingExpense(null);
+    setExpenseCardPreset(undefined);
     setModal("expense");
   };
   const openNewInstallment = () => {
@@ -365,6 +367,7 @@ export default function Page() {
 
   const openEditExpense = (expense: Expense) => {
     setEditingExpense(expense);
+    setExpenseCardPreset(undefined);
     setModal("expense");
   };
   const openEditInstallment = (item: Installment) => {
@@ -693,6 +696,11 @@ export default function Page() {
                   setModal("card");
                 }}
                 onPay={payInvoice}
+                onAddPurchase={(card) => {
+                  setEditingExpense(null);
+                  setExpenseCardPreset(card.id);
+                  setModal("expense");
+                }}
                 onEditExpense={openEditExpense}
                 onDeleteExpense={deleteExpense}
               />
@@ -840,14 +848,19 @@ export default function Page() {
           expense={editingExpense}
           categories={DEFAULT_CATEGORIES}
           creditCards={creditCards}
+          initialCreditCardId={expenseCardPreset}
           activeProfile={activeProfile}
           viewMonth={viewMonth}
           onSave={(expense, isEditing) => {
             expenseIncomeMutations.saveExpense(expense, isEditing);
             setEditingExpense(null);
+            setExpenseCardPreset(undefined);
             setModal("none");
           }}
-          onClose={() => setModal("none")}
+          onClose={() => {
+            setExpenseCardPreset(undefined);
+            setModal("none");
+          }}
           onInvalid={setToast}
         />
       )}

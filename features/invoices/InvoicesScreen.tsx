@@ -32,6 +32,7 @@ type Props = {
   onCreateCard: () => void;
   onEditCard: (card: CreditCardModel) => void;
   onPay: (invoice: DerivedInvoice) => void;
+  onAddPurchase: (card: CreditCardModel) => void;
   onEditExpense: (expense: Expense) => void;
   onDeleteExpense: (id: number) => void;
 };
@@ -275,6 +276,7 @@ function InvoiceDetail({
   onBack,
   onEditCard,
   onPay,
+  onAddPurchase,
   onEditExpense,
   onDeleteExpense,
 }: Props & { invoice: DerivedInvoice; onBack: () => void }) {
@@ -311,7 +313,7 @@ function InvoiceDetail({
             {formatMoney(invoice.availableCredit)} disponível de{" "}
             {formatMoney(invoice.card.creditLimit)}
           </p>
-          {invoice.status === "open" ? (
+          {invoice.status === "open" && invoice.total > 0 ? (
             <button
               type="button"
               className="primary-button"
@@ -319,16 +321,27 @@ function InvoiceDetail({
             >
               <CheckCircle2 size={17} /> Pagar fatura
             </button>
-          ) : (
+          ) : invoice.status === "paid" ? (
             <p className={styles.paid}>Fatura paga</p>
+          ) : (
+            <p className={styles.noEntries}>Sem valor a pagar neste ciclo.</p>
           )}
         </aside>
         <section className={styles.entries}>
           <header>
-            <h2>Lançamentos</h2>
-            <span>
-              {invoice.expenses.length + invoice.installments.length} itens
-            </span>
+            <div>
+              <h2>Lançamentos</h2>
+              <span>
+                {invoice.expenses.length + invoice.installments.length} itens
+              </span>
+            </div>
+            <button
+              type="button"
+              className="secondary-button compact"
+              onClick={() => onAddPurchase(invoice.card)}
+            >
+              <Plus size={16} /> Adicionar compra
+            </button>
           </header>
           {invoice.expenses.length ? (
             <ExpenseList

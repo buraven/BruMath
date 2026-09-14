@@ -54,6 +54,7 @@ export function registerInvoicePayment(
   paidAt: string,
   id: number,
 ): InvoicePayment[] {
+  if (invoice.total <= 0) return [...payments];
   const alreadyRecorded = payments.some(
     (payment) =>
       payment.cardId === invoice.card.id &&
