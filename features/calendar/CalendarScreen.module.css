@@ -6,7 +6,7 @@
 .header {
   display: flex;
   justify-content: space-between;
-  align-items: end;
+  align-items: flex-end;
   gap: var(--space-4);
 }
 .headerActions {
