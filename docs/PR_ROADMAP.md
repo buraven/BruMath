@@ -204,6 +204,11 @@ histórico e não alteram a numeração oficial.
 Playwright é a infraestrutura E2E oficial do BruMath a partir do #54. Mudanças
 em journeys críticos devem adicionar ou atualizar cobertura E2E; regras e
 cálculos permanecem principalmente cobertos por testes unitários/integration.
+O catálogo BDD versionado em `docs/bdd/` é o contrato funcional: toda nova
+regra de negócio, regressão funcional ou alteração de journey deve atualizar
+o cenário e sua linha em `docs/bdd/COVERAGE.md`. Os mockups oficiais também
+alimentam cenários `VIS-*` estruturais, cujo aceite é humano por viewport; eles
+não substituem regras financeiras nem viram comparação pixel-perfect no CI.
 O workflow **E2E / Playwright** executa unit/integration, journeys críticos pela
 UI e build antes de merge. Ele deve ser marcado como _required check_ nas
 Branch Protection Rules/Ruleset da `main`. A validação manual continua sendo o

@@ -1,7 +1,10 @@
 import type { Page } from "@playwright/test";
+import type { AppFinancialData } from "../../lib/app/AppTypes";
 
-export function createFinancialState(overrides: Record<string, unknown> = {}) {
-  return {
+export function createFinancialState(
+  overrides: Partial<AppFinancialData> = {},
+): AppFinancialData {
+  const defaults: AppFinancialData = {
     expenses: [],
     installments: [],
     debts: [],
@@ -30,8 +33,9 @@ export function createFinancialState(overrides: Record<string, unknown> = {}) {
     invoicePayments: [],
     activeProfile: "Bruna",
     viewMonth: "2026-08",
-    ...overrides,
   };
+
+  return { ...defaults, ...overrides };
 }
 
 export async function openWithFinancialState(
@@ -45,6 +49,17 @@ export async function openWithFinancialState(
     window.localStorage.setItem("brumath-theme", "light");
   }, state);
   await page.reload();
+  const hydratedMonth = await page.evaluate(() => {
+    const stored = window.localStorage.getItem("brumath-data");
+    return stored
+      ? (JSON.parse(stored).viewMonth as string | undefined)
+      : undefined;
+  });
+  if (hydratedMonth !== state.viewMonth) {
+    throw new Error(
+      `A fixture E2E solicitou ${state.viewMonth}, mas a aplicação hidratou ${hydratedMonth ?? "sem mês"}.`,
+    );
+  }
   await page
     .getByRole("heading", { name: /gastos de agosto de 2026/i })
     .waitFor();
