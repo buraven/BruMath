@@ -104,7 +104,9 @@ test("Gasto criado, editado e excluído atualiza categoria e bucket sem duplicar
     await newDialog.getByRole("button", { name: "Salvar gasto" }).click();
   }
   await expect(page.getByText("Unha", { exact: true })).toBeVisible();
+  await page.getByRole("button", { name: "Matheus", exact: true }).click();
   await expect(page.getByText("Cabelo", { exact: true })).toBeVisible();
+  await page.getByRole("button", { name: "Bruna", exact: true }).click();
 
   await page.getByLabel("Excluir Almoço de trabalho").click();
   await page
@@ -143,14 +145,18 @@ test("Entradas e recebimentos parciais persistem pelo fluxo real @desktop", asyn
   await page.getByRole("button", { name: "Recebi" }).click();
   dialog = page.getByRole("dialog");
   await dialog.getByLabel("Quanto você recebeu?").fill("4000");
-  await dialog.getByRole("button", { name: "Registrar recebimento" }).click();
+  await dialog
+    .getByRole("button", { name: "Registrar recebimento", exact: true })
+    .click();
   await expect(
     page.getByText("R$ 60,00 em aberto", { exact: true }),
   ).toBeVisible();
   await page.getByRole("button", { name: "Recebi" }).click();
   dialog = page.getByRole("dialog");
   await dialog.getByLabel("Quanto você recebeu?").fill("6000");
-  await dialog.getByRole("button", { name: "Registrar recebimento" }).click();
+  await dialog
+    .getByRole("button", { name: "Registrar recebimento", exact: true })
+    .click();
   await expect(page.getByText(/Quitado/)).toBeVisible();
   await page.reload();
   await expect(page.getByText("João", { exact: true })).toBeVisible();
