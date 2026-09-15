@@ -76,8 +76,12 @@ test("troca de mês reconcilia Home, categorias e limites com dados reais @deskt
   await expect(page.getByText("Mercado agosto", { exact: true })).toBeVisible();
 
   await openTab(page, "Categorias");
-  await expect(page.getByText("Mercado agosto", { exact: true })).toBeVisible();
-  await expect(page.getByText("Casa setembro", { exact: true })).toHaveCount(0);
+  await expect(
+    page.getByRole("article").filter({ hasText: "Alimentação" }),
+  ).toContainText("R$ 300,00");
+  await expect(
+    page.getByRole("article").filter({ hasText: "Casa" }),
+  ).toContainText("R$ 0,00");
 
   await page.getByLabel("Próximo mês").click();
   await openTab(page, "Início");
@@ -88,6 +92,14 @@ test("troca de mês reconcilia Home, categorias e limites com dados reais @deskt
   await expect(page.getByText("Mercado agosto", { exact: true })).toHaveCount(
     0,
   );
+
+  await openTab(page, "Categorias");
+  await expect(
+    page.getByRole("article").filter({ hasText: "Casa" }),
+  ).toContainText("R$ 400,00");
+  await expect(
+    page.getByRole("article").filter({ hasText: "Alimentação" }),
+  ).toContainText("R$ 0,00");
 
   await openTab(page, "Limites");
   await expect(limitItem(page, "Casa")).toContainText("R$ 400,00 gastos");
@@ -261,6 +273,7 @@ test("adiantar parcelas preserva o cancelamento, competências e reload @desktop
   await page.getByLabel("Próximo mês").click();
   await expect(page.getByText("Notebook", { exact: true })).toBeVisible();
   await page.reload();
+  await openTab(page, "Futuro");
   await expect(page.getByText("Notebook", { exact: true })).toBeVisible();
   await expect(page.getByText("2 restantes", { exact: true })).toBeVisible();
 });
@@ -279,8 +292,14 @@ test("entradas extras criam, editam, excluem e reconciliam totais pela UI @deskt
   await dialog.getByLabel("Valor").fill("25000");
   await dialog.getByRole("button", { name: "Salvar entrada" }).click();
   await expect(page.getByText("Bônus", { exact: true })).toBeVisible();
-  await expect(page.getByText("R$ 250,00", { exact: true })).toBeVisible();
-  await expect(page.getByText("R$ 1.250,00", { exact: true })).toBeVisible();
+  await expect(
+    page.getByRole("article").filter({ hasText: "Entradas extras" }),
+  ).toContainText("R$ 250,00");
+  await expect(
+    page
+      .getByRole("article")
+      .filter({ hasText: "Total disponível antes dos gastos" }),
+  ).toContainText("R$ 1.250,00");
 
   await page.reload();
   await openTab(page, "Entradas & extras");
@@ -289,8 +308,14 @@ test("entradas extras criam, editam, excluem e reconciliam totais pela UI @deskt
   dialog = page.getByRole("dialog");
   await dialog.getByLabel("Valor").fill("30000");
   await dialog.getByRole("button", { name: "Salvar entrada" }).click();
-  await expect(page.getByText("R$ 300,00", { exact: true })).toBeVisible();
-  await expect(page.getByText("R$ 1.300,00", { exact: true })).toBeVisible();
+  await expect(
+    page.getByRole("article").filter({ hasText: "Entradas extras" }),
+  ).toContainText("R$ 300,00");
+  await expect(
+    page
+      .getByRole("article")
+      .filter({ hasText: "Total disponível antes dos gastos" }),
+  ).toContainText("R$ 1.300,00");
 
   await page.getByLabel("Excluir entrada Bônus").click();
   await page
@@ -298,6 +323,12 @@ test("entradas extras criam, editam, excluem e reconciliam totais pela UI @deskt
     .getByRole("button", { name: "Excluir entrada" })
     .click();
   await expect(page.getByText("Bônus", { exact: true })).toHaveCount(0);
-  await expect(page.getByText("R$ 0,00", { exact: true })).toBeVisible();
-  await expect(page.getByText("R$ 1.000,00", { exact: true })).toHaveCount(2);
+  await expect(
+    page.getByRole("article").filter({ hasText: "Entradas extras" }),
+  ).toContainText("R$ 0,00");
+  await expect(
+    page
+      .getByRole("article")
+      .filter({ hasText: "Total disponível antes dos gastos" }),
+  ).toContainText("R$ 1.000,00");
 });
