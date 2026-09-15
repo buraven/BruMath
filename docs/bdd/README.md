@@ -34,6 +34,22 @@ necessário reproduzir todas as regras unitárias em Playwright.
 - Nenhum PR é considerado pronto se introduzir regra crítica com status
   `MISSING`, salvo justificativa explícita registrada na matriz.
 
+## Definition of Done funcional
+
+- Cenário BDD atualizado quando uma regra de negócio mudar.
+- Unit ou integration atualizado quando cálculo, selector, controller,
+  repositório ou persistência mudar.
+- E2E atualizado quando uma jornada crítica pela UI mudar, quando for razoável
+  automatizá-la de forma determinística.
+- Bug funcional recebe uma regressão proporcional à camada em que ocorreu.
+- Antes do merge, os checks obrigatórios devem estar verdes.
+- Aceite humano continua obrigatório para fidelidade visual, UX subjetiva e
+  Safari/iPad físico quando relevantes.
+
+Journeys já protegidos por E2E não exigem repetição manual como regressão
+genérica; o teste manual fica reservado para os casos que a matriz ainda marca
+como `MANUAL` ou `PARTIAL` e para aceite humano específico.
+
 ## Contrato visual derivado dos mockups
 
 Os mockups em `assets/mockups` também são referência BDD para a estrutura das
