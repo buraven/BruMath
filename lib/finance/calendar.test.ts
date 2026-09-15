@@ -210,7 +210,7 @@ test("a paid invoice changes status without creating another financial item", ()
       {
         id: 1,
         cardId: card.id,
-        referenceMonth: "2026-09",
+        referenceMonth: "2026-08",
         paidAt: "2026-09-10",
         amount: 100,
       },
