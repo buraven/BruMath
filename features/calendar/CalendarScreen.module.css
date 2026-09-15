@@ -59,20 +59,25 @@
   border-radius: 999px;
   background: var(--muted);
 }
-.expense {
-  background: #e48474 !important;
+.legend i.expense,
+.marker.expense {
+  background: var(--category-5);
 }
-.income {
-  background: #62b99b !important;
+.legend i.income,
+.marker.income {
+  background: var(--category-1);
 }
-.installment_due {
-  background: #9074d6 !important;
+.legend i.installment_due,
+.marker.installment_due {
+  background: var(--category-3);
 }
-.invoice_due {
-  background: #da9b4d !important;
+.legend i.invoice_due,
+.marker.invoice_due {
+  background: var(--color-warning);
 }
-.invoice_closing {
-  background: #4d91cc !important;
+.legend i.invoice_closing,
+.marker.invoice_closing {
+  background: var(--color-info);
 }
 .summary {
   display: grid;
@@ -121,9 +126,9 @@
   font-weight: 800;
 }
 .filters button:hover,
-.activeFilter {
-  background: var(--surface-soft) !important;
-  color: var(--text) !important;
+.filters .activeFilter {
+  background: var(--surface-soft);
+  color: var(--text);
 }
 .mainGrid {
   display: grid;
