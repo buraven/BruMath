@@ -199,6 +199,16 @@ histórico e não alteram a numeração oficial.
 | #60 | —                                           | Multi-user & Synchronization: household, membros e sincronização.                                                                                                                                                                                                                                                                                  |
 | #61 | —                                           | Proactive Insights / Financial Intelligence: motor determinístico compartilhado entre Home e Assistente.                                                                                                                                                                                                                                           |
 
+### Qualidade E2E
+
+Playwright é a infraestrutura E2E oficial do BruMath a partir do #54. Mudanças
+em journeys críticos devem adicionar ou atualizar cobertura E2E; regras e
+cálculos permanecem principalmente cobertos por testes unitários/integration.
+O workflow **E2E / Playwright** executa unit/integration, journeys críticos pela
+UI e build antes de merge. Ele deve ser marcado como _required check_ nas
+Branch Protection Rules/Ruleset da `main`. A validação manual continua sendo o
+aceite de fidelidade visual, UX e Safari/iPad físico quando aplicável.
+
 ### Perfil e limites — regra vigente
 
 - **Bruna** e **Matheus** consultam somente registros cujo `who` corresponde ao

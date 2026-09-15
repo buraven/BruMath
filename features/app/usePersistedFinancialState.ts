@@ -21,6 +21,7 @@ export function usePersistedFinancialState(defaults: AppFinancialData) {
   );
   const [activeProfile, setActiveProfile] = useState(initial.activeProfile);
   const [viewMonth, setViewMonth] = useState(initial.viewMonth);
+  const [hasHydrated, setHasHydrated] = useState(false);
 
   useEffect(() => {
     try {
@@ -39,10 +40,13 @@ export function usePersistedFinancialState(defaults: AppFinancialData) {
       setViewMonth(data.viewMonth);
     } catch {
       // Existing behavior keeps in-memory defaults if stored data is unreadable.
+    } finally {
+      setHasHydrated(true);
     }
   }, [initial]);
 
   useEffect(() => {
+    if (!hasHydrated) return;
     new BruMathDataRepository().save({
       expenses,
       installments,
@@ -70,6 +74,7 @@ export function usePersistedFinancialState(defaults: AppFinancialData) {
     invoicePayments,
     activeProfile,
     viewMonth,
+    hasHydrated,
   ]);
 
   return {
