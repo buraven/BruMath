@@ -42,13 +42,19 @@ export async function openWithFinancialState(
   page: Page,
   state = createFinancialState(),
 ) {
-  await page.goto("/");
-  await page.evaluate((snapshot) => {
+  await page.addInitScript((snapshot) => {
+    const seededKey = "brumath-e2e-state-seeded";
+
+    if (window.sessionStorage.getItem(seededKey)) {
+      return;
+    }
+
     window.localStorage.clear();
     window.localStorage.setItem("brumath-data", JSON.stringify(snapshot));
     window.localStorage.setItem("brumath-theme", "light");
+    window.sessionStorage.setItem(seededKey, "true");
   }, state);
-  await page.reload();
+  await page.goto("/");
   const hydratedMonth = await page.evaluate(() => {
     const stored = window.localStorage.getItem("brumath-data");
     return stored
