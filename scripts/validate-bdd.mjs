@@ -22,7 +22,7 @@ for (const file of featureFiles) {
 const coverage = await readFile(coveragePath, "utf8");
 const coverageRows = [
   ...coverage.matchAll(
-    /^\| ([A-Z]+-\d{3}) \|.*\| (COVERED|PARTIAL|MISSING|MANUAL) \|$/gm,
+    /^\| +([A-Z]+-\d{3}) +\|.*\| +(COVERED|PARTIAL|MISSING|MANUAL) +\|$/gm,
   ),
 ];
 const coverageIds = new Set();
