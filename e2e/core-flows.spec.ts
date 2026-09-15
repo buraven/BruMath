@@ -159,6 +159,7 @@ test("Entradas e recebimentos parciais persistem pelo fluxo real @desktop", asyn
     .click();
   await expect(page.getByText(/Quitado/)).toBeVisible();
   await page.reload();
+  await openTab(page, "Quem me deve");
   await expect(page.getByText("João", { exact: true })).toBeVisible();
 });
 
