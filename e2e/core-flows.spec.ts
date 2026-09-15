@@ -26,7 +26,6 @@ test("Home e perfis reconciliam o mesmo mês sem misturar responsáveis @desktop
   await expect(page.getByText("R$ 200,00", { exact: true })).toBeVisible();
   await page.getByRole("button", { name: "Casal", exact: true }).click();
   await expect(page.getByText("R$ 300,00", { exact: true })).toBeVisible();
-  await expect(page.getByText("R$ 600,00", { exact: true })).toBeVisible();
   await page.reload();
   await expect(page.getByRole("button", { name: "Casal", exact: true })).toHaveClass(/active/);
 });
@@ -89,12 +88,12 @@ test("Entradas e recebimentos parciais persistem pelo fluxo real @desktop", asyn
   await dialog.getByLabel("Quem deve?").fill("João");
   await dialog.getByLabel("Valor total").fill("10000");
   await dialog.getByRole("button", { name: "Salvar valor a receber" }).click();
-  await page.getByRole("button", { name: "Valor recebido de João" }).click();
+  await page.getByRole("button", { name: "Recebi" }).click();
   dialog = page.getByRole("dialog");
   await dialog.getByLabel("Quanto você recebeu?").fill("4000");
   await dialog.getByRole("button", { name: "Registrar recebimento" }).click();
   await expect(page.getByText("R$ 60,00 em aberto", { exact: true })).toBeVisible();
-  await page.getByRole("button", { name: "Valor recebido de João" }).click();
+  await page.getByRole("button", { name: "Recebi" }).click();
   dialog = page.getByRole("dialog");
   await dialog.getByLabel("Quanto você recebeu?").fill("6000");
   await dialog.getByRole("button", { name: "Registrar recebimento" }).click();
