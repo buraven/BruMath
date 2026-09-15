@@ -4,17 +4,17 @@ Esta matriz conecta os cenários versionados em `docs/bdd` às evidências atuai
 
 | ID | Regra | Unit | Integration | E2E | Manual | Status |
 | --- | --- | --- | --- | --- | --- | --- |
-| PERF-001 | Bruna só vê Bruna | `financialSelectors.test.ts` | `createFinancialContextProvider.test.ts` | - | - | COVERED |
-| PERF-002 | Matheus só vê Matheus | `financialSelectors.test.ts` | `createFinancialContextProvider.test.ts` | - | - | COVERED |
-| PERF-003 | Casal consolida sem duplicar | `financialSelectors.test.ts` | `financialTools.test.ts` | - | - | COVERED |
-| PERF-004 | troca de perfil recalcula | `financialSelectors.test.ts` | - | - | fluxo de tela | PARTIAL |
-| EXP-001 | criar gasto | - | `financialMutationControllers.test.ts` | `invoices.spec.ts` | - | COVERED |
-| EXP-002 | editar gasto recalcula | `invoices.test.ts` | `financialMutationControllers.test.ts` | `invoices.spec.ts` | - | COVERED |
-| EXP-003 | excluir exige confirmação | - | `financialMutationControllers.test.ts` | `invoices.spec.ts` | - | COVERED |
+| PERF-001 | Bruna só vê Bruna | `financialSelectors.test.ts` | `createFinancialContextProvider.test.ts` | `core-flows.spec.ts` | - | COVERED |
+| PERF-002 | Matheus só vê Matheus | `financialSelectors.test.ts` | `createFinancialContextProvider.test.ts` | `core-flows.spec.ts` | - | COVERED |
+| PERF-003 | Casal consolida sem duplicar | `financialSelectors.test.ts` | `financialTools.test.ts` | `core-flows.spec.ts` | - | COVERED |
+| PERF-004 | troca de perfil recalcula | `financialSelectors.test.ts` | - | `core-flows.spec.ts` | - | COVERED |
+| EXP-001 | criar gasto | - | `financialMutationControllers.test.ts` | `core-flows.spec.ts`, `invoices.spec.ts` | - | COVERED |
+| EXP-002 | editar gasto recalcula | `invoices.test.ts` | `financialMutationControllers.test.ts` | `core-flows.spec.ts`, `invoices.spec.ts` | - | COVERED |
+| EXP-003 | excluir exige confirmação | - | `financialMutationControllers.test.ts` | `core-flows.spec.ts`, `invoices.spec.ts` | - | COVERED |
 | EXP-004 | competência por mês | `financialSelectors.test.ts` | `financialTools.test.ts` | - | - | COVERED |
 | EXP-005 | gasto sem cartão é válido | `invoices.test.ts` | - | `invoices.spec.ts` | - | COVERED |
 | EXP-006 | gasto no cartão é único | `invoices.test.ts` | - | `invoices.spec.ts` | - | COVERED |
-| EXP-007 | bucket é opcional | `personalLimits.test.ts` | `financialSelectors.test.ts` | - | - | COVERED |
+| EXP-007 | bucket é opcional | `personalLimits.test.ts` | `financialSelectors.test.ts` | `core-flows.spec.ts` | - | COVERED |
 | EXP-008 | parcela não cria outra fonte | `invoices.test.ts` | `financialMutationControllers.test.ts` | - | - | COVERED |
 | CAT-001 | total por mês/perfil | `financialSelectors.test.ts` | `financialTools.test.ts` | - | - | COVERED |
 | CAT-002 | detalhe reconcilia com card | `financialSelectors.test.ts` | - | - | - | COVERED |
@@ -22,28 +22,28 @@ Esta matriz conecta os cenários versionados em `docs/bdd` às evidências atuai
 | CAT-004 | normal/atenção/excedido | `financialSelectors.test.ts` | - | - | - | COVERED |
 | CAT-005 | categoria e bucket independentes | `personalLimits.test.ts` | `financialSelectors.test.ts` | - | - | COVERED |
 | CAT-006 | vazio utilizável | `financialSelectors.test.ts` | - | - | estados vazios | PARTIAL |
-| LIM-001 | Bruna: dois buckets + agregado | `personalLimits.test.ts` | `financialSelectors.test.ts` | - | - | COVERED |
-| LIM-002 | Matheus: bucket pessoal | `personalLimits.test.ts` | `financialSelectors.test.ts` | - | - | COVERED |
+| LIM-001 | Bruna: dois buckets + agregado | `personalLimits.test.ts` | `financialSelectors.test.ts` | `core-flows.spec.ts` | - | COVERED |
+| LIM-002 | Matheus: bucket pessoal | `personalLimits.test.ts` | `financialSelectors.test.ts` | `core-flows.spec.ts` | - | COVERED |
 | LIM-003 | FIES não consome pessoal | `financialSelectors.test.ts` | `createFinancialContextProvider.test.ts` | - | - | COVERED |
-| LIM-004 | mercado sem bucket não consome | `financialSelectors.test.ts` | - | - | - | COVERED |
-| LIM-005 | unha usa só bruna_nails | `personalLimits.test.ts` | `financialSelectors.test.ts` | - | - | COVERED |
-| LIM-006 | pessoal Bruna usa só bucket correto | `personalLimits.test.ts` | `financialSelectors.test.ts` | - | - | COVERED |
-| LIM-007 | pessoal Matheus usa bucket correto | `personalLimits.test.ts` | `financialSelectors.test.ts` | - | - | COVERED |
+| LIM-004 | mercado sem bucket não consome | `financialSelectors.test.ts` | - | `core-flows.spec.ts` | - | COVERED |
+| LIM-005 | unha usa só bruna_nails | `personalLimits.test.ts` | `financialSelectors.test.ts` | `core-flows.spec.ts` | - | COVERED |
+| LIM-006 | pessoal Bruna usa só bucket correto | `personalLimits.test.ts` | `financialSelectors.test.ts` | `core-flows.spec.ts` | - | COVERED |
+| LIM-007 | pessoal Matheus usa bucket correto | `personalLimits.test.ts` | `financialSelectors.test.ts` | `core-flows.spec.ts` | - | COVERED |
 | LIM-008 | agregado não é persistível | `personalLimits.test.ts` | `BruMathDataRepository.test.ts` | - | - | COVERED |
 | LIM-009 | editar/remove bucket recalcula | `financialSelectors.test.ts` | `financialMutationControllers.test.ts` | - | - | COVERED |
 | INC-001 | renda-base no mês | `financialSelectors.test.ts` | `financialTools.test.ts` | - | - | COVERED |
 | INC-002 | entrada em conta aumenta disponível | `financialSelectors.test.ts` | `financialMutationControllers.test.ts` | - | - | COVERED |
 | INC-003 | entrada em cartão não aumenta conta | `financialSelectors.test.ts` | `financialTools.test.ts` | - | - | COVERED |
-| INC-004 | ciclo de entrada persiste | - | `financialMutationControllers.test.ts` | - | fluxo completo | PARTIAL |
-| REC-001 | cria recebível | - | `financialMutationControllers.test.ts` | - | - | COVERED |
-| REC-002 | recebimento parcial mantém saldo | - | `financialMutationControllers.test.ts` | - | - | COVERED |
-| REC-003 | múltiplos recebimentos não excedem | - | `financialMutationControllers.test.ts` | - | - | COVERED |
-| REC-004 | quitação só ao total | - | `financialMutationControllers.test.ts` | - | - | COVERED |
-| REC-005 | recebimento gera entrada | - | `financialMutationControllers.test.ts` | - | - | COVERED |
-| PAR-001 | criar parcelamento | - | `financialMutationControllers.test.ts` | - | - | COVERED |
+| INC-004 | ciclo de entrada persiste | - | `financialMutationControllers.test.ts` | `core-flows.spec.ts` | - | COVERED |
+| REC-001 | cria recebível | - | `financialMutationControllers.test.ts` | `core-flows.spec.ts` | - | COVERED |
+| REC-002 | recebimento parcial mantém saldo | - | `financialMutationControllers.test.ts` | `core-flows.spec.ts` | - | COVERED |
+| REC-003 | múltiplos recebimentos não excedem | - | `financialMutationControllers.test.ts` | `core-flows.spec.ts` | - | COVERED |
+| REC-004 | quitação só ao total | - | `financialMutationControllers.test.ts` | `core-flows.spec.ts` | - | COVERED |
+| REC-005 | recebimento gera entrada | - | `financialMutationControllers.test.ts` | `core-flows.spec.ts` | - | COVERED |
+| PAR-001 | criar parcelamento | - | `financialMutationControllers.test.ts` | `core-flows.spec.ts` | - | COVERED |
 | PAR-002 | parcelas restantes | `financialSelectors.test.ts` | - | - | - | COVERED |
 | PAR-003 | pagar parcela avança uma competência | - | `financialMutationControllers.test.ts` | - | - | COVERED |
-| PAR-004 | quitar exige confirmação | - | `financialMutationControllers.test.ts` | - | - | COVERED |
+| PAR-004 | quitar exige confirmação | - | `financialMutationControllers.test.ts` | `core-flows.spec.ts` | - | COVERED |
 | PAR-005 | adiantar preserva semântica | - | `financialMutationControllers.test.ts` | - | - | COVERED |
 | PAR-006 | parcela no cartão respeita ciclo | `invoices.test.ts` | - | - | - | COVERED |
 | FAT-001 | criar/persistir cartão | `BruMathDataRepository.test.ts` | - | `invoices.spec.ts` | - | COVERED |
@@ -59,15 +59,15 @@ Esta matriz conecta os cenários versionados em `docs/bdd` às evidências atuai
 | FAT-011 | Casal preserva cartões individuais | `invoices.test.ts` | - | - | perfil consolidado | PARTIAL |
 | FAT-012 | parcelas por ciclo | `invoices.test.ts` | - | - | - | COVERED |
 | FAT-013 | CTA reutiliza formulário de gasto | - | - | `invoices.spec.ts` | - | COVERED |
-| AST-001 | consulta não persiste | - | `AssistantEngine.test.ts` | - | - | COVERED |
+| AST-001 | consulta não persiste | - | `AssistantEngine.test.ts` | `core-flows.spec.ts` | - | COVERED |
 | AST-002 | simulação não persiste | - | `registerExpenseAction.test.ts` | - | - | COVERED |
-| AST-003 | mutação exige confirmação | - | `registerExpenseAction.test.ts` | - | - | COVERED |
-| AST-004 | cancelar não persiste | - | `registerExpenseAction.test.ts` | - | - | COVERED |
-| AST-005 | confirmação executa uma vez | - | `registerExpenseAction.test.ts` | - | - | COVERED |
+| AST-003 | mutação exige confirmação | - | `registerExpenseAction.test.ts` | `core-flows.spec.ts` | - | COVERED |
+| AST-004 | cancelar não persiste | - | `registerExpenseAction.test.ts` | `core-flows.spec.ts` | - | COVERED |
+| AST-005 | confirmação executa uma vez | - | `registerExpenseAction.test.ts` | `core-flows.spec.ts` | - | COVERED |
 | AST-006 | contexto respeita escopo | `financialTools.test.ts` | `createFinancialContextProvider.test.ts` | - | - | COVERED |
 | AST-007 | bucket não é inferido | `ConversationPlanParser.test.ts` | `registerExpenseAction.test.ts` | - | - | COVERED |
 | AST-008 | ambiguidade pede esclarecimento | `conversationContext.test.ts` | `ConversationPlanParser.test.ts` | - | - | COVERED |
-| HOME-001 | Home respeita mês/perfil | `financialSelectors.test.ts` | - | - | smoke da UI | PARTIAL |
+| HOME-001 | Home respeita mês/perfil | `financialSelectors.test.ts` | - | `core-flows.spec.ts` | - | COVERED |
 | HOME-002 | insights são determinísticos | `homeInsights.test.ts` | - | - | - | COVERED |
 | HOME-003 | painel compacto preserva fluxo | `responseStyle.test.ts` | `AssistantEngine.test.ts` | - | compact mode | PARTIAL |
 | HOME-004 | vazio não inventa valores | `financialSelectors.test.ts` | `createFinancialContextProvider.test.ts` | - | - | COVERED |
