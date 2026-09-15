@@ -14,12 +14,12 @@ cada identificador aos testes que o protegem.
 
 ## Camadas de qualidade
 
-| Camada | Responsabilidade |
-| --- | --- |
-| Unit | Cálculos puros, filtros, ciclos e invariantes financeiros. |
+| Camada      | Responsabilidade                                                              |
+| ----------- | ----------------------------------------------------------------------------- |
+| Unit        | Cálculos puros, filtros, ciclos e invariantes financeiros.                    |
 | Integration | Colaboração entre selectors, controllers, ações, repositórios e persistência. |
-| E2E | Journey real pela UI: UI → domínio → persistência → UI. |
-| Manual | Fidelidade visual, UX, Safari e iPad físico. |
+| E2E         | Journey real pela UI: UI → domínio → persistência → UI.                       |
+| Manual      | Fidelidade visual, UX, Safari e iPad físico.                                  |
 
 Um cenário pode ter mais de uma camada quando o risco justificar. Não é
 necessário reproduzir todas as regras unitárias em Playwright.
