@@ -15,8 +15,13 @@ export function usePersistedFinancialState(defaults: AppFinancialData) {
   const [budgets, setBudgets] = useState(initial.budgets);
   const [limits, setLimits] = useState(initial.limits);
   const [personalLimits, setPersonalLimits] = useState(initial.personalLimits);
+  const [creditCards, setCreditCards] = useState(initial.creditCards);
+  const [invoicePayments, setInvoicePayments] = useState(
+    initial.invoicePayments,
+  );
   const [activeProfile, setActiveProfile] = useState(initial.activeProfile);
   const [viewMonth, setViewMonth] = useState(initial.viewMonth);
+  const [hasHydrated, setHasHydrated] = useState(false);
 
   useEffect(() => {
     try {
@@ -29,14 +34,19 @@ export function usePersistedFinancialState(defaults: AppFinancialData) {
       setBudgets(data.budgets);
       setLimits(data.limits);
       setPersonalLimits(data.personalLimits);
+      setCreditCards(data.creditCards);
+      setInvoicePayments(data.invoicePayments);
       setActiveProfile(data.activeProfile);
       setViewMonth(data.viewMonth);
     } catch {
       // Existing behavior keeps in-memory defaults if stored data is unreadable.
+    } finally {
+      setHasHydrated(true);
     }
   }, [initial]);
 
   useEffect(() => {
+    if (!hasHydrated) return;
     new BruMathDataRepository().save({
       expenses,
       installments,
@@ -46,6 +56,8 @@ export function usePersistedFinancialState(defaults: AppFinancialData) {
       budgets,
       limits,
       personalLimits,
+      creditCards,
+      invoicePayments,
       activeProfile,
       viewMonth,
     });
@@ -58,8 +70,11 @@ export function usePersistedFinancialState(defaults: AppFinancialData) {
     budgets,
     limits,
     personalLimits,
+    creditCards,
+    invoicePayments,
     activeProfile,
     viewMonth,
+    hasHydrated,
   ]);
 
   return {
@@ -79,6 +94,10 @@ export function usePersistedFinancialState(defaults: AppFinancialData) {
     setLimits,
     personalLimits,
     setPersonalLimits,
+    creditCards,
+    setCreditCards,
+    invoicePayments,
+    setInvoicePayments,
     activeProfile,
     setActiveProfile,
     viewMonth,

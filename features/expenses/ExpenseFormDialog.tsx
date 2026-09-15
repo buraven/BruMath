@@ -5,7 +5,7 @@ import { Check } from "lucide-react";
 import { DateInput } from "../../components/ui/DateInput";
 import { FormDialog } from "../../components/ui/FormDialog";
 import { MoneyInput } from "../../components/ui/MoneyInput";
-import type { Expense, Person } from "../../lib/app/AppTypes";
+import type { CreditCard, Expense, Person } from "../../lib/app/AppTypes";
 import { PERSONAL_LIMIT_BUCKETS } from "../../lib/finance/personalLimits";
 import type { PersonalLimitBucket } from "../../lib/finance/personalLimitBuckets";
 
@@ -20,6 +20,8 @@ type Props = {
   categories: readonly string[];
   activeProfile: Person;
   viewMonth: string;
+  creditCards: readonly CreditCard[];
+  initialCreditCardId?: number;
   onSave: (expense: Expense, isEditing: boolean) => void;
   onClose: () => void;
   onInvalid: (message: string) => void;
@@ -30,6 +32,8 @@ export function ExpenseFormDialog({
   categories,
   activeProfile,
   viewMonth,
+  creditCards,
+  initialCreditCardId,
   onSave,
   onClose,
   onInvalid,
@@ -43,6 +47,9 @@ export function ExpenseFormDialog({
           who: expense.who,
           date: expense.date,
           personalLimitBucket: expense.personalLimitBucket ?? "",
+          creditCardId: expense.creditCardId
+            ? String(expense.creditCardId)
+            : "",
         }
       : {
           title: "",
@@ -51,6 +58,7 @@ export function ExpenseFormDialog({
           who: activeProfile,
           date: `${viewMonth}-01`,
           personalLimitBucket: "",
+          creditCardId: initialCreditCardId ? String(initialCreditCardId) : "",
         },
   );
 
@@ -81,6 +89,9 @@ export function ExpenseFormDialog({
                       form.personalLimitBucket as PersonalLimitBucket,
                   }
                 : {}),
+              ...(form.creditCardId
+                ? { creditCardId: Number(form.creditCardId) }
+                : {}),
             },
             Boolean(expense),
           );
@@ -96,6 +107,30 @@ export function ExpenseFormDialog({
             placeholder="Ex.: Mercado"
             required
           />
+        </label>
+        <label className="field">
+          <span>Cartão</span>
+          <select
+            value={form.creditCardId}
+            onChange={(event) =>
+              setForm({ ...form, creditCardId: event.target.value })
+            }
+          >
+            <option value="">Nenhum</option>
+            {creditCards
+              .filter(
+                (card) =>
+                  card.active &&
+                  (form.who === "Casal" ||
+                    card.owner === "Casal" ||
+                    card.owner === form.who),
+              )
+              .map((card) => (
+                <option key={card.id} value={card.id}>
+                  {card.name} · {card.owner}
+                </option>
+              ))}
+          </select>
         </label>
         <div className="form-grid">
           <label className="field">

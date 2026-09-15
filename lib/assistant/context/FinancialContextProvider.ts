@@ -81,6 +81,18 @@ export type IncomeContextItem = {
   destination: "conta" | "cartao";
 };
 
+/** A read-only projection of a derived card invoice. */
+export type InvoiceContextItem = {
+  id: string;
+  cardName: string;
+  owner: AssistantProfile;
+  referenceMonth: string;
+  dueDate: string;
+  total: number;
+  availableCredit: number;
+  status: "in_progress" | "open" | "paid";
+};
+
 export type FinancialContext = {
   summary: FinancialSummary;
   expenses: readonly ExpenseContextItem[];
@@ -88,6 +100,7 @@ export type FinancialContext = {
   installments: readonly InstallmentContextItem[];
   receivables: readonly ReceivableContextItem[];
   income: readonly IncomeContextItem[];
+  invoices: readonly InvoiceContextItem[];
 };
 
 export interface FinancialContextProvider {
@@ -112,4 +125,7 @@ export interface FinancialContextProvider {
   getIncome(
     scope: FinancialScope,
   ): Promise<FinancialContextResult<readonly IncomeContextItem[]>>;
+  getInvoices(
+    scope: FinancialScope,
+  ): Promise<FinancialContextResult<readonly InvoiceContextItem[]>>;
 }

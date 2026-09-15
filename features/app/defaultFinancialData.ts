@@ -164,3 +164,6 @@ export const INITIAL_INSTALLMENTS: Installment[] = [
     nextDue: "2026-09-18",
   },
 ];
+
+export const INITIAL_CREDIT_CARDS: import("../../lib/app/AppTypes").CreditCard[] =
+  [];

@@ -206,7 +206,7 @@ test("keeps limits separate and returns installments and receivables", async () 
   if (!limits.ok || !installments.ok || !receivables.ok) return;
   assert.equal(
     limits.value.data.filter((limit) => limit.kind === "personal").length,
-    2,
+    4,
   );
   assert.equal(
     limits.value.data.filter((limit) => limit.kind === "category").length,

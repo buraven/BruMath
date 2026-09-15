@@ -8,6 +8,7 @@ export type NavigationTab =
   | "future"
   | "debts"
   | "income"
+  | "invoices"
   | "preferences";
 export type Tab = NavigationTab;
 export type ThemeMode = "light" | "dark" | "system";
@@ -22,6 +23,29 @@ export type Expense = {
   date: string;
   /** Optional by design: historic records never consume a personal allowance. */
   personalLimitBucket?: PersonalLimitBucket;
+  /** A purchase may be linked to a card but remains one expense. */
+  creditCardId?: number;
+};
+
+export type CreditCard = {
+  id: number;
+  name: string;
+  issuer?: string;
+  owner: Person;
+  creditLimit: number;
+  closingDay: number;
+  dueDay: number;
+  appearance?: "purple" | "orange" | "blue";
+  active: boolean;
+};
+
+/** Persisted payment state only; invoice totals and entries are derived. */
+export type InvoicePayment = {
+  id: number;
+  cardId: number;
+  referenceMonth: string;
+  paidAt: string;
+  amount: number;
 };
 
 export type Installment = {
@@ -33,6 +57,8 @@ export type Installment = {
   totalInstallments: number;
   paidInstallments: number;
   nextDue: string;
+  /** Optional by design: an installment can be paid outside a credit card. */
+  creditCardId?: number;
 };
 
 export type Debt = {
@@ -93,6 +119,8 @@ export type AppFinancialData = {
   budgets: Record<string, number>;
   limits: Record<"Bruna" | "Matheus", number>;
   personalLimits: PersonalLimitConfiguration;
+  creditCards: CreditCard[];
+  invoicePayments: InvoicePayment[];
   activeProfile: Person;
   viewMonth: string;
 };

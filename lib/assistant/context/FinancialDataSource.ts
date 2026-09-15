@@ -10,6 +10,7 @@ export type PersistedExpense = {
   amount: number;
   date: string;
   personalLimitBucket?: PersonalLimitBucket;
+  creditCardId?: number;
 };
 
 export type PersistedInstallment = {
@@ -21,6 +22,27 @@ export type PersistedInstallment = {
   totalInstallments: number;
   paidInstallments: number;
   nextDue: string;
+  creditCardId?: number;
+};
+
+export type PersistedCreditCard = {
+  id: number;
+  name: string;
+  issuer?: string;
+  owner: AssistantProfile;
+  creditLimit: number;
+  closingDay: number;
+  dueDay: number;
+  appearance?: "purple" | "orange" | "blue";
+  active: boolean;
+};
+
+export type PersistedInvoicePayment = {
+  id: number;
+  cardId: number;
+  referenceMonth: string;
+  paidAt: string;
+  amount: number;
 };
 
 export type PersistedDebt = {
@@ -53,6 +75,8 @@ export type FinancialDataSnapshot = {
   budgets: Readonly<Record<string, number>>;
   limits: Readonly<Record<"Bruna" | "Matheus", number>>;
   personalLimits?: PersonalLimitConfiguration;
+  creditCards?: readonly PersistedCreditCard[];
+  invoicePayments?: readonly PersistedInvoicePayment[];
   /** Whether the persistence source actually contained a BruMath dataset. */
   hasStoredData?: boolean;
 };

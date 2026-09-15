@@ -12,6 +12,8 @@ const defaults = {
   budgets: { Casa: 2_500 },
   limits: { Bruna: 350, Matheus: 350 },
   personalLimits: DEFAULT_PERSONAL_LIMITS,
+  creditCards: [],
+  invoicePayments: [],
   activeProfile: "Bruna" as const,
   viewMonth: "2026-09",
 };
@@ -59,6 +61,45 @@ test("loads the existing brumath-data shape and keeps legacy debt months compati
 
     repository.save(loaded);
     assert.deepEqual(JSON.parse(values.get("brumath-data") ?? "{}"), loaded);
+  } finally {
+    Object.defineProperty(globalThis, "window", {
+      configurable: true,
+      value: previousWindow,
+    });
+  }
+});
+
+test("persists and reloads a newly created credit card", () => {
+  const values = new Map<string, string>();
+  const previousWindow = globalThis.window;
+  Object.defineProperty(globalThis, "window", {
+    configurable: true,
+    value: {
+      localStorage: {
+        getItem: (key: string) => values.get(key) ?? null,
+        setItem: (key: string, value: string) => values.set(key, value),
+      },
+    },
+  });
+
+  try {
+    const repository = new BruMathDataRepository();
+    const card = {
+      id: 7,
+      name: "Nubank Bruna",
+      owner: "Bruna" as const,
+      creditLimit: 5_000,
+      closingDay: 20,
+      dueDay: 27,
+      active: true,
+    };
+    repository.save({ ...defaults, creditCards: [card] });
+    const reloaded = repository.load(defaults);
+
+    assert.deepEqual(reloaded.creditCards, [card]);
+    assert.equal(reloaded.creditCards[0]?.creditLimit, 5_000);
+    assert.equal(reloaded.creditCards[0]?.closingDay, 20);
+    assert.equal(reloaded.creditCards[0]?.dueDay, 27);
   } finally {
     Object.defineProperty(globalThis, "window", {
       configurable: true,

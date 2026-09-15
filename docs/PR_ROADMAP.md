@@ -190,7 +190,7 @@ histórico e não alteram a numeração oficial.
 | #51 | `feature/app-state-page-decomposition-pr51` | App State & Page Decomposition. **Concluído.**                                                                                                                                                                                                                                                                                                     |
 | #52 | `feature/home-shell-fidelity-pr52`          | Home & Shell Fidelity: recuperar a composição oficial de Home, shell e apresentação de limites. **Concluído.** A fidelidade visual final da Home permanece como pendência explícita para uma revisão/reconstrução futura baseada nos mockups oficiais. Bottom navigation, shell e scroll também permanecem como pendência visual/técnica separada. |
 | #53 | `feature/categories-detail-pr53`            | Categorias & Detalhamento, incluindo escopo consolidado de perfil e franquias pessoais explícitas. **Concluído.**                                                                                                                                                                                                                                  |
-| #54 | —                                           | Faturas & Cartões.                                                                                                                                                                                                                                                                                                                                 |
+| #54 | `feature/invoices-cards-pr54`               | Faturas & Cartões: cartões configuráveis, ciclos determinísticos e pagamentos sem duplicar gastos. **Em implementação.**                                                                                                                                                                                                                           |
 | #55 | —                                           | Calendário & Compromissos.                                                                                                                                                                                                                                                                                                                         |
 | #56 | —                                           | Financial Guardrails: provenance, validação e anti-alucinação financeira.                                                                                                                                                                                                                                                                          |
 | #57 | —                                           | Conversation Context: follow-ups, referências e memória curta.                                                                                                                                                                                                                                                                                     |
@@ -198,6 +198,21 @@ histórico e não alteram a numeração oficial.
 | #59 | —                                           | Supabase Persistence: persistência financeira centralizada e migração gradual.                                                                                                                                                                                                                                                                     |
 | #60 | —                                           | Multi-user & Synchronization: household, membros e sincronização.                                                                                                                                                                                                                                                                                  |
 | #61 | —                                           | Proactive Insights / Financial Intelligence: motor determinístico compartilhado entre Home e Assistente.                                                                                                                                                                                                                                           |
+
+### Qualidade E2E
+
+Playwright é a infraestrutura E2E oficial do BruMath a partir do #54. Mudanças
+em journeys críticos devem adicionar ou atualizar cobertura E2E; regras e
+cálculos permanecem principalmente cobertos por testes unitários/integration.
+O catálogo BDD versionado em `docs/bdd/` é o contrato funcional: toda nova
+regra de negócio, regressão funcional ou alteração de journey deve atualizar
+o cenário e sua linha em `docs/bdd/COVERAGE.md`. Os mockups oficiais também
+alimentam cenários `VIS-*` estruturais, cujo aceite é humano por viewport; eles
+não substituem regras financeiras nem viram comparação pixel-perfect no CI.
+O workflow **E2E / Playwright** executa unit/integration, journeys críticos pela
+UI e build antes de merge. Ele deve ser marcado como _required check_ nas
+Branch Protection Rules/Ruleset da `main`. A validação manual continua sendo o
+aceite de fidelidade visual, UX e Safari/iPad físico quando aplicável.
 
 ### Perfil e limites — regra vigente
 
