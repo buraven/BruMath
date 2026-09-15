@@ -45,7 +45,7 @@ import { ExpensesScreen } from "../features/expenses/ExpensesScreen";
 import { ExpenseFormDialog } from "../features/expenses/ExpenseFormDialog";
 import { AssistantChat } from "../features/assistant/AssistantChat";
 import { useAssistantController } from "../features/assistant/useAssistantController";
-import { FutureScreen } from "../features/future/FutureScreen";
+import { CalendarScreen } from "../features/calendar/CalendarScreen";
 import { AdvanceInstallmentsDialog } from "../features/future/AdvanceInstallmentsDialog";
 import { InstallmentFormDialog } from "../features/future/InstallmentFormDialog";
 import { FinancialSettingsDialog } from "../features/limits/FinancialSettingsDialog";
@@ -90,6 +90,7 @@ import {
   registerInvoicePayment,
   type DerivedInvoice,
 } from "../lib/finance/invoices";
+import { deriveCalendarProjection } from "../lib/finance/calendar";
 
 const money = (value: number) =>
   value.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
@@ -313,6 +314,30 @@ export default function Page() {
       installments,
       invoicePayments,
       activeProfile,
+      viewMonth,
+    ],
+  );
+  const calendarProjection = useMemo(
+    () =>
+      deriveCalendarProjection({
+        month: viewMonth,
+        profile: activeProfile,
+        expenses,
+        incomeEntries,
+        installments,
+        cards: creditCards,
+        payments: invoicePayments,
+        baseBalance: available,
+        referenceDate: `${viewMonth}-01`,
+      }),
+    [
+      activeProfile,
+      available,
+      creditCards,
+      expenses,
+      incomeEntries,
+      installments,
+      invoicePayments,
       viewMonth,
     ],
   );
@@ -707,20 +732,21 @@ export default function Page() {
             )}
 
             {tab === "future" && (
-              <FutureScreen
-                monthKey={viewMonth}
+              <CalendarScreen
+                month={viewMonth}
                 monthLabel={monthName}
-                available={available}
-                installments={selectedInstallments}
+                projection={calendarProjection}
+                profile={activeProfile}
+                installments={installments}
                 formatMoney={money}
                 formatDate={shortDate}
-                renderIcon={renderCategoryIcon}
-                onCreate={openNewInstallment}
-                onPay={payInstallment}
-                onAdvance={chooseAdvanceInstallments}
-                onQuit={chooseQuitInstallment}
-                onEdit={openEditInstallment}
-                onDelete={deleteInstallment}
+                onPayInstallment={(id) => payInstallment(id, 1)}
+                onAdvanceInstallment={chooseAdvanceInstallments}
+                onQuitInstallment={chooseQuitInstallment}
+                onCreateInstallment={openNewInstallment}
+                onEditInstallment={openEditInstallment}
+                onDeleteInstallment={deleteInstallment}
+                onOpenInvoices={() => switchTab("invoices")}
               />
             )}
 
@@ -824,7 +850,7 @@ export default function Page() {
             active={tab === "future"}
             onClick={() => switchTab("future")}
             icon={<CalendarDays size={19} />}
-            label="Futuro"
+            label="Calendário"
           />
           <NavButton
             active={

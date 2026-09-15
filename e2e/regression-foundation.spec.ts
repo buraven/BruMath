@@ -242,7 +242,7 @@ test("adiantar parcelas preserva o cancelamento, competências e reload @desktop
   page,
 }) => {
   await openWithFinancialState(page);
-  await openTab(page, "Futuro");
+  await openTab(page, "Calendário");
   await page.getByRole("button", { name: "Novo compromisso" }).click();
   let dialog = page.getByRole("dialog");
   await dialog.getByLabel("Nome").fill("Notebook");
@@ -273,7 +273,7 @@ test("adiantar parcelas preserva o cancelamento, competências e reload @desktop
   await page.getByLabel("Próximo mês").click();
   await expect(page.getByText("Notebook", { exact: true })).toBeVisible();
   await page.reload();
-  await openTab(page, "Futuro");
+  await openTab(page, "Calendário");
   await expect(page.getByText("Notebook", { exact: true })).toBeVisible();
   await expect(page.getByText("2 restantes", { exact: true })).toBeVisible();
 });
