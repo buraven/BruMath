@@ -204,7 +204,8 @@
 }
 
 .open,
-.paid {
+.paid,
+.inProgress {
   flex: 0 0 auto;
   padding: 4px 7px;
   border-radius: 7px;
@@ -219,6 +220,10 @@
 .paid {
   background: var(--surface-soft);
   color: var(--soft-text);
+}
+.inProgress {
+  background: var(--surface-soft);
+  color: var(--muted);
 }
 
 .cycle {
@@ -317,6 +322,11 @@
   font-weight: 800;
   padding: 4px 0 0;
   text-align: left;
+}
+.detailButton {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
 }
 
 .empty {

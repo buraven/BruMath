@@ -7,7 +7,12 @@ import type {
 } from "../app/AppTypes";
 import { isWithinProfileScope } from "./profileScope";
 
-export type InvoiceStatus = "open" | "paid";
+/**
+ * An in-progress cycle is intentionally distinct from an unpaid invoice:
+ * it keeps a configured card visible before its first purchase without
+ * representing a debt.
+ */
+export type InvoiceStatus = "in_progress" | "open" | "paid";
 export type InvoiceFilter = "all" | "open" | "due" | "paid";
 
 export type DerivedInvoice = {
@@ -42,10 +47,23 @@ export function filterInvoices(
   filter: InvoiceFilter,
 ): readonly DerivedInvoice[] {
   if (filter === "all") return invoices;
-  // "A vencer" is an unpaid invoice in the selected invoice period.
+  // "Abertas" and "A vencer" only represent invoices with an actual balance.
   if (filter === "due")
     return invoices.filter((invoice) => invoice.status === "open");
   return invoices.filter((invoice) => invoice.status === filter);
+}
+
+export function summarizeInvoices(invoices: readonly DerivedInvoice[]) {
+  const payable = invoices.filter((invoice) => invoice.status === "open");
+  const paid = invoices.filter((invoice) => invoice.status === "paid");
+
+  return {
+    payableCount: payable.length,
+    totalPayable: payable.reduce((sum, invoice) => sum + invoice.total, 0),
+    nextDue: payable.map((invoice) => invoice.dueDate).sort()[0],
+    totalProjected: invoices.reduce((sum, invoice) => sum + invoice.total, 0),
+    totalPaid: paid.reduce((sum, invoice) => sum + invoice.total, 0),
+  };
 }
 
 export function registerInvoicePayment(
@@ -203,7 +221,8 @@ export function deriveInvoices({
         installments: invoiceInstallments,
         total,
         paidAmount,
-        status: paidAmount >= total && total > 0 ? "paid" : "open",
+        status:
+          total <= 0 ? "in_progress" : paidAmount >= total ? "paid" : "open",
         availableCredit: Math.max(0, card.creditLimit - total),
         utilization:
           card.creditLimit > 0 ? (total / card.creditLimit) * 100 : 0,

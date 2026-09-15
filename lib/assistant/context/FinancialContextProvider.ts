@@ -90,7 +90,7 @@ export type InvoiceContextItem = {
   dueDate: string;
   total: number;
   availableCredit: number;
-  status: "open" | "paid";
+  status: "in_progress" | "open" | "paid";
 };
 
 export type FinancialContext = {

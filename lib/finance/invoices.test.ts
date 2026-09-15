@@ -7,6 +7,7 @@ import {
   registerInvoicePayment,
   resolveInvoiceDueDate,
   resolveInvoiceReferenceMonth,
+  summarizeInvoices,
 } from "./invoices";
 
 const card: CreditCard = {
@@ -126,7 +127,7 @@ test("keeps a persisted card visible when its selected invoice is empty", () => 
   assert.equal(invoice?.card.id, card.id);
   assert.equal(invoice?.total, 0);
   assert.equal(invoice?.expenses.length, 0);
-  assert.equal(invoice?.status, "open");
+  assert.equal(invoice?.status, "in_progress");
 });
 
 test("adds a card installment to its cycle without manufacturing an expense", () => {
@@ -265,4 +266,33 @@ test("deleting the linked expense clears its invoice and a zero invoice cannot b
   assert.ok(invoice);
   assert.equal(invoice.total, 0);
   assert.deepEqual(registerInvoicePayment([], invoice, "2026-08-27", 7), []);
+});
+
+test("does not count a visible zero cycle as an open invoice or a payable balance", () => {
+  const emptyCard: CreditCard = {
+    ...card,
+    id: 2,
+    name: "Mercado Pago",
+  };
+  const invoices = deriveInvoices({
+    cards: [card, emptyCard],
+    expenses: [expense()],
+    payments: [],
+    profile: "Bruna",
+    referenceMonth: "2026-08",
+  });
+  const summary = summarizeInvoices(invoices);
+
+  assert.equal(invoices.length, 2);
+  assert.equal(
+    invoices.find((invoice) => invoice.card.id === emptyCard.id)?.status,
+    "in_progress",
+  );
+  assert.equal(summary.totalPayable, 100);
+  assert.equal(summary.payableCount, 1);
+  assert.equal(summary.nextDue, "2026-08-27");
+  assert.equal(filterInvoices(invoices, "all").length, 2);
+  assert.equal(filterInvoices(invoices, "open").length, 1);
+  assert.equal(filterInvoices(invoices, "due").length, 1);
+  assert.equal(filterInvoices(invoices, "paid").length, 0);
 });

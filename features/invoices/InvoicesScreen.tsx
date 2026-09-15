@@ -2,6 +2,7 @@
 
 import {
   ArrowLeft,
+  ArrowRight,
   CalendarClock,
   CheckCircle2,
   CreditCard,
@@ -18,6 +19,7 @@ import type {
 } from "../../lib/app/AppTypes";
 import {
   filterInvoices,
+  summarizeInvoices,
   type DerivedInvoice,
   type InvoiceFilter,
 } from "../../lib/finance/invoices";
@@ -45,6 +47,10 @@ export function InvoicesScreen(props: Props) {
     () => filterInvoices(props.invoices, filter),
     [filter, props.invoices],
   );
+  const summary = useMemo(
+    () => summarizeInvoices(props.invoices),
+    [props.invoices],
+  );
 
   if (selected) {
     return (
@@ -55,13 +61,6 @@ export function InvoicesScreen(props: Props) {
       />
     );
   }
-
-  const open = props.invoices.filter((invoice) => invoice.status === "open");
-  const total = open.reduce((sum, invoice) => sum + invoice.total, 0);
-  const paid = props.invoices
-    .filter((invoice) => invoice.status === "paid")
-    .reduce((sum, invoice) => sum + invoice.total, 0);
-  const nextDue = open.map((invoice) => invoice.dueDate).sort()[0];
 
   return (
     <section className={styles.screen} aria-labelledby="invoices-title">
@@ -83,27 +82,25 @@ export function InvoicesScreen(props: Props) {
         <Metric
           icon={<WalletCards size={18} />}
           label="Total a pagar"
-          value={props.formatMoney(total)}
-          detail={`${open.length} fatura${open.length === 1 ? "" : "s"} aberta${open.length === 1 ? "" : "s"}`}
+          value={props.formatMoney(summary.totalPayable)}
+          detail={`${summary.payableCount} fatura${summary.payableCount === 1 ? "" : "s"} aberta${summary.payableCount === 1 ? "" : "s"}`}
         />
         <Metric
           icon={<CalendarClock size={18} />}
           label="Próximo vencimento"
-          value={nextDue ? props.formatDate(nextDue) : "—"}
-          detail={nextDue ? "Fatura em aberto" : "Sem faturas abertas"}
+          value={summary.nextDue ? props.formatDate(summary.nextDue) : "—"}
+          detail={summary.nextDue ? "Fatura em aberto" : "Sem faturas abertas"}
         />
         <Metric
           icon={<Gauge size={18} />}
           label="Total previsto"
-          value={props.formatMoney(
-            props.invoices.reduce((sum, invoice) => sum + invoice.total, 0),
-          )}
+          value={props.formatMoney(summary.totalProjected)}
           detail="Faturas do período"
         />
         <Metric
           icon={<CheckCircle2 size={18} />}
           label="Total pago"
-          value={props.formatMoney(paid)}
+          value={props.formatMoney(summary.totalPaid)}
           detail="Faturas quitadas"
         />
       </div>
@@ -220,9 +217,19 @@ function InvoiceCard({
             <small>{invoice.card.issuer ?? invoice.card.owner}</small>
           </div>
           <span
-            className={invoice.status === "paid" ? styles.paid : styles.open}
+            className={
+              invoice.status === "paid"
+                ? styles.paid
+                : invoice.status === "open"
+                  ? styles.open
+                  : styles.inProgress
+            }
           >
-            {invoice.status === "paid" ? "Paga" : "Aberta"}
+            {invoice.status === "paid"
+              ? "Paga"
+              : invoice.status === "open"
+                ? "Aberta"
+                : "Em andamento"}
           </span>
         </div>
         <div className={styles.cycle}>
@@ -262,7 +269,7 @@ function InvoiceCard({
           ))
         )}
         <button type="button" className={styles.detailButton} onClick={onOpen}>
-          Ver detalhes da fatura
+          Ver fatura e lançamentos <ArrowRight size={14} />
         </button>
       </section>
     </article>
