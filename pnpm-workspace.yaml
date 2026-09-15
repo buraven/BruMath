@@ -1,0 +1,6 @@
+# Third-party install scripts remain disabled unless the project explicitly
+# approves them. These packages are not required to run a BruMath build or test.
+allowBuilds:
+  "@google/genai": false
+  protobufjs: false
+  unrs-resolver: false
