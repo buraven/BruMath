@@ -188,6 +188,17 @@
   flex-wrap: wrap;
   gap: 3px;
 }
+
+/* In iPad landscape the wide calendar column used the default aspect ratio to
+ * turn every week into a tall row. Keep touch targets at the existing minimum
+ * height, but use a compact row ratio so five- and six-week months stay dense. */
+@media (min-width: 900px) and (max-width: 1439px) and (orientation: landscape) {
+  .blankDay,
+  .day {
+    aspect-ratio: 1 / 0.58;
+  }
+}
+
 .agenda {
   overflow: hidden;
 }
