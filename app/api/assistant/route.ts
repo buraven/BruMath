@@ -5,6 +5,10 @@ import type {
   ConversationToolResult,
 } from "../../../lib/assistant/conversation/contracts";
 import { financialToolNames } from "../../../lib/assistant/providers/ConversationPlanParser";
+import {
+  isDeterministicProvenance,
+  responseProvenanceKinds,
+} from "../../../lib/assistant/contracts";
 
 export const runtime = "nodejs";
 
@@ -27,6 +31,17 @@ function isToolResults(
       typeof item.scope.month === "string" &&
       /^\d{4}-\d{2}$/.test(item.scope.month) &&
       Array.isArray(item.provenance) &&
+      item.provenance.length > 0 &&
+      item.provenance.every(
+        (provenance) =>
+          !!provenance &&
+          typeof provenance === "object" &&
+          responseProvenanceKinds.includes(
+            (provenance as { kind?: unknown }).kind as never,
+          ) &&
+          typeof (provenance as { label?: unknown }).label === "string",
+      ) &&
+      item.provenance.some(isDeterministicProvenance) &&
       (item.availability === undefined ||
         (item.availability.source === "brumath-data" &&
           typeof item.availability.hasStoredData === "boolean" &&

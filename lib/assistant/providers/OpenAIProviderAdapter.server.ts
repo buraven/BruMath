@@ -23,6 +23,7 @@ import {
   profiles,
 } from "./ConversationPlanParser";
 import { PERSONAL_LIMIT_BUCKETS } from "../../finance/personalLimits";
+import { providerInferenceProvenance } from "../contracts";
 
 const toolNames = new Set<FinancialToolName>([
   "getFinancialSummary",
@@ -141,7 +142,11 @@ const cancelPendingIntentDefinition = {
 };
 
 function textPlan(message: string): ConversationPlan {
-  return { kind: "message", message };
+  return {
+    kind: "message",
+    message,
+    provenance: providerInferenceProvenance("openai-provider"),
+  };
 }
 
 function parseFunctionPlan(

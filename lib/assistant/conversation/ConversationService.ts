@@ -1,6 +1,9 @@
 import { createFinancialContextProvider } from "../context/createFinancialContextProvider";
 import { LocalStorageFinancialDataSource } from "../context/LocalStorageFinancialDataSource";
-import type { AssistantProfile } from "../contracts";
+import {
+  providerInferenceProvenance,
+  type AssistantProfile,
+} from "../contracts";
 import {
   createFinancialToolRegistry,
   type FinancialToolName,
@@ -122,7 +125,7 @@ export async function resolveConversationPlan(
   plan: ConversationPlan,
   defaults: { activeProfile: AssistantProfile; selectedMonth: string },
 ): Promise<
-  | { kind: "message"; message: string }
+  | Extract<ConversationPlan, { kind: "message" }>
   | { kind: "tool-results"; results: readonly ConversationToolResult[] }
   | ConversationPlan
 > {
@@ -132,11 +135,16 @@ export async function resolveConversationPlan(
     return {
       kind: "message",
       message: "Não reconheci essa consulta financeira.",
+      provenance: providerInferenceProvenance("conversation-service"),
     };
   }
   const deduplicated = deduplicateToolCalls(calls, defaults);
   if (!isWithinToolBudget(deduplicated.calls)) {
-    return { kind: "message", message: toolBudgetUserMessage };
+    return {
+      kind: "message",
+      message: toolBudgetUserMessage,
+      provenance: providerInferenceProvenance("conversation-service"),
+    };
   }
   if (deduplicated.duplicatesRemoved) {
     console.info("assistant_tool_calls_deduplicated", {
@@ -187,7 +195,11 @@ export async function resolveConversationPlan(
   });
   const failure = results.find((result) => !result.ok);
   if (failure && !failure.ok)
-    return { kind: "message", message: failure.message };
+    return {
+      kind: "message",
+      message: failure.message,
+      provenance: providerInferenceProvenance("conversation-service"),
+    };
   return {
     kind: "tool-results",
     results: results.map(

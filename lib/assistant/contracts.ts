@@ -19,11 +19,43 @@ export type AssistantRequest = {
   conversationContext?: ConversationContext;
 };
 
+export const responseProvenanceKinds = [
+  "fact",
+  "calculation",
+  "simulation",
+  "inference",
+] as const;
+
+export type ResponseProvenanceKind = (typeof responseProvenanceKinds)[number];
+
 export type ResponseProvenance = {
-  kind: "fact" | "calculation" | "simulation" | "inference";
+  kind: ResponseProvenanceKind;
   label: string;
   source?: string;
 };
+
+/** Financial values can only be confirmed by persisted facts or deterministic calculations. */
+export function isDeterministicProvenance(
+  provenance: ResponseProvenance,
+): provenance is ResponseProvenance & {
+  kind: "fact" | "calculation";
+} {
+  return provenance.kind === "fact" || provenance.kind === "calculation";
+}
+
+/** Provider-authored wording is interpretation, never a confirmed financial value. */
+export function providerInferenceProvenance(
+  source: string,
+): readonly ResponseProvenance[] {
+  return [
+    {
+      kind: "inference",
+      label:
+        "Formulação interpretativa gerada pelo provider a partir do contexto autorizado.",
+      source,
+    },
+  ];
+}
 
 export type AssistantActionProposal = {
   id: string;

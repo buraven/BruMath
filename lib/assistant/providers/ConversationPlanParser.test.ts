@@ -83,3 +83,40 @@ test("preserves an explicit personal-limit bucket without inferring one", () => 
     "register-expense",
   );
 });
+
+test("rejects malformed provider arguments instead of silently defaulting them", () => {
+  assert.equal(
+    parseFunctionPlan("getFinancialSummary", { profile: "Outro" }),
+    null,
+  );
+  assert.equal(parseFunctionPlan("getExpenses", { month: "2026-13" }), null);
+  assert.equal(parseFunctionPlan("getExpenses", { unexpected: true }), null);
+  assert.equal(parseFunctionPlan("unknownFinancialTool", {}), null);
+});
+
+test("rejects malformed mutation arguments before an action proposal can exist", () => {
+  assert.equal(
+    parseFunctionPlan("propose_register_expense", {
+      description: "Mercado",
+      amount: 50,
+      category: "Alimentação",
+      owner: "Bruna",
+      date: "2026-02-30",
+    }),
+    null,
+  );
+  assert.equal(
+    parseFunctionPlan("propose_register_expense", {
+      description: "Mercado",
+      amount: 50,
+      category: "Alimentação",
+      owner: "Bruna",
+      personalLimitBucket: "inventado",
+    }),
+    null,
+  );
+  assert.equal(
+    parseFunctionPlan("cancel_pending_intent", { execute: true }),
+    null,
+  );
+});
