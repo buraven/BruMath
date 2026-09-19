@@ -89,7 +89,11 @@ export function CalendarScreen({
   );
 
   return (
-    <section className={styles.screen} aria-labelledby="calendar-title">
+    <section
+      className={styles.screen}
+      data-calendar-screen
+      aria-labelledby="calendar-title"
+    >
       <header className={styles.header}>
         <div>
           <span className={styles.eyebrow}>

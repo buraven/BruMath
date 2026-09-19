@@ -333,6 +333,11 @@
   .summary {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
+}
+
+/* An iPad portrait still has enough usable width for the calendar and the
+ * daily agenda. Keep their layout decision separate from the summary cards. */
+@container (max-width: 720px) {
   .mainGrid {
     grid-template-columns: 1fr;
   }
@@ -348,6 +353,21 @@
   }
   .agendaItem {
     border-right: 1px solid var(--line);
+  }
+}
+
+/* The fixed navigation belongs to the viewport. Calendar owns one exact
+ * end-of-content reserve while it is visible, avoiding both overlap and a
+ * second trailing workspace reserve. */
+@media (max-width: 1439px), (hover: none), (pointer: coarse) {
+  :global(.app-workspace:has([data-calendar-screen])) {
+    padding-bottom: 0;
+  }
+
+  .screen {
+    padding-bottom: calc(
+      var(--bottom-nav-height) + var(--bottom-nav-inset) + var(--space-2)
+    );
   }
 }
 @container (max-width: 590px) {

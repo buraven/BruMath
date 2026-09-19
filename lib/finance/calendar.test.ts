@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import { INITIAL_INSTALLMENTS } from "../../features/app/defaultFinancialData";
 import type { CreditCard, Expense, Installment } from "../app/AppTypes";
 import { deriveCalendarProjection, getCalendarItemsForDate } from "./calendar";
 
@@ -63,6 +64,31 @@ test("projects historical transactions and installments without persisting a par
   assert.equal(projection.items[0]?.sourceId, 1);
   assert.equal(projection.forecast.knownFutureCommitments, 200);
   assert.equal(projection.forecast.projectedBalance, 800);
+});
+
+test("counts the versioned Hocks September installment exactly once in commitments and forecast", () => {
+  const hocks = INITIAL_INSTALLMENTS.find((item) => item.title === "Hocks");
+  assert.ok(hocks);
+  assert.equal(hocks.nextDue, "2026-09-15");
+
+  const projection = deriveCalendarProjection({
+    month: "2026-09",
+    profile: "Bruna",
+    expenses: [],
+    incomeEntries: [],
+    installments: [hocks],
+    cards: [],
+    payments: [],
+    baseBalance: 1_000,
+  });
+
+  const hocksItems = projection.items.filter(
+    (item) => item.type === "installment_due" && item.sourceId === hocks.id,
+  );
+  assert.equal(hocksItems.length, 1);
+  assert.equal(hocksItems[0]?.amount, 89.9);
+  assert.equal(projection.forecast.knownFutureCommitments, 89.9);
+  assert.equal(projection.forecast.projectedBalance, 910.1);
 });
 
 test("respects Bruna, Matheus and Casal profile scope", () => {
