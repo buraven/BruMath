@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { randomInt, randomUUID } from "node:crypto";
 import { createClient } from "@supabase/supabase-js";
 
 const required = [
@@ -9,8 +10,6 @@ const required = [
   "SUPABASE_E2E_USER_B_EMAIL",
   "SUPABASE_E2E_USER_B_PASSWORD",
 ];
-const sourceHash = "brumath-synthetic-supabase-e2e-v1";
-const invalidSourceHash = "brumath-synthetic-supabase-e2e-invalid-v1";
 
 function canonicalize(value) {
   if (Array.isArray(value)) return value.map(canonicalize);
@@ -23,7 +22,7 @@ function canonicalize(value) {
   return value;
 }
 
-function fixture() {
+function fixture(ids) {
   return {
     settings: {
       income: 5000,
@@ -39,20 +38,20 @@ function fixture() {
     },
     expenses: [
       {
-        legacy_id: 90001,
+        legacy_id: ids.expense,
         title: "Mercado sintético",
         category: "Alimentação",
         responsible: "Bruna",
         amount: 123.45,
         occurred_on: "2030-01-10",
         personal_limit_bucket: null,
-        credit_card_legacy_id: 91001,
+        credit_card_legacy_id: ids.card,
       },
     ],
     installments: [],
     receivables: [
       {
-        legacy_id: 92001,
+        legacy_id: ids.receivable,
         person: "Test User",
         amount: 40,
         paid: 0,
@@ -65,7 +64,7 @@ function fixture() {
     income_entries: [],
     credit_cards: [
       {
-        legacy_id: 91001,
+        legacy_id: ids.card,
         name: "Test Card",
         issuer: "Synthetic",
         owner: "Bruna",
@@ -87,6 +86,36 @@ function resultSummary(results) {
       : "FAIL",
     scenarios: results,
   };
+}
+
+async function restoreSyntheticRun(client, householdId, ids, hashes, settings) {
+  const deleteRows = async (table, legacyIds) => {
+    if (!legacyIds.length) return;
+    const result = await client
+      .from(table)
+      .delete()
+      .eq("household_id", householdId)
+      .in("legacy_id", legacyIds);
+    assert.equal(result.error, null);
+  };
+
+  await deleteRows("invoice_payments", ids.invoicePayments);
+  await deleteRows("expenses", [ids.expense, ids.invalidExpense]);
+  await deleteRows("installments", ids.installments);
+  await deleteRows("receivables", [ids.receivable]);
+  await deleteRows("income_entries", ids.incomeEntries);
+  await deleteRows("credit_cards", [ids.card]);
+  const imports = await client
+    .from("local_imports")
+    .delete()
+    .eq("household_id", householdId)
+    .in("source_hash", hashes);
+  assert.equal(imports.error, null);
+  const restored = await client
+    .from("financial_settings")
+    .update(settings)
+    .eq("household_id", householdId);
+  assert.equal(restored.error, null);
 }
 
 export async function runSupabaseSyntheticE2E(environment = process.env) {
@@ -139,12 +168,27 @@ export async function runSupabaseSyntheticE2E(environment = process.env) {
     }
   };
 
+  const runId = randomUUID();
+  const baseId = randomInt(100000000, 1500000000);
+  const ids = {
+    expense: baseId,
+    card: baseId + 1,
+    receivable: baseId + 2,
+    invalidExpense: baseId + 3,
+    installments: [],
+    incomeEntries: [],
+    invoicePayments: [],
+  };
+  const sourceHash = `brumath-synthetic-${runId}`;
+  const invalidSourceHash = `${sourceHash}-invalid`;
+  const crossHouseholdHash = `${sourceHash}-cross-household`;
   let a;
   let b;
   let householdA;
   let householdB;
-  if (
-    !(await scenario("autenticação sintética A e B", async () => {
+  let originalSettings;
+  try {
+    let proceed = await scenario("autenticação sintética A e B", async () => {
       a = await createAuthenticatedClient(
         environment.SUPABASE_E2E_USER_A_EMAIL,
         environment.SUPABASE_E2E_USER_A_PASSWORD,
@@ -153,130 +197,155 @@ export async function runSupabaseSyntheticE2E(environment = process.env) {
         environment.SUPABASE_E2E_USER_B_EMAIL,
         environment.SUPABASE_E2E_USER_B_PASSWORD,
       );
-    }))
-  )
-    return resultSummary(results);
-  if (
-    !(await scenario("bootstrap idempotente e ownership próprio", async () => {
-      householdA = await bootstrap(a.client);
-      assert.equal(await bootstrap(a.client), householdA);
-      householdB = await bootstrap(b.client);
-      assert.notEqual(householdA, householdB);
-    }))
-  )
-    return resultSummary(results);
+    });
+    if (proceed)
+      proceed = await scenario(
+        "bootstrap idempotente e ownership próprio",
+        async () => {
+          householdA = await bootstrap(a.client);
+          assert.equal(await bootstrap(a.client), householdA);
+          householdB = await bootstrap(b.client);
+          assert.notEqual(householdA, householdB);
+          const settings = await a.client
+            .from("financial_settings")
+            .select(
+              "income, budgets, limits, personal_limits, active_profile, view_month",
+            )
+            .eq("household_id", householdA)
+            .single();
+          assert.equal(settings.error, null);
+          originalSettings = settings.data;
+        },
+      );
 
-  const snapshot = fixture();
-  if (
-    !(await scenario("importação e reconciliação sintéticas", async () => {
-      const imported = await importSnapshot(
-        a.client,
-        householdA,
-        sourceHash,
-        snapshot,
+    const snapshot = fixture(ids);
+    if (proceed)
+      proceed = await scenario(
+        "importação e reconciliação sintéticas",
+        async () => {
+          const imported = await importSnapshot(
+            a.client,
+            householdA,
+            sourceHash,
+            snapshot,
+          );
+          assert.equal(imported.error, null);
+          assert.equal(imported.data.imported, true);
+          assert.deepEqual(
+            canonicalize(imported.data.snapshot),
+            canonicalize(snapshot),
+          );
+        },
       );
-      assert.equal(imported.error, null);
-      assert.equal(imported.data.imported, true);
-      assert.deepEqual(
-        canonicalize(imported.data.snapshot),
-        canonicalize(snapshot),
+    if (proceed)
+      proceed = await scenario(
+        "idempotência e leitura do próprio household",
+        async () => {
+          const repeated = await importSnapshot(
+            a.client,
+            householdA,
+            sourceHash,
+            snapshot,
+          );
+          assert.equal(repeated.error, null);
+          assert.equal(repeated.data.imported, false);
+          const expenses = await a.client
+            .from("expenses")
+            .select("legacy_id, amount")
+            .eq("household_id", householdA)
+            .eq("legacy_id", ids.expense);
+          assert.equal(expenses.error, null);
+          assert.equal(expenses.data.length, 1);
+          assert.equal(expenses.data[0].legacy_id, ids.expense);
+          assert.equal(Number(expenses.data[0].amount), 123.45);
+        },
       );
-    }))
-  )
-    return resultSummary(results);
-  if (
-    !(await scenario(
-      "idempotência e leitura do próprio household",
-      async () => {
-        const repeated = await importSnapshot(
+    if (proceed)
+      proceed = await scenario(
+        "RLS bloqueia acesso cross-household",
+        async () => {
+          const readOther = await b.client
+            .from("expenses")
+            .select("legacy_id")
+            .eq("household_id", householdA);
+          assert.equal(readOther.error, null);
+          assert.deepEqual(readOther.data, []);
+          const writeOther = await b.client.from("expenses").insert({
+            household_id: householdA,
+            legacy_id: 99001,
+            title: "Tentativa sintética",
+            category: "Outros",
+            responsible: "Matheus",
+            amount: 1,
+            occurred_on: "2030-01-11",
+          });
+          assert.ok(writeOther.error);
+          const importOther = await importSnapshot(
+            b.client,
+            householdA,
+            crossHouseholdHash,
+            snapshot,
+          );
+          assert.ok(importOther.error);
+          const addMembership = await b.client
+            .from("household_members")
+            .insert({
+              household_id: householdA,
+              user_id: b.user.id,
+              role: "owner",
+            });
+          assert.ok(addMembership.error);
+          await b.client
+            .from("households")
+            .update({ owner_id: b.user.id })
+            .eq("id", householdA);
+          const ownerAfterAttack = await a.client
+            .from("households")
+            .select("owner_id")
+            .eq("id", householdA)
+            .single();
+          assert.equal(ownerAfterAttack.error, null);
+          assert.equal(ownerAfterAttack.data.owner_id, a.user.id);
+        },
+      );
+    if (proceed)
+      await scenario("rollback de snapshot inválido", async () => {
+        const invalid = structuredClone(snapshot);
+        invalid.expenses[0].legacy_id = ids.invalidExpense;
+        invalid.expenses[0].credit_card_legacy_id = 999999;
+        const rejected = await importSnapshot(
           a.client,
           householdA,
-          sourceHash,
-          snapshot,
+          invalidSourceHash,
+          invalid,
         );
-        assert.equal(repeated.error, null);
-        assert.equal(repeated.data.imported, false);
-        const expenses = await a.client
+        assert.ok(rejected.error);
+        const partialExpense = await a.client
           .from("expenses")
-          .select("legacy_id, amount")
+          .select("legacy_id")
           .eq("household_id", householdA)
-          .eq("legacy_id", 90001);
-        assert.equal(expenses.error, null);
-        assert.equal(expenses.data.length, 1);
-        assert.equal(expenses.data[0].legacy_id, 90001);
-        assert.equal(Number(expenses.data[0].amount), 123.45);
-      },
-    ))
-  )
-    return resultSummary(results);
-  if (
-    !(await scenario("RLS bloqueia acesso cross-household", async () => {
-      const readOther = await b.client
-        .from("expenses")
-        .select("legacy_id")
-        .eq("household_id", householdA);
-      assert.equal(readOther.error, null);
-      assert.deepEqual(readOther.data, []);
-      const writeOther = await b.client.from("expenses").insert({
-        household_id: householdA,
-        legacy_id: 99001,
-        title: "Tentativa sintética",
-        category: "Outros",
-        responsible: "Matheus",
-        amount: 1,
-        occurred_on: "2030-01-11",
+          .eq("legacy_id", ids.invalidExpense);
+        assert.deepEqual(partialExpense.data, []);
+        const partialMark = await a.client
+          .from("local_imports")
+          .select("id")
+          .eq("household_id", householdA)
+          .eq("source_hash", invalidSourceHash);
+        assert.deepEqual(partialMark.data, []);
       });
-      assert.ok(writeOther.error);
-      const importOther = await importSnapshot(
-        b.client,
-        householdA,
-        "brumath-cross-household",
-        snapshot,
+  } finally {
+    if (a && householdA && originalSettings) {
+      const cleaned = await scenario("cleanup sintético", () =>
+        restoreSyntheticRun(
+          a.client,
+          householdA,
+          ids,
+          [sourceHash, invalidSourceHash, crossHouseholdHash],
+          originalSettings,
+        ),
       );
-      assert.ok(importOther.error);
-      const addMembership = await b.client.from("household_members").insert({
-        household_id: householdA,
-        user_id: b.user.id,
-        role: "owner",
-      });
-      assert.ok(addMembership.error);
-      await b.client
-        .from("households")
-        .update({ owner_id: b.user.id })
-        .eq("id", householdA);
-      const ownerAfterAttack = await a.client
-        .from("households")
-        .select("owner_id")
-        .eq("id", householdA)
-        .single();
-      assert.equal(ownerAfterAttack.error, null);
-      assert.equal(ownerAfterAttack.data.owner_id, a.user.id);
-    }))
-  )
-    return resultSummary(results);
-  await scenario("rollback de snapshot inválido", async () => {
-    const invalid = structuredClone(snapshot);
-    invalid.expenses[0].legacy_id = 99002;
-    invalid.expenses[0].credit_card_legacy_id = 999999;
-    const rejected = await importSnapshot(
-      a.client,
-      householdA,
-      invalidSourceHash,
-      invalid,
-    );
-    assert.ok(rejected.error);
-    const partialExpense = await a.client
-      .from("expenses")
-      .select("legacy_id")
-      .eq("household_id", householdA)
-      .eq("legacy_id", 99002);
-    assert.deepEqual(partialExpense.data, []);
-    const partialMark = await a.client
-      .from("local_imports")
-      .select("id")
-      .eq("household_id", householdA)
-      .eq("source_hash", invalidSourceHash);
-    assert.deepEqual(partialMark.data, []);
-  });
+      if (!cleaned) return resultSummary(results);
+    }
+  }
   return resultSummary(results);
 }
