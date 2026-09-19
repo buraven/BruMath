@@ -66,8 +66,14 @@ export async function openWithFinancialState(
       `A fixture E2E solicitou ${state.viewMonth}, mas a aplicação hidratou ${hydratedMonth ?? "sem mês"}.`,
     );
   }
+  const formattedMonth = new Intl.DateTimeFormat("pt-BR", {
+    month: "long",
+    year: "numeric",
+  }).format(new Date(`${state.viewMonth}-01T12:00:00`));
   await page
-    .getByRole("heading", { name: /gastos de agosto de 2026/i })
+    .getByRole("heading", {
+      name: new RegExp(`gastos de ${formattedMonth}`, "i"),
+    })
     .waitFor();
 }
 
@@ -82,6 +88,21 @@ export async function openInvoices(page: Page) {
     await page.getByRole("button", { name: "Faturas" }).last().click();
   }
   await page.getByRole("heading", { name: "Faturas" }).waitFor();
+}
+
+export async function openCalendar(page: Page) {
+  const directNavigation = page
+    .getByRole("button", { name: "Calendário" })
+    .first();
+  if (await directNavigation.isVisible()) {
+    await directNavigation.click();
+  } else {
+    await page.getByRole("button", { name: "Mais" }).click();
+    await page.getByRole("button", { name: "Calendário" }).last().click();
+  }
+  await page
+    .getByRole("heading", { name: "Planeje o mês com clareza" })
+    .waitFor();
 }
 
 export const nubankCard = {

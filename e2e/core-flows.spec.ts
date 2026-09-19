@@ -167,8 +167,8 @@ test("Parcelamento é criado e avançado pela interface com confirmação @deskt
   page,
 }) => {
   await openWithFinancialState(page);
-  await openTab(page, "Futuro");
-  await page.getByRole("button", { name: "Novo compromisso" }).click();
+  await openTab(page, "Calendário");
+  await page.getByRole("button", { name: "Nova parcela" }).click();
   const dialog = page.getByRole("dialog");
   await dialog.getByLabel("Nome").fill("Notebook");
   await dialog.getByLabel("Valor mensal").fill("10000");

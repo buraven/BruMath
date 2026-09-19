@@ -242,40 +242,43 @@ test("adiantar parcelas preserva o cancelamento, competências e reload @desktop
   page,
 }) => {
   await openWithFinancialState(page);
-  await openTab(page, "Futuro");
-  await page.getByRole("button", { name: "Novo compromisso" }).click();
+  await openTab(page, "Calendário");
+  await page.getByRole("button", { name: "Nova parcela" }).click();
   let dialog = page.getByRole("dialog");
   await dialog.getByLabel("Nome").fill("Notebook");
   await dialog.getByLabel("Valor mensal").fill("10000");
   await dialog.getByLabel("Total de parcelas").fill("4");
   await dialog.getByRole("button", { name: "Salvar parcela" }).click();
-  await expect(page.getByText("4 restantes", { exact: true })).toBeVisible();
-  await expect(page.getByText("Próximo: 10/09", { exact: true })).toBeVisible();
+  const installments = page.getByRole("region", {
+    name: "Acompanhe seus compromissos",
+  });
+  await expect(installments).toContainText("4 restantes");
+  await expect(installments).toContainText("Próximo: 10/09");
 
   await page.getByRole("button", { name: "Adiantar" }).click();
   dialog = page.getByRole("dialog");
   await dialog.getByRole("button", { name: "Cancelar" }).click();
-  await expect(page.getByText("4 restantes", { exact: true })).toBeVisible();
-  await expect(page.getByText("Próximo: 10/09", { exact: true })).toBeVisible();
+  await expect(installments).toContainText("4 restantes");
+  await expect(installments).toContainText("Próximo: 10/09");
 
   await page.getByRole("button", { name: "Adiantar" }).click();
   dialog = page.getByRole("dialog");
   await dialog.getByLabel("Quantas parcelas deseja adiantar?").fill("2");
   await dialog.getByRole("button", { name: "Confirmar adianto" }).click();
-  await expect(page.getByText("2 pagas", { exact: true })).toBeVisible();
-  await expect(page.getByText("2 restantes", { exact: true })).toBeVisible();
-  await expect(page.getByText("Próximo: 10/11", { exact: true })).toBeVisible();
+  await expect(installments).toContainText("2 pagas");
+  await expect(installments).toContainText("2 restantes");
+  await expect(installments).toContainText("Próximo: 10/11");
 
   await page.getByLabel("Próximo mês").click();
-  await expect(
-    page.getByText("Nenhum compromisso vence neste mês."),
-  ).toBeVisible();
+  await expect(page.getByLabel("Agenda do dia")).toContainText(
+    "Nenhuma movimentação ou compromisso neste dia.",
+  );
   await page.getByLabel("Próximo mês").click();
   await expect(page.getByText("Notebook", { exact: true })).toBeVisible();
   await page.reload();
-  await openTab(page, "Futuro");
+  await openTab(page, "Calendário");
   await expect(page.getByText("Notebook", { exact: true })).toBeVisible();
-  await expect(page.getByText("2 restantes", { exact: true })).toBeVisible();
+  await expect(installments).toContainText("2 restantes");
 });
 
 test("entradas extras criam, editam, excluem e reconciliam totais pela UI @desktop", async ({
