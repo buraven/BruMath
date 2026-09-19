@@ -15,6 +15,10 @@ Não execute `db push`, `migration repair` ou `supabase link` para essa
 reconciliação. A próxima migration permanece local e precisa de revisão e
 autorização antes de qualquer aplicação remota.
 
+O índice de `households(owner_id)` também foi aplicado externamente e o
+histórico remoto registrou `20260919231621`. O arquivo local correspondente
+usa esse mesmo timestamp, sem mudança do SQL.
+
 ## Harness remoto sintético
 
 `pnpm test:supabase:e2e` não faz parte da suíte local comum. Ele exige duas
@@ -31,5 +35,7 @@ rollback de um snapshot sintético inválido.
 
 Para executar: crie duas contas descartáveis no Supabase Auth, guarde as
 credenciais somente no gerenciador de secrets do ambiente de teste e execute
-`pnpm test:supabase:e2e`. A confirmação por e-mail, se estiver habilitada no
-projeto, deve ser concluída manualmente antes do teste.
+`vercel env run -e preview --git-branch feature/supabase-persistence-pr57 -- pnpm test:supabase:e2e`.
+O Vercel CLI injeta os valores apenas no processo, sem criar `.env.local`.
+A confirmação por e-mail, se estiver habilitada no projeto, deve ser concluída
+manualmente antes do teste.
