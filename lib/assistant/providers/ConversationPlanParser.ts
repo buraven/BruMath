@@ -25,12 +25,69 @@ export function isProfile(value: unknown): value is AssistantProfile {
   return profiles.includes(value as AssistantProfile);
 }
 
+function hasOnlyKeys(value: Record<string, unknown>, keys: readonly string[]) {
+  return Object.keys(value).every((key) => keys.includes(key));
+}
+
+function isValidMonth(value: string) {
+  const match = /^(\d{4})-(\d{2})$/.exec(value);
+  return Boolean(match && Number(match[2]) >= 1 && Number(match[2]) <= 12);
+}
+
+function isValidDate(value: string) {
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value);
+  if (!match) return false;
+  const [year, month, day] = match.slice(1).map(Number);
+  const date = new Date(Date.UTC(year, month - 1, day));
+  return (
+    date.getUTCFullYear() === year &&
+    date.getUTCMonth() === month - 1 &&
+    date.getUTCDate() === day
+  );
+}
+
+function isOptionalNullOr<T>(
+  value: unknown,
+  predicate: (candidate: unknown) => candidate is T,
+): boolean {
+  return value === undefined || value === null || predicate(value);
+}
+
+function isOptionalCategory(value: unknown): boolean {
+  return (
+    value === undefined ||
+    value === null ||
+    (typeof value === "string" && Boolean(value.trim()))
+  );
+}
+
 export function parseToolInput(value: unknown): ConversationToolInput | null {
   if (!value || typeof value !== "object" || Array.isArray(value)) return null;
   const input = value as Record<string, unknown>;
+  if (
+    !hasOnlyKeys(input, [
+      "profile",
+      "month",
+      "category",
+      "dueInSelectedMonth",
+    ]) ||
+    !isOptionalNullOr(input.profile, isProfile) ||
+    !isOptionalNullOr(
+      input.month,
+      (candidate): candidate is string =>
+        typeof candidate === "string" && isValidMonth(candidate),
+    ) ||
+    !isOptionalCategory(input.category) ||
+    !isOptionalNullOr(
+      input.dueInSelectedMonth,
+      (candidate): candidate is boolean => typeof candidate === "boolean",
+    )
+  ) {
+    return null;
+  }
   return {
     ...(isProfile(input.profile) ? { profile: input.profile } : {}),
-    ...(typeof input.month === "string" && /^\d{4}-\d{2}$/.test(input.month)
+    ...(typeof input.month === "string" && isValidMonth(input.month)
       ? { month: input.month }
       : {}),
     ...(typeof input.category === "string" && input.category.trim()
@@ -48,13 +105,28 @@ export function parseRegisterExpense(
   if (!value || typeof value !== "object" || Array.isArray(value)) return null;
   const input = value as Record<string, unknown>;
   if (
+    !hasOnlyKeys(input, [
+      "description",
+      "amount",
+      "category",
+      "owner",
+      "date",
+      "personalLimitBucket",
+    ]) ||
     typeof input.description !== "string" ||
     !input.description.trim() ||
     typeof input.amount !== "number" ||
     !Number.isFinite(input.amount) ||
     input.amount <= 0 ||
     typeof input.category !== "string" ||
-    !input.category.trim()
+    !input.category.trim() ||
+    !isOptionalNullOr(input.owner, isProfile) ||
+    !isOptionalNullOr(input.personalLimitBucket, isPersonalLimitBucket) ||
+    !isOptionalNullOr(
+      input.date,
+      (candidate): candidate is string =>
+        typeof candidate === "string" && isValidDate(candidate),
+    )
   )
     return null;
   return {
@@ -65,7 +137,7 @@ export function parseRegisterExpense(
     ...(isPersonalLimitBucket(input.personalLimitBucket)
       ? { personalLimitBucket: input.personalLimitBucket }
       : {}),
-    ...(typeof input.date === "string" && /^\d{4}-\d{2}-\d{2}$/.test(input.date)
+    ...(typeof input.date === "string" && isValidDate(input.date)
       ? { date: input.date }
       : {}),
   };
@@ -74,6 +146,34 @@ export function parseRegisterExpense(
 function parseExpenseClarification(value: unknown): ConversationPlan | null {
   if (!value || typeof value !== "object" || Array.isArray(value)) return null;
   const input = value as Record<string, unknown>;
+  if (
+    !hasOnlyKeys(input, [
+      "amount",
+      "description",
+      "category",
+      "owner",
+      "date",
+      "personalLimitBucket",
+    ]) ||
+    !isOptionalNullOr(
+      input.amount,
+      (candidate): candidate is number =>
+        typeof candidate === "number" &&
+        Number.isFinite(candidate) &&
+        candidate > 0,
+    ) ||
+    !isOptionalCategory(input.description) ||
+    !isOptionalCategory(input.category) ||
+    !isOptionalNullOr(input.owner, isProfile) ||
+    !isOptionalNullOr(input.personalLimitBucket, isPersonalLimitBucket) ||
+    !isOptionalNullOr(
+      input.date,
+      (candidate): candidate is string =>
+        typeof candidate === "string" && isValidDate(candidate),
+    )
+  ) {
+    return null;
+  }
   const amount =
     typeof input.amount === "number" &&
     Number.isFinite(input.amount) &&
@@ -93,7 +193,7 @@ function parseExpenseClarification(value: unknown): ConversationPlan | null {
     ? input.personalLimitBucket
     : undefined;
   const date =
-    typeof input.date === "string" && /^\d{4}-\d{2}-\d{2}$/.test(input.date)
+    typeof input.date === "string" && isValidDate(input.date)
       ? input.date
       : undefined;
   const missingFields = [
@@ -134,7 +234,13 @@ export function parseFunctionPlan(
   }
   if (name === "clarify_register_expense")
     return parseExpenseClarification(value);
-  if (name === "cancel_pending_intent")
+  if (
+    name === "cancel_pending_intent" &&
+    value &&
+    typeof value === "object" &&
+    !Array.isArray(value) &&
+    hasOnlyKeys(value as Record<string, unknown>, [])
+  )
     return { kind: "cancel-pending-intent" };
   return null;
 }

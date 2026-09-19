@@ -1,4 +1,8 @@
-import type { AssistantProfile, AssistantRequest } from "../contracts";
+import type {
+  AssistantProfile,
+  AssistantRequest,
+  ResponseProvenance,
+} from "../contracts";
 import type { FinancialToolName } from "../tools/financialTools";
 import type { PersonalLimitBucket } from "../../finance/personalLimitBuckets";
 
@@ -44,8 +48,15 @@ export type ConversationContext = {
   };
 };
 
+export type ConversationMessagePlan = {
+  kind: "message";
+  message: string;
+  /** Provider wording is always separated from deterministic financial results. */
+  provenance: readonly ResponseProvenance[];
+};
+
 export type ConversationPlan =
-  | { kind: "message"; message: string }
+  | ConversationMessagePlan
   | { kind: "clarification"; question: string }
   | { kind: "register-expense-clarification"; intent: PendingExpenseIntent }
   | { kind: "cancel-pending-intent" }
@@ -67,7 +78,7 @@ export type ConversationToolResult = {
   toolName: FinancialToolName;
   data: unknown;
   scope: ConversationToolInput & { profile: AssistantProfile; month: string };
-  provenance: readonly { kind: string; label: string; source?: string }[];
+  provenance: readonly ResponseProvenance[];
   availability?: {
     source: "brumath-data";
     hasStoredData: boolean;

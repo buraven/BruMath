@@ -125,7 +125,7 @@ test("reads summary, available balance and extra income deterministically", asyn
     Record<string, never>,
     {
       data: { available: number; expenses: number };
-      provenance: { source?: string }[];
+      provenance: { kind: string; source?: string }[];
     }
   >("getFinancialSummary").execute({}, context);
   const available = await tool<
@@ -145,6 +145,10 @@ test("reads summary, available balance and extra income deterministically", asyn
   assert.equal(available.value.data.available, 450);
   assert.equal(income.value.data.total, 50);
   assert.equal(summary.value.provenance.at(-1)?.source, "assistant-tools");
+  assert.deepEqual(
+    [...new Set(summary.value.provenance.map((item) => item.kind))].sort(),
+    ["calculation", "fact"],
+  );
 });
 
 test("applies profile, month and category filters without mixing values", async () => {

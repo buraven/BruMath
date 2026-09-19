@@ -37,3 +37,28 @@ Funcionalidade: Assistente financeiro com dados determinísticos e ações confi
   Cenário: AST-008 - Ambiguidade relevante pede esclarecimento
     Quando faltam dados essenciais para uma mutação, como responsável ou categoria
     Então o Assistente pede somente o esclarecimento necessário antes de propor a ação
+
+  Cenário: AST-009 - Resultado financeiro tem proveniência determinística
+    Quando o Assistente responde uma consulta financeira
+    Então os valores confirmados vêm de fatos ou cálculos determinísticos do BruMath
+    E a formulação do provider é identificada como inferência
+
+  Cenário: AST-010 - Plano inválido do provider falha com segurança
+    Quando o provider solicita uma tool desconhecida ou argumentos inválidos
+    Então o BruMath rejeita o plano
+    E nenhuma consulta ou mutação parecida é executada por adivinhação
+
+  Cenário: AST-011 - Provider não sobrescreve resultado financeiro
+    Quando uma tool determinística retorna um resultado financeiro
+    Então o provider recebe apenas esse resultado autorizado para formular a resposta
+    E não pode promovê-lo a um novo fato ou cálculo
+
+  Cenário: AST-012 - Simulação permanece não persistente
+    Quando a pessoa pede uma simulação suportada
+    Então a resposta é classificada como simulação
+    E nenhuma action financeira é executada
+
+  Cenário: AST-013 - Saída malformada preserva os dados financeiros
+    Quando o provider retorna uma saída estruturada malformada
+    Então o Assistente retorna um fallback seguro
+    E os dados financeiros permanecem inalterados

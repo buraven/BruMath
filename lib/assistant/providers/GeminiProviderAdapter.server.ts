@@ -12,6 +12,7 @@ import {
   conversationResponseStyleInstructions,
   responseModeInstructions,
 } from "../conversation/responseStyle";
+import { providerInferenceProvenance } from "../contracts";
 import { quickActionInstruction } from "../conversation/quickActions";
 import { contextSummary } from "../conversation/conversationContext";
 import {
@@ -270,7 +271,14 @@ export class GeminiProviderAdapter implements ConversationProviderAdapter {
       }
       const message = response.text?.trim();
       return message
-        ? { ok: true, plan: { kind: "message", message } }
+        ? {
+            ok: true,
+            plan: {
+              kind: "message",
+              message,
+              provenance: providerInferenceProvenance("gemini-provider"),
+            },
+          }
         : {
             ok: false,
             code: "invalid-response",
@@ -341,7 +349,14 @@ export class GeminiProviderAdapter implements ConversationProviderAdapter {
         thinkingLevel: generationConfig.thinkingConfig.thinkingLevel,
       });
       return message
-        ? { ok: true, plan: { kind: "message", message } }
+        ? {
+            ok: true,
+            plan: {
+              kind: "message",
+              message,
+              provenance: providerInferenceProvenance("gemini-provider"),
+            },
+          }
         : {
             ok: false,
             code: "invalid-response",
