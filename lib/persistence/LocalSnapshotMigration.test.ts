@@ -53,14 +53,12 @@ function target(): {
     },
     target: {
       hasImport: async (_, sourceHash) => imports.has(sourceHash),
-      importSnapshot: async (_, value) => {
+      importAtomically: async (_, value, sourceHash) => {
         stored = structuredClone(value);
         writes += 1;
-      },
-      readSnapshot: async () => structuredClone(stored),
-      markImport: async (_, sourceHash) => {
         imports.add(sourceHash);
         marks += 1;
+        return structuredClone(stored);
       },
     },
   };
@@ -79,6 +77,43 @@ test("previews a local snapshot without mutating it", () => {
     invoicePayments: 0,
   });
   assert.deepEqual(snapshot, before);
+});
+
+test("rejects every invalid or duplicate legacy ID before any write", async () => {
+  for (const key of [
+    "expenses",
+    "installments",
+    "debts",
+    "incomeEntries",
+    "creditCards",
+    "invoicePayments",
+  ] as const) {
+    const invalid = structuredClone(snapshot);
+    (invalid[key] as { id: number }[]).push({ id: 1.5 } as never);
+    const preview = previewLocalMigration(invalid);
+    assert.equal(preview.valid, false, key);
+    await assert.rejects(() =>
+      importLocalSnapshot({ target: target().target, householdId: "household", snapshot: invalid }),
+    );
+  }
+});
+
+test("rejects orphaned legacy card references before any write", () => {
+  const invalid = structuredClone(snapshot);
+  invalid.expenses[0]!.creditCardId = 99;
+  assert.equal(previewLocalMigration(invalid).valid, false);
+});
+
+test("fails reconciliation when persisted financial content differs despite equal counts", async () => {
+  const fake = target();
+  fake.target.importAtomically = async () => ({
+    ...structuredClone(snapshot),
+    expenses: [{ ...snapshot.expenses[0]!, amount: 99 }],
+  });
+  await assert.rejects(() =>
+    importLocalSnapshot({ target: fake.target, householdId: "household", snapshot }),
+  );
+  assert.equal(fake.marks, 0);
 });
 
 test("imports once, reconciles, and marks only after complete success", async () => {

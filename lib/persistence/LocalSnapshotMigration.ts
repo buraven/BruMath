@@ -9,19 +9,16 @@ export type LocalMigrationPreview = {
 
 export type FinancialImportTarget = {
   hasImport(householdId: string, sourceHash: string): Promise<boolean>;
-  importSnapshot(
+  /** Must be implemented as one authenticated database transaction/RPC. */
+  importAtomically(
     householdId: string,
     snapshot: AppFinancialData,
-  ): Promise<void>;
-  readSnapshot(householdId: string): Promise<AppFinancialData>;
-  markImport(
-    householdId: string,
     sourceHash: string,
     summary: LocalMigrationPreview["counts"],
-  ): Promise<void>;
+  ): Promise<AppFinancialData>;
 };
 
-function stableSnapshot(snapshot: AppFinancialData) {
+export function normalizeSnapshot(snapshot: AppFinancialData) {
   return JSON.stringify({
     expenses: [...snapshot.expenses].sort((a, b) => a.id - b.id),
     installments: [...snapshot.installments].sort((a, b) => a.id - b.id),
@@ -50,16 +47,36 @@ function hash(value: string) {
 export function previewLocalMigration(
   snapshot: AppFinancialData,
 ): LocalMigrationPreview {
-  const issues = [
-    ...(snapshot.expenses.some((item) => !Number.isInteger(item.id))
-      ? ["Há gastos sem ID legado inteiro."]
-      : []),
-    ...(snapshot.creditCards.some((item) => !Number.isInteger(item.id))
-      ? ["Há cartões sem ID legado inteiro."]
-      : []),
-  ];
+  const collections = [
+    ["gastos", snapshot.expenses],
+    ["parcelas", snapshot.installments],
+    ["recebíveis", snapshot.debts],
+    ["entradas", snapshot.incomeEntries],
+    ["cartões", snapshot.creditCards],
+    ["pagamentos de fatura", snapshot.invoicePayments],
+  ] as const;
+  const issues = collections.flatMap(([label, items]) => {
+    const ids = items.map((item) => item.id);
+    return [
+      ...(!ids.every(Number.isInteger)
+        ? [`Há ${label} sem ID legado inteiro.`]
+        : []),
+      ...(new Set(ids).size !== ids.length
+        ? [`Há IDs legados duplicados em ${label}.`]
+        : []),
+    ];
+  });
+  const cardIds = new Set(snapshot.creditCards.map((card) => card.id));
+  for (const cardId of [
+    ...snapshot.expenses.map((item) => item.creditCardId),
+    ...snapshot.installments.map((item) => item.creditCardId),
+    ...snapshot.invoicePayments.map((item) => item.cardId),
+  ]) {
+    if (cardId !== undefined && !cardIds.has(cardId))
+      issues.push(`Há referência a cartão legado inexistente (${cardId}).`);
+  }
   return {
-    sourceHash: hash(stableSnapshot(snapshot)),
+    sourceHash: hash(normalizeSnapshot(snapshot)),
     counts: {
       expenses: snapshot.expenses.length,
       installments: snapshot.installments.length,
@@ -87,14 +104,14 @@ export async function importLocalSnapshot({
   if (await target.hasImport(householdId, preview.sourceHash))
     return { imported: false, preview };
 
-  await target.importSnapshot(householdId, snapshot);
-  const persisted = await target.readSnapshot(householdId);
-  const reconciliation = previewLocalMigration(persisted);
-  if (
-    JSON.stringify(reconciliation.counts) !== JSON.stringify(preview.counts)
-  ) {
+  const persisted = await target.importAtomically(
+    householdId,
+    snapshot,
+    preview.sourceHash,
+    preview.counts,
+  );
+  if (normalizeSnapshot(persisted) !== normalizeSnapshot(snapshot)) {
     throw new Error("A importação não reconciliou com o snapshot local.");
   }
-  await target.markImport(householdId, preview.sourceHash, preview.counts);
   return { imported: true, preview };
 }
