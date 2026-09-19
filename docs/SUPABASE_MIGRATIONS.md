@@ -39,3 +39,11 @@ credenciais somente no gerenciador de secrets do ambiente de teste e execute
 O Vercel CLI injeta os valores apenas no processo, sem criar `.env.local`.
 A confirmação por e-mail, se estiver habilitada no projeto, deve ser concluída
 manualmente antes do teste.
+
+When Preview secrets are intentionally unavailable to the local Vercel CLI, use
+the explicit Preview-only trigger instead. Configure a new **Preview Secret**
+named `SUPABASE_E2E_TRIGGER_TOKEN`, then issue one authenticated `POST` to
+`/api/internal/supabase-e2e` with
+`Authorization: Bearer <SUPABASE_E2E_TRIGGER_TOKEN>`. The route returns only
+PASS/FAIL and scenario names, returns `404` outside Vercel Preview, and does
+not execute during deployments.
