@@ -109,6 +109,14 @@ button {
   padding-bottom: var(--bottom-nav-reserve);
 }
 
+/* Calendar owns the exact clearance required by the fixed viewport navigation.
+ * Keeping it in the screen avoids a second trailing workspace reserve. */
+@media (max-width: 1439px), (hover: none), (pointer: coarse) {
+  .app-workspace:has([data-calendar-screen]) {
+    padding-bottom: 0;
+  }
+}
+
 .topbar {
   width: min(var(--max), calc(100% - 32px));
   margin: 0 auto;
