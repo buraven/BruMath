@@ -35,3 +35,13 @@ Funcionalidade: Persistência financeira centralizada segura
   Cenário: PST-008 - Magic Link não cria contas pelo app
     Quando uma pessoa solicita um Magic Link
     Então o BruMath solicita acesso sem permitir criação automática de usuário
+
+  Cenário: PST-009 - Logout aguarda gravações remotas pendentes
+    Dado que existe uma alteração financeira ainda sendo salva remotamente
+    Quando a pessoa tenta sair do BruMath
+    Então o logout só é concluído depois que a gravação remota for confirmada
+
+  Cenário: PST-010 - Snapshot local já importado não repete a migração
+    Dado que o mesmo brumath-data preservado já foi importado e reconciliado
+    Quando a pessoa inicia uma nova sessão autenticada
+    Então o BruMath ativa a fonte remota sem oferecer uma nova migração

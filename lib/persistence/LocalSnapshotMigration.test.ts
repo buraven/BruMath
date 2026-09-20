@@ -2,7 +2,9 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import type { AppFinancialData } from "../app/AppTypes";
 import {
+  hasImportedLocalSnapshot,
   importLocalSnapshot,
+  localStorageSourceHash,
   previewLocalMigration,
   type FinancialImportTarget,
 } from "./LocalSnapshotMigration";
@@ -93,7 +95,11 @@ test("rejects every invalid or duplicate legacy ID before any write", async () =
     const preview = previewLocalMigration(invalid);
     assert.equal(preview.valid, false, key);
     await assert.rejects(() =>
-      importLocalSnapshot({ target: target().target, householdId: "household", snapshot: invalid }),
+      importLocalSnapshot({
+        target: target().target,
+        householdId: "household",
+        snapshot: invalid,
+      }),
     );
   }
 });
@@ -111,7 +117,11 @@ test("fails reconciliation when persisted financial content differs despite equa
     expenses: [{ ...snapshot.expenses[0]!, amount: 99 }],
   });
   await assert.rejects(() =>
-    importLocalSnapshot({ target: fake.target, householdId: "household", snapshot }),
+    importLocalSnapshot({
+      target: fake.target,
+      householdId: "household",
+      snapshot,
+    }),
   );
   assert.equal(fake.marks, 0);
 });
@@ -132,4 +142,40 @@ test("imports once, reconciles, and marks only after complete success", async ()
   assert.equal(second.imported, false);
   assert.equal(fake.imports, 1);
   assert.equal(fake.marks, 1);
+});
+
+test("recognizes the same preserved local snapshot after a new initialization", async () => {
+  const localPayload = { viewMonth: "2026-09", expenses: snapshot.expenses };
+  const sourceHash = localStorageSourceHash(localPayload);
+  const fake: FinancialImportTarget = {
+    hasImport: async (_, hash) => hash === sourceHash,
+    importAtomically: async () => structuredClone(snapshot),
+  };
+
+  assert.equal(
+    await hasImportedLocalSnapshot({
+      target: fake,
+      householdId: "household",
+      sourceHash,
+      legacySourceHash: "legacy-hash",
+    }),
+    true,
+  );
+});
+
+test("continues to require migration for a different local snapshot", async () => {
+  const fake: FinancialImportTarget = {
+    hasImport: async () => false,
+    importAtomically: async () => structuredClone(snapshot),
+  };
+
+  assert.equal(
+    await hasImportedLocalSnapshot({
+      target: fake,
+      householdId: "household",
+      sourceHash: "new-local-hash",
+      legacySourceHash: "legacy-hash",
+    }),
+    false,
+  );
 });

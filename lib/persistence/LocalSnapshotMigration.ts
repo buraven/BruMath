@@ -44,8 +44,26 @@ function hash(value: string) {
   return `local-${(current >>> 0).toString(16)}`;
 }
 
+function normalizeLocalValue(value: unknown): unknown {
+  if (Array.isArray(value)) return value.map(normalizeLocalValue);
+  if (value && typeof value === "object") {
+    return Object.fromEntries(
+      Object.entries(value as Record<string, unknown>)
+        .sort(([left], [right]) => left.localeCompare(right))
+        .map(([key, item]) => [key, normalizeLocalValue(item)]),
+    );
+  }
+  return value;
+}
+
+/** Stable identity for the preserved localStorage payload, not hydrated defaults. */
+export function localStorageSourceHash(stored: unknown) {
+  return hash(JSON.stringify(normalizeLocalValue(stored)));
+}
+
 export function previewLocalMigration(
   snapshot: AppFinancialData,
+  sourceHash = hash(normalizeSnapshot(snapshot)),
 ): LocalMigrationPreview {
   const collections = [
     ["gastos", snapshot.expenses],
@@ -76,7 +94,7 @@ export function previewLocalMigration(
       issues.push(`Há referência a cartão legado inexistente (${cardId}).`);
   }
   return {
-    sourceHash: hash(normalizeSnapshot(snapshot)),
+    sourceHash,
     counts: {
       expenses: snapshot.expenses.length,
       installments: snapshot.installments.length,
@@ -94,12 +112,14 @@ export async function importLocalSnapshot({
   target,
   householdId,
   snapshot,
+  sourceHash,
 }: {
   target: FinancialImportTarget;
   householdId: string;
   snapshot: AppFinancialData;
+  sourceHash?: string;
 }) {
-  const preview = previewLocalMigration(snapshot);
+  const preview = previewLocalMigration(snapshot, sourceHash);
   if (!preview.valid) throw new Error(preview.issues.join(" "));
   if (await target.hasImport(householdId, preview.sourceHash))
     return { imported: false, preview };
@@ -114,4 +134,23 @@ export async function importLocalSnapshot({
     throw new Error("A importação não reconciliou com o snapshot local.");
   }
   return { imported: true, preview };
+}
+
+/** Recognizes both the stable localStorage identity and the legacy hydrated hash. */
+export async function hasImportedLocalSnapshot({
+  target,
+  householdId,
+  sourceHash,
+  legacySourceHash,
+}: {
+  target: FinancialImportTarget;
+  householdId: string;
+  sourceHash: string;
+  legacySourceHash: string;
+}) {
+  if (await target.hasImport(householdId, sourceHash)) return true;
+  return (
+    sourceHash !== legacySourceHash &&
+    target.hasImport(householdId, legacySourceHash)
+  );
 }
