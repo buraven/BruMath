@@ -5,6 +5,7 @@ Funcionalidade: EXP - Gastos são a fonte única das projeções financeiras
   Cenário: EXP-001 Criar gasto registra descrição, valor, data, categoria e responsável
     Quando a pessoa salvar um gasto válido
     Então ele aparece no mês, categoria e perfil compatíveis
+    E a data pode ser escolhida por calendário no formato DD/MM/AAAA sem mudar sua competência
 
   Cenário: EXP-002 Editar gasto recalcula suas projeções
     Dado um gasto existente

@@ -128,6 +128,53 @@ test("Gasto criado, editado e excluído atualiza categoria e bucket sem duplicar
   ).toHaveCount(0);
 });
 
+test("seletor de data mantém dia local ao criar, editar e recarregar um gasto @desktop", async ({
+  page,
+}) => {
+  await openWithFinancialState(page);
+  await openTab(page, "Gastos");
+  await page.getByRole("button", { name: "Novo gasto" }).click();
+
+  let dialog = page.getByRole("dialog");
+  await dialog.getByLabel("O que foi?").fill("Consulta");
+  await dialog.getByLabel("Valor").fill("9000");
+  await dialog.getByLabel("Selecionar data pelo calendário").fill("2026-08-15");
+  await expect(dialog.getByPlaceholder("DD/MM/AAAA")).toHaveValue("15/08/2026");
+  await dialog.getByRole("button", { name: "Salvar gasto" }).click();
+
+  await waitForPersistedFinancialState(
+    page,
+    (state) =>
+      state.expenses.some(
+        (expense) =>
+          expense.title === "Consulta" && expense.date === "2026-08-15",
+      ),
+    "gasto Consulta em 2026-08-15",
+  );
+  await page.reload();
+  await openTab(page, "Gastos");
+  await expect(page.getByText("Consulta", { exact: true })).toBeVisible();
+
+  await page.getByLabel("Editar Consulta").click();
+  dialog = page.getByRole("dialog");
+  await expect(dialog.getByPlaceholder("DD/MM/AAAA")).toHaveValue("15/08/2026");
+  await dialog.getByLabel("Selecionar data pelo calendário").fill("2026-08-16");
+  await expect(dialog.getByPlaceholder("DD/MM/AAAA")).toHaveValue("16/08/2026");
+  await dialog.getByRole("button", { name: "Salvar gasto" }).click();
+
+  await waitForPersistedFinancialState(
+    page,
+    (state) =>
+      state.expenses.some(
+        (expense) =>
+          expense.title === "Consulta" && expense.date === "2026-08-16",
+      ),
+    "edição da data de Consulta em 2026-08-16",
+  );
+  await page.reload();
+  await expect(page.getByText(/Bruna · 16\/08/)).toBeVisible();
+});
+
 test("Entradas e recebimentos parciais persistem pelo fluxo real @desktop", async ({
   page,
 }) => {

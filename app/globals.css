@@ -1292,6 +1292,36 @@ button {
   color: var(--text);
 }
 
+.date-input {
+  position: relative;
+  display: block;
+}
+
+.field .date-input > input:first-child {
+  padding-right: 46px;
+}
+
+.date-input-icon {
+  position: absolute;
+  right: 14px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--icon-text);
+  pointer-events: none;
+}
+
+.date-input-picker {
+  position: absolute;
+  z-index: 1;
+  right: 0;
+  top: 0;
+  width: 46px !important;
+  height: 46px !important;
+  min-width: 46px;
+  opacity: 0;
+  cursor: pointer;
+}
+
 .form-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
