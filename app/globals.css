@@ -284,6 +284,47 @@ button {
   margin: 0 auto;
 }
 
+.persistence-panel {
+  width: min(var(--max), calc(100% - 32px));
+  margin: 0 auto var(--space-2);
+  padding: 12px 14px;
+  display: grid;
+  gap: 6px;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  background: var(--surface);
+  box-shadow: 0 6px 24px rgba(31, 42, 34, 0.04);
+  color: var(--text);
+  font-size: 0.78rem;
+}
+
+.persistence-panel span,
+.persistence-panel small {
+  color: var(--muted);
+}
+
+.persistence-actions,
+.persistence-status {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.persistence-actions input {
+  min-width: min(100%, 220px);
+  height: 38px;
+  padding: 0 10px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--input-bg);
+  color: var(--text);
+}
+
+.persistence-status {
+  justify-content: space-between;
+}
+
 .month-bar {
   position: sticky;
   top: 8px;

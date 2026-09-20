@@ -36,6 +36,7 @@ import type {
   Expense,
   Person,
 } from "../../lib/app/AppTypes";
+import type { FinancialDataSource } from "../../lib/assistant/context/FinancialDataSource";
 
 type ResponseMode = "compact" | "full";
 
@@ -48,6 +49,7 @@ type UseAssistantControllerOptions = {
   setToast: Dispatch<SetStateAction<string>>;
   formatMoney: (value: number) => string;
   formatDate: (value: string) => string;
+  financialDataSource?: FinancialDataSource;
 };
 
 export function useAssistantController({
@@ -59,6 +61,7 @@ export function useAssistantController({
   setToast,
   formatMoney,
   formatDate,
+  financialDataSource,
 }: UseAssistantControllerOptions) {
   const [text, setText] = useState("");
   const [assistantLoading, setAssistantLoading] = useState(false);
@@ -246,10 +249,14 @@ export function useAssistantController({
         }
       }
 
-      const plan = await resolveConversationPlan(response.plan, {
-        activeProfile,
-        selectedMonth: viewMonth,
-      });
+      const plan = await resolveConversationPlan(
+        response.plan,
+        {
+          activeProfile,
+          selectedMonth: viewMonth,
+        },
+        financialDataSource,
+      );
       if (plan.kind === "tool-results") {
         const explanation = await requestConversationPlan({
           message: value,

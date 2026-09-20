@@ -54,6 +54,7 @@ import { InvoicesScreen } from "../features/invoices/InvoicesScreen";
 import { CreditCardFormDialog } from "../features/invoices/CreditCardFormDialog";
 import { useThemePreference } from "../features/preferences/useThemePreference";
 import { usePersistedFinancialState } from "../features/app/usePersistedFinancialState";
+import { SupabasePersistencePanel } from "../features/persistence/SupabasePersistencePanel";
 import {
   deriveCategorySpending,
   deriveFinancialSelectors,
@@ -155,6 +156,7 @@ export default function Page() {
     setActiveProfile,
     viewMonth,
     setViewMonth,
+    persistence,
   } = usePersistedFinancialState({
     expenses: INITIAL_EXPENSES,
     installments: INITIAL_INSTALLMENTS,
@@ -202,6 +204,7 @@ export default function Page() {
     setToast,
     formatMoney: money,
     formatDate: shortDate,
+    financialDataSource: persistence.financialDataSource,
   });
   const [receivingDebt, setReceivingDebt] = useState<Debt | null>(null);
   const [editingExpense, setEditingExpense] = useState<Expense | null>(null);
@@ -487,6 +490,16 @@ export default function Page() {
         {toast && <div className="toast">{toast}</div>}
         <AppSidebar activeTab={tab} onNavigate={switchTab} />
         <div className="app-workspace">
+          <SupabasePersistencePanel
+            configured={persistence.configured}
+            status={persistence.status}
+            error={persistence.error}
+            migrationPreview={persistence.migrationPreview}
+            onSendMagicLink={persistence.sendMagicLink}
+            onImport={persistence.importLocalData}
+            onRetry={persistence.retryRemoteWrite}
+            onSignOut={persistence.signOut}
+          />
           <header className="topbar">
             <div className="brand-area">
               <div className="brand">

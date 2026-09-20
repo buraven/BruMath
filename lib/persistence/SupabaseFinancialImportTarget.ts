@@ -5,7 +5,7 @@ import type {
   LocalMigrationPreview,
 } from "./LocalSnapshotMigration";
 
-type RemoteSnapshot = {
+export type RemoteSnapshot = {
   settings: {
     income: number;
     budgets: AppFinancialData["budgets"];
@@ -282,4 +282,30 @@ export class SupabaseFinancialImportTarget implements FinancialImportTarget {
       throw new Error("A importação não retornou um snapshot válido.");
     return fromRemoteSnapshot(payload.snapshot);
   }
+}
+
+/**
+ * Persists one complete application snapshot through the authenticated,
+ * transactional RPC. Runtime revisions are intentionally separate from
+ * `local_imports`, which remains the record of an explicit local migration.
+ */
+export async function replaceSupabaseFinancialSnapshot({
+  client,
+  householdId,
+  snapshot,
+  revisionHash,
+}: {
+  client: SupabaseClient;
+  householdId: string;
+  snapshot: AppFinancialData;
+  revisionHash: string;
+}): Promise<AppFinancialData> {
+  const result = await client.rpc("replace_financial_snapshot", {
+    p_household_id: householdId,
+    p_snapshot: toRemoteSnapshot(snapshot),
+    p_revision_hash: revisionHash,
+  });
+  if (result.error || !result.data)
+    throw new Error("Não foi possível salvar os dados financeiros remotos.");
+  return fromRemoteSnapshot(result.data as RemoteSnapshot);
 }

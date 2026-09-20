@@ -1,4 +1,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
+import type { AppFinancialData } from "../../app/AppTypes";
+import { replaceSupabaseFinancialSnapshot } from "../../persistence/SupabaseFinancialImportTarget";
 import type {
   FinancialDataSnapshot,
   FinancialDataSource,
@@ -131,7 +133,21 @@ export class SupabaseFinancialDataSource implements FinancialDataSource {
         paidAt: row.paid_at,
         amount: Number(row.amount),
       })) as PersistedInvoicePayment[],
+      activeProfile: configuration.active_profile,
+      viewMonth: configuration.view_month.slice(0, 7),
       hasStoredData: true,
     };
+  }
+
+  async write(
+    snapshot: AppFinancialData,
+    revisionHash: string,
+  ): Promise<AppFinancialData> {
+    return replaceSupabaseFinancialSnapshot({
+      client: this.client,
+      householdId: this.householdId,
+      snapshot,
+      revisionHash,
+    });
   }
 }

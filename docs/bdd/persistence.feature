@@ -21,3 +21,8 @@ Funcionalidade: Persistência financeira centralizada segura
   Cenário: PST-005 - Dados financeiros exigem identidade autenticada
     Quando não existe sessão autenticada
     Então nenhuma leitura ou escrita financeira centralizada é autorizada
+
+  Cenário: PST-006 - Fonte remota ativa não volta ao armazenamento local
+    Dado que a migração local foi reconciliada com sucesso
+    Quando uma gravação remota falha
+    Então o BruMath informa o erro sem sobrescrever o brumath-data local

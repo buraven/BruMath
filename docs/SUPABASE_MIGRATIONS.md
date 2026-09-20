@@ -19,6 +19,15 @@ O índice de `households(owner_id)` também foi aplicado externamente e o
 histórico remoto registrou `20260919231621`. O arquivo local correspondente
 usa esse mesmo timestamp, sem mudança do SQL.
 
+## Escrita remota do app
+
+`20260920102209_replace_financial_snapshot.sql` permanece somente versionada
+até revisão e aplicação externa. Ela adiciona a RPC autenticada
+`replace_financial_snapshot`, usada pelo app depois de uma migração local
+confirmada. A RPC delega a validação existente, substitui o snapshot de forma
+atômica e não cria marcadores em `local_imports` — esses continuam reservados
+para a migração explícita de `brumath-data`.
+
 ## Harness remoto sintético
 
 `pnpm test:supabase:e2e` não faz parte da suíte local comum. Ele exige duas
@@ -33,17 +42,8 @@ O harness nunca cria contas, não usa `service_role` e não lê `brumath-data`.
 Ele exercita bootstrap, importação idempotente, reconciliação, RLS entre A/B e
 rollback de um snapshot sintético inválido.
 
-Para executar: crie duas contas descartáveis no Supabase Auth, guarde as
-credenciais somente no gerenciador de secrets do ambiente de teste e execute
-`vercel env run -e preview --git-branch feature/supabase-persistence-pr57 -- pnpm test:supabase:e2e`.
-O Vercel CLI injeta os valores apenas no processo, sem criar `.env.local`.
-A confirmação por e-mail, se estiver habilitada no projeto, deve ser concluída
+Para executar, use apenas um ambiente de teste controlado que injete as quatro
+credenciais sintéticas no processo. `vercel env run` não injeta variáveis
+marcadas como Secret e não é um mecanismo válido para esse harness. A
+confirmação por e-mail, se estiver habilitada no projeto, deve ser concluída
 manualmente antes do teste.
-
-When Preview secrets are intentionally unavailable to the local Vercel CLI, use
-the explicit Preview-only trigger instead. Configure a new **Preview Secret**
-named `SUPABASE_E2E_TRIGGER_TOKEN`, then issue one authenticated `POST` to
-`/api/internal/supabase-e2e` with
-`Authorization: Bearer <SUPABASE_E2E_TRIGGER_TOKEN>`. The route returns only
-PASS/FAIL and scenario names, returns `404` outside Vercel Preview, and does
-not execute during deployments.

@@ -4,6 +4,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import type { AppFinancialData } from "../app/AppTypes";
 import {
   fromRemoteSnapshot,
+  replaceSupabaseFinancialSnapshot,
   SupabaseFinancialImportTarget,
   toRemoteSnapshot,
 } from "./SupabaseFinancialImportTarget";
@@ -117,6 +118,30 @@ test("does not treat a remote import lookup failure as a missing import", async 
   } as unknown as SupabaseClient;
   const target = new SupabaseFinancialImportTarget(client);
   await assert.rejects(() => target.hasImport("household", "hash"));
+});
+
+test("writes a runtime snapshot only through the atomic replacement RPC", async () => {
+  let rpcName = "";
+  let rpcArguments: Record<string, unknown> | undefined;
+  const client = {
+    rpc: async (name: string, arguments_: Record<string, unknown>) => {
+      rpcName = name;
+      rpcArguments = arguments_;
+      return { data: toRemoteSnapshot(snapshot), error: null };
+    },
+  } as unknown as SupabaseClient;
+
+  const persisted = await replaceSupabaseFinancialSnapshot({
+    client,
+    householdId: "household",
+    snapshot,
+    revisionHash: "revision",
+  });
+
+  assert.equal(rpcName, "replace_financial_snapshot");
+  assert.equal(rpcArguments?.p_household_id, "household");
+  assert.equal(rpcArguments?.p_revision_hash, "revision");
+  assert.deepEqual(persisted, snapshot);
 });
 
 test("bootstraps only through the authenticated household RPC", async () => {
