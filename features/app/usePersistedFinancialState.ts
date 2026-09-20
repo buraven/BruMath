@@ -21,6 +21,7 @@ import {
   SupabaseFinancialImportTarget,
 } from "../../lib/persistence/SupabaseFinancialImportTarget";
 import { RemoteSnapshotWriteQueue } from "../../lib/persistence/RemoteSnapshotWriteQueue";
+import { RemoteSessionInitializationGate } from "../../lib/persistence/RemoteSessionInitializationGate";
 import {
   createBruMathSupabaseClient,
   isBruMathSupabaseConfigured,
@@ -98,6 +99,9 @@ export function usePersistedFinancialState(defaults: AppFinancialData) {
   // untouched for recovery, but a remote failure must remain visible.
   const remoteWasActivatedRef = useRef(false);
   const remoteWriterRef = useRef<RemoteSnapshotWriteQueue<AppFinancialData>>();
+  const remoteInitializationGateRef = useRef(
+    new RemoteSessionInitializationGate(),
+  );
   const initializeRemoteRef = useRef<(() => Promise<void>) | undefined>();
   const localSourceHashRef = useRef("");
   const legacyLocalSourceHashRef = useRef("");
@@ -183,42 +187,48 @@ export function usePersistedFinancialState(defaults: AppFinancialData) {
         return;
       }
       try {
-        setStatus("bootstrapping");
-        const householdId = await bootstrapFinancialHousehold(client);
-        if (!mounted) return;
-        householdIdRef.current = householdId;
-        const target = new SupabaseFinancialImportTarget(client);
-        const source = new SupabaseFinancialDataSource(client, householdId);
-        remoteSourceRef.current = source;
-        if (localExists) {
-          const preview = previewLocalMigration(
-            localSnapshot,
-            localSourceHashRef.current,
-          );
-          setMigrationPreview(preview);
-          if (!preview.valid) throw new Error(preview.issues.join(" "));
-          const wasImported = await hasImportedLocalSnapshot({
-            target,
-            householdId,
-            sourceHash: preview.sourceHash,
-            legacySourceHash: legacyLocalSourceHashRef.current,
-          });
-          if (!wasImported) {
-            setStatus("migration-required");
-            return;
-          }
-        }
-        const remote = toAppData(await source.read(), initial);
-        remoteBackendRef.current = true;
-        remoteWasActivatedRef.current = true;
-        const writer = new RemoteSnapshotWriteQueue(
-          normalizePersistedFinancialSnapshot,
-          async (nextSnapshot) => source.write(nextSnapshot, revision()),
+        await remoteInitializationGateRef.current.initialize(
+          data.session.user.id,
+          async () => {
+            setStatus("bootstrapping");
+            const householdId = await bootstrapFinancialHousehold(client);
+            if (!mounted) return;
+            householdIdRef.current = householdId;
+            const target = new SupabaseFinancialImportTarget(client);
+            const source = new SupabaseFinancialDataSource(client, householdId);
+            remoteSourceRef.current = source;
+            if (localExists) {
+              const preview = previewLocalMigration(
+                localSnapshot,
+                localSourceHashRef.current,
+              );
+              setMigrationPreview(preview);
+              if (!preview.valid) throw new Error(preview.issues.join(" "));
+              const wasImported = await hasImportedLocalSnapshot({
+                target,
+                householdId,
+                sourceHash: preview.sourceHash,
+                legacySourceHash: legacyLocalSourceHashRef.current,
+              });
+              if (!wasImported) {
+                setStatus("migration-required");
+                return;
+              }
+            }
+            const remote = toAppData(await source.read(), initial);
+            if (!mounted) return;
+            remoteBackendRef.current = true;
+            remoteWasActivatedRef.current = true;
+            const writer = new RemoteSnapshotWriteQueue(
+              normalizePersistedFinancialSnapshot,
+              async (nextSnapshot) => source.write(nextSnapshot, revision()),
+            );
+            writer.markConfirmed(remote);
+            remoteWriterRef.current = writer;
+            applySnapshot(remote);
+            setStatus("remote");
+          },
         );
-        writer.markConfirmed(remote);
-        remoteWriterRef.current = writer;
-        applySnapshot(remote);
-        setStatus("remote");
       } catch {
         if (!mounted) return;
         setPersistenceError("Não foi possível preparar a persistência remota.");
@@ -230,6 +240,7 @@ export function usePersistedFinancialState(defaults: AppFinancialData) {
     const { data: listener } = client.auth.onAuthStateChange(
       (_event, session) => {
         if (!session) {
+          remoteInitializationGateRef.current.reset();
           remoteBackendRef.current = false;
           remoteSourceRef.current = undefined;
           setIsAuthenticated(false);

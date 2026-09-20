@@ -15,10 +15,15 @@ Funcionalidade: CAL - Calendário projeta dados financeiros existentes
     Quando Bruna, Matheus ou Casal é selecionado
     Então o calendário usa a mesma regra de escopo financeiro vigente
 
-  Cenário: CAL-004 Parcela aparece em seu próximo vencimento
-    Dado um parcelamento ativo
+  Cenário: CAL-004 Parcela sem cartão aparece em seu próximo vencimento
+    Dado um parcelamento ativo sem cartão associado
     Então ele é projetado na data de nextDue
     E sua quantidade restante continua sendo derivada do parcelamento original
+
+  Cenário: CAL-016 Parcela vinculada a cartão compõe somente a fatura
+    Dado um parcelamento ativo associado a um cartão
+    Então o calendário mostra o vencimento da fatura do ciclo correto
+    E não projeta a parcela como compromisso individual
 
   Cenário: CAL-005 Vencimento de fatura atravessa competência corretamente
     Dado um cartão cujo fechamento e vencimento ficam em meses distintos
@@ -59,6 +64,7 @@ Funcionalidade: CAL - Calendário projeta dados financeiros existentes
   Cenário: CAL-013 Previsão de saldo usa somente valores conhecidos
     Quando existe saldo base e compromissos futuros conhecidos
     Então a previsão considera somente entradas e saídas datadas/projetáveis
+    E considera faturas abertas sem repetir compras já refletidas no saldo base
     E não assume recorrências não modeladas
 
   Cenário: CAL-014 Compra e vencimento não duplicam despesa

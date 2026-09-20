@@ -85,6 +85,7 @@ export function CalendarScreen({
   const activeInstallments = installments.filter(
     (item) =>
       item.paidInstallments < item.totalInstallments &&
+      !item.creditCardId &&
       isWithinProfileScope(item.who, profile),
   );
 
@@ -135,12 +136,12 @@ export function CalendarScreen({
           <strong>
             {formatMoney(projection.forecast.knownFutureCommitments)}
           </strong>
-          <small>Parcelas sem cartão ainda a vencer</small>
+          <small>Faturas e parcelas sem cartão a vencer</small>
         </article>
         <article>
           <span>Saldo projetado</span>
           <strong>{formatMoney(projection.forecast.projectedBalance)}</strong>
-          <small>Sem duplicar compras de cartão</small>
+          <small>Sem duplicar itens de fatura</small>
         </article>
         <article>
           <span>Itens no mês</span>

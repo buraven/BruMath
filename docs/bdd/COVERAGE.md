@@ -50,6 +50,7 @@ Esta matriz conecta os cenários versionados em `docs/bdd` às evidências atuai
 | CAL-002  | filtro por mês                         | `calendar.test.ts`                            | -                                        | `calendar.spec.ts`                                    | -                        | COVERED |
 | CAL-003  | escopo Bruna/Matheus/Casal             | `calendar.test.ts`                            | `profileScope.ts`                        | `calendar.spec.ts`                                    | -                        | COVERED |
 | CAL-004  | parcela em nextDue                     | `calendar.test.ts`                            | `financialMutationControllers.test.ts`   | `calendar.spec.ts`                                    | -                        | COVERED |
+| CAL-016  | parcela no cartão compõe fatura        | `calendar.test.ts`, `invoices.test.ts`        | `invoices.ts`                            | `calendar.spec.ts`                                    | -                        | COVERED |
 | CAL-005  | fatura cruzando competência            | `calendar.test.ts`                            | `invoices.ts`                            | `calendar.spec.ts`                                    | -                        | COVERED |
 | CAL-006  | ciclo vazio não é dívida               | `calendar.test.ts`                            | `invoices.test.ts`                       | -                                                     | -                        | COVERED |
 | CAL-007  | agenda reconcilia com grid             | -                                             | `calendar.ts`                            | `calendar.spec.ts`                                    | -                        | COVERED |
@@ -58,7 +59,7 @@ Esta matriz conecta os cenários versionados em `docs/bdd` às evidências atuai
 | CAL-010  | ações reutilizam domínio de parcela    | -                                             | `financialMutationControllers.test.ts`   | `calendar.spec.ts`                                    | -                        | COVERED |
 | CAL-011  | histórico não vira compromisso         | `calendar.test.ts`                            | -                                        | `calendar.spec.ts`                                    | -                        | COVERED |
 | CAL-012  | fechamento é marco                     | `calendar.test.ts`                            | `invoices.test.ts`                       | -                                                     | -                        | COVERED |
-| CAL-013  | previsão usa dados conhecidos          | `calendar.test.ts`                            | `financialSelectors.test.ts`             | -                                                     | -                        | COVERED |
+| CAL-013  | previsão usa dados conhecidos          | `calendar.test.ts`                            | `financialSelectors.test.ts`             | `calendar.spec.ts`                                    | -                        | COVERED |
 | CAL-014  | compra + vencimento não duplicam       | `calendar.test.ts`                            | `invoices.test.ts`                       | `calendar.spec.ts`                                    | -                        | COVERED |
 | CAL-015  | virada de ano preserva projeção        | `calendar.test.ts`                            | `invoices.ts`                            | -                                                     | -                        | COVERED |
 | FAT-001  | criar/persistir cartão                 | `BruMathDataRepository.test.ts`               | -                                        | `invoices.spec.ts`                                    | -                        | COVERED |
@@ -123,8 +124,8 @@ Esta matriz conecta os cenários versionados em `docs/bdd` às evidências atuai
 
 ## Resumo desta revisão
 
-- **116 cenários BDD** versionados.
-- **92 COVERED**, **17 PARTIAL**, **7 MANUAL**, **0 MISSING**.
+- **117 cenários BDD** versionados.
+- **93 COVERED**, **17 PARTIAL**, **7 MANUAL**, **0 MISSING**.
 - Os cenários `PARTIAL` já têm proteção na camada mais crítica disponível; a melhoria indicada é ampliar a jornada real da interface, não mudar a regra de negócio.
 - Os sete cenários `MANUAL` são deliberadamente subjetivos ou dependentes de aceite visual dos mockups e de dispositivos reais. Eles não devem ser falsamente marcados como testes de pixel no CI.
 
