@@ -1,6 +1,7 @@
 import type { AssistantProfile } from "../contracts";
 import type { PersonalLimitBucket } from "../../finance/personalLimitBuckets";
 import type { PersonalLimitConfiguration } from "../../finance/personalLimits";
+import type { Person } from "../../app/AppTypes";
 
 export type PersistedExpense = {
   id: number;
@@ -77,6 +78,8 @@ export type FinancialDataSnapshot = {
   personalLimits?: PersonalLimitConfiguration;
   creditCards?: readonly PersistedCreditCard[];
   invoicePayments?: readonly PersistedInvoicePayment[];
+  activeProfile?: Person;
+  viewMonth?: string;
   /** Whether the persistence source actually contained a BruMath dataset. */
   hasStoredData?: boolean;
 };

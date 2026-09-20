@@ -5,7 +5,10 @@ import {
   resolvePersonalLimits,
 } from "../../finance/personalLimits";
 import type { CategoryLimit } from "../../finance/limits";
-import { isWithinProfileScope } from "../../finance/profileScope";
+import {
+  isReceivableWithinProfileScope,
+  isWithinProfileScope,
+} from "../../finance/profileScope";
 import { deriveInvoices } from "../../finance/invoices";
 import {
   normalizeTransactionAmount,
@@ -31,14 +34,6 @@ import type {
   FinancialDataSource,
   PersistedDebt,
 } from "./FinancialDataSource";
-
-function belongsToReceivableProfile(
-  debt: PersistedDebt,
-  profile: FinancialScope["profile"],
-): boolean {
-  if (profile === "Casal") return true;
-  return debt.destination === profile.toLowerCase();
-}
 
 function matchesMonth(date: string, month: string): boolean {
   return date.startsWith(month);
@@ -154,7 +149,7 @@ function normalizeReceivables(
     .filter(
       (debt) =>
         isVisibleDebt(debt, scope.month) &&
-        belongsToReceivableProfile(debt, scope.profile),
+        isReceivableWithinProfileScope(debt.destination, scope.profile),
     )
     .map((debt) => ({
       id: `receivable:${debt.id}`,

@@ -53,7 +53,13 @@ import { PreferencesScreen } from "../features/preferences/PreferencesScreen";
 import { InvoicesScreen } from "../features/invoices/InvoicesScreen";
 import { CreditCardFormDialog } from "../features/invoices/CreditCardFormDialog";
 import { useThemePreference } from "../features/preferences/useThemePreference";
+import { createSignOutConfirmation } from "../features/preferences/createSignOutConfirmation";
 import { usePersistedFinancialState } from "../features/app/usePersistedFinancialState";
+import { SupabasePersistencePanel } from "../features/persistence/SupabasePersistencePanel";
+import {
+  canOfferSupabaseSignOut,
+  canRenderFinancialApplication,
+} from "../lib/persistence/financialAccessGate";
 import {
   deriveCategorySpending,
   deriveFinancialSelectors,
@@ -155,6 +161,7 @@ export default function Page() {
     setActiveProfile,
     viewMonth,
     setViewMonth,
+    persistence,
   } = usePersistedFinancialState({
     expenses: INITIAL_EXPENSES,
     installments: INITIAL_INSTALLMENTS,
@@ -202,6 +209,7 @@ export default function Page() {
     setToast,
     formatMoney: money,
     formatDate: shortDate,
+    financialDataSource: persistence.financialDataSource,
   });
   const [receivingDebt, setReceivingDebt] = useState<Debt | null>(null);
   const [editingExpense, setEditingExpense] = useState<Expense | null>(null);
@@ -462,13 +470,13 @@ export default function Page() {
   const selectedMonthExpenses = monthExpenses
     .slice()
     .sort((a, b) => b.date.localeCompare(a.date) || b.id - a.id);
-  const selectedIncome = incomeEntries
-    .filter((i) => i.date.startsWith(viewMonth))
-    .sort((a, b) => b.date.localeCompare(a.date) || b.id - a.id);
+  const selectedIncome = monthIncome.sort(
+    (a, b) => b.date.localeCompare(a.date) || b.id - a.id,
+  );
   const selectedDebts = monthDebts
     .slice()
     .sort((a, b) => a.person.localeCompare(b.person) || b.id - a.id);
-  const selectedInstallments = installments
+  const selectedInstallments = activeInstallments
     .slice()
     .sort((a, b) => a.nextDue.localeCompare(b.nextDue));
   const monthName = monthLabel(viewMonth);
@@ -480,6 +488,32 @@ export default function Page() {
     formatMoney: money,
   });
   const categorySpending = deriveCategorySpending(monthExpenses);
+  const canSignOut = canOfferSupabaseSignOut({
+    supabaseConfigured: persistence.configured,
+    persistenceStatus: persistence.status,
+  });
+
+  if (
+    !canRenderFinancialApplication({
+      supabaseConfigured: persistence.configured,
+      persistenceStatus: persistence.status,
+    })
+  ) {
+    return (
+      <main className="persistence-gate">
+        <SupabasePersistencePanel
+          configured={persistence.configured}
+          status={persistence.status}
+          error={persistence.error}
+          migrationPreview={persistence.migrationPreview}
+          onSendMagicLink={persistence.sendMagicLink}
+          onImport={persistence.importLocalData}
+          onRetry={persistence.retryRemoteWrite}
+          onSignOut={persistence.signOut}
+        />
+      </main>
+    );
+  }
 
   return (
     <>
@@ -788,6 +822,14 @@ export default function Page() {
                 theme={theme}
                 onProfileChange={setActiveProfile}
                 onThemeChange={applyTheme}
+                {...(canSignOut
+                  ? {
+                      onSignOut: () =>
+                        setConfirmation(
+                          createSignOutConfirmation(persistence.signOut),
+                        ),
+                    }
+                  : {})}
               />
             )}
           </main>

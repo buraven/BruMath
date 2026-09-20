@@ -5,6 +5,9 @@ import {
   deriveCategorySpending,
   deriveFinancialSelectors,
 } from "./financialSelectors";
+import type { AppFinancialData } from "../../lib/app/AppTypes";
+import { createFinancialContextProvider } from "../../lib/assistant/context/createFinancialContextProvider";
+import { deriveCalendarProjection } from "../../lib/finance/calendar";
 import { DEFAULT_PERSONAL_LIMITS } from "../../lib/finance/personalLimits";
 import { DEFAULT_BUDGETS, INITIAL_EXPENSES } from "./defaultFinancialData";
 
@@ -440,6 +443,200 @@ test("recalculates a personal allowance when an expense bucket is changed or rem
       result.limitItems.find((item) => item.id === "category:Alimentação")
         ?.spent,
       30,
+    );
+  }
+});
+
+test("keeps Home, Calendar and Financial Context aligned for every profile", async () => {
+  const data: AppFinancialData = {
+    expenses: [
+      {
+        id: 1,
+        title: "Mercado Bruna",
+        cat: "Alimentação",
+        who: "Bruna",
+        amount: 100,
+        date: "2026-09-02",
+      },
+      {
+        id: 2,
+        title: "Mercado Matheus",
+        cat: "Alimentação",
+        who: "Matheus",
+        amount: 200,
+        date: "2026-09-03",
+      },
+      {
+        id: 3,
+        title: "Mercado Casal",
+        cat: "Alimentação",
+        who: "Casal",
+        amount: 300,
+        date: "2026-09-04",
+      },
+    ],
+    installments: [
+      {
+        id: 1,
+        title: "Parcela Bruna",
+        category: "Pessoal",
+        who: "Bruna",
+        amount: 10,
+        totalInstallments: 2,
+        paidInstallments: 0,
+        nextDue: "2026-09-10",
+      },
+      {
+        id: 2,
+        title: "Parcela Matheus",
+        category: "Pessoal",
+        who: "Matheus",
+        amount: 20,
+        totalInstallments: 2,
+        paidInstallments: 0,
+        nextDue: "2026-09-11",
+      },
+      {
+        id: 3,
+        title: "Parcela Casal",
+        category: "Casa",
+        who: "Casal",
+        amount: 30,
+        totalInstallments: 2,
+        paidInstallments: 0,
+        nextDue: "2026-09-12",
+      },
+    ],
+    debts: [
+      {
+        id: 1,
+        person: "A",
+        amount: 100,
+        paid: 0,
+        destination: "bruna",
+        note: "",
+        month: "2026-09",
+      },
+      {
+        id: 2,
+        person: "B",
+        amount: 200,
+        paid: 90,
+        destination: "matheus",
+        note: "",
+        month: "2026-09",
+      },
+      {
+        id: 3,
+        person: "C",
+        amount: 300,
+        paid: 0,
+        destination: "casal",
+        note: "",
+        month: "2026-09",
+      },
+      {
+        id: 4,
+        person: "D",
+        amount: 40,
+        paid: 0,
+        destination: "cartao",
+        note: "",
+        month: "2026-09",
+      },
+    ],
+    incomeEntries: [
+      {
+        id: 1,
+        title: "Entrada Bruna",
+        amount: 20,
+        who: "Bruna",
+        date: "2026-09-05",
+        destination: "conta",
+        note: "",
+      },
+      {
+        id: 2,
+        title: "Entrada Matheus",
+        amount: 30,
+        who: "Matheus",
+        date: "2026-09-06",
+        destination: "conta",
+        note: "",
+      },
+      {
+        id: 3,
+        title: "Entrada Casal",
+        amount: 40,
+        who: "Casal",
+        date: "2026-09-07",
+        destination: "conta",
+        note: "",
+      },
+    ],
+    income: 1000,
+    budgets: { Alimentação: 1000 },
+    limits: { Bruna: 350, Matheus: 350 },
+    personalLimits: DEFAULT_PERSONAL_LIMITS,
+    creditCards: [],
+    invoicePayments: [],
+    activeProfile: "Bruna",
+    viewMonth: "2026-09",
+  };
+  const expected = {
+    Bruna: { expenses: 100, extraIncome: 20, debts: 100, commitments: 10 },
+    Matheus: {
+      expenses: 200,
+      extraIncome: 30,
+      debts: 110,
+      commitments: 20,
+    },
+    Casal: { expenses: 600, extraIncome: 90, debts: 550, commitments: 60 },
+  } as const;
+  const context = createFinancialContextProvider({ read: async () => data });
+
+  for (const profile of ["Bruna", "Matheus", "Casal"] as const) {
+    const home = deriveFinancialSelectors({ ...data, profile });
+    const calendar = deriveCalendarProjection({
+      month: data.viewMonth,
+      profile,
+      expenses: data.expenses,
+      incomeEntries: data.incomeEntries,
+      installments: data.installments,
+      cards: data.creditCards,
+      payments: data.invoicePayments,
+      baseBalance: home.available,
+    });
+    const financialContext = await context.getContext({
+      profile,
+      month: data.viewMonth,
+    });
+
+    assert.equal(home.totalSpent, expected[profile].expenses);
+    assert.equal(home.extraIncome, expected[profile].extraIncome);
+    assert.equal(home.debtTotal, expected[profile].debts);
+    assert.equal(home.activeInstallments.length, profile === "Casal" ? 3 : 1);
+    assert.equal(
+      deriveCategorySpending(home.monthExpenses).reduce(
+        (total, category) => total + category.amount,
+        0,
+      ),
+      home.totalSpent,
+    );
+    assert.equal(calendar.forecast.baseBalance, home.available);
+    assert.equal(
+      calendar.forecast.knownFutureCommitments,
+      expected[profile].commitments,
+    );
+    assert.equal(financialContext.value.summary.expenses, home.totalSpent);
+    assert.equal(financialContext.value.summary.extraIncome, home.extraIncome);
+    assert.equal(
+      financialContext.value.summary.receivablesOutstanding,
+      home.debtTotal,
+    );
+    assert.equal(
+      financialContext.value.installments.length,
+      home.activeInstallments.length,
     );
   }
 });

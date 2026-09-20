@@ -6,6 +6,7 @@ import {
   nubankCard,
   openInvoices,
   openWithFinancialState,
+  waitForPersistedFinancialState,
 } from "./helpers/financialState";
 
 async function createNubankCard(page: Parameters<typeof openInvoices>[0]) {
@@ -62,6 +63,22 @@ test("cria cartão, adiciona compra e mantém a fatura após reload @desktop", a
   await expect(page.getByLabel("Resumo das faturas")).toContainText("27/08");
   await expect(page.getByText("Aberta", { exact: true })).toBeVisible();
 
+  await waitForPersistedFinancialState(
+    page,
+    (state) => {
+      const card = state.creditCards.find((item) => item.name === "Nubank");
+      return Boolean(
+        card &&
+          state.expenses.some(
+            (expense) =>
+              expense.title === "Café" &&
+              expense.amount === 100 &&
+              expense.creditCardId === card.id,
+          ),
+      );
+    },
+    "cartão Nubank e compra Café vinculada",
+  );
   await page.reload();
   await openInvoices(page);
   await expect(page.getByText("Nubank", { exact: true }).first()).toBeVisible();

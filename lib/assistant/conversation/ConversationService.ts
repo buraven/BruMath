@@ -1,4 +1,5 @@
 import { createFinancialContextProvider } from "../context/createFinancialContextProvider";
+import type { FinancialDataSource } from "../context/FinancialDataSource";
 import { LocalStorageFinancialDataSource } from "../context/LocalStorageFinancialDataSource";
 import {
   providerInferenceProvenance,
@@ -124,6 +125,7 @@ export async function requestConversationPlan(request: {
 export async function resolveConversationPlan(
   plan: ConversationPlan,
   defaults: { activeProfile: AssistantProfile; selectedMonth: string },
+  source: FinancialDataSource = new LocalStorageFinancialDataSource(),
 ): Promise<
   | Extract<ConversationPlan, { kind: "message" }>
   | { kind: "tool-results"; results: readonly ConversationToolResult[] }
@@ -153,9 +155,7 @@ export async function resolveConversationPlan(
     });
   }
   const registry = createFinancialToolRegistry();
-  const financialContext = createFinancialContextProvider(
-    new LocalStorageFinancialDataSource(),
-  );
+  const financialContext = createFinancialContextProvider(source);
   const toolsStartedAt = performance.now();
   const results = await Promise.all(
     deduplicated.calls.map(async (call) => {

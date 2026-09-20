@@ -2,6 +2,7 @@ import { expect, test, type Page } from "@playwright/test";
 import {
   createFinancialState,
   openWithFinancialState,
+  waitForPersistedFinancialState,
 } from "./helpers/financialState";
 
 async function openTab(page: Page, name: string) {
@@ -55,6 +56,11 @@ test("Home e perfis reconciliam o mesmo mês sem misturar responsáveis @desktop
       .filter({ hasText: "Casa" })
       .getByText("R$ 300,00", { exact: true }),
   ).toBeVisible();
+  await waitForPersistedFinancialState(
+    page,
+    (state) => state.activeProfile === "Casal",
+    "perfil ativo Casal",
+  );
   await page.reload();
   await expect(
     page.getByRole("button", { name: "Casal", exact: true }),
@@ -158,6 +164,14 @@ test("Entradas e recebimentos parciais persistem pelo fluxo real @desktop", asyn
     .getByRole("button", { name: "Registrar recebimento", exact: true })
     .click();
   await expect(page.getByText(/Quitado/)).toBeVisible();
+  await waitForPersistedFinancialState(
+    page,
+    (state) =>
+      state.debts.some(
+        (debt) => debt.person === "João" && debt.paid >= debt.amount,
+      ),
+    "recebível de João quitado",
+  );
   await page.reload();
   await openTab(page, "Quem me deve");
   await expect(page.getByText("João", { exact: true })).toBeVisible();
@@ -232,6 +246,14 @@ test("Assistente mockado consulta e confirma mutação uma única vez @desktop",
     .click();
   await openTab(page, "Gastos");
   await expect(page.getByText("Almoço", { exact: true })).toHaveCount(1);
+  await waitForPersistedFinancialState(
+    page,
+    (state) =>
+      state.expenses.some(
+        (expense) => expense.title === "Almoço" && expense.amount === 25,
+      ),
+    "gasto Almoço de R$ 25 persistido",
+  );
   await page.reload();
   await expect(page.getByText("Almoço", { exact: true })).toHaveCount(1);
 });

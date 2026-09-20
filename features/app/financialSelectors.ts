@@ -5,7 +5,10 @@ import type {
   Installment,
   Person,
 } from "../../lib/app/AppTypes";
-import { isWithinProfileScope } from "../../lib/finance/profileScope";
+import {
+  isReceivableWithinProfileScope,
+  isWithinProfileScope,
+} from "../../lib/finance/profileScope";
 import {
   calculatePersonalLimitUsages,
   resolvePersonalLimits,
@@ -190,7 +193,9 @@ export function deriveFinancialSelectors({
   ];
   const monthIncome = incomeEntries.filter(
     (entry) =>
-      entry.date.startsWith(viewMonth) && entry.destination === "conta",
+      entry.date.startsWith(viewMonth) &&
+      entry.destination === "conta" &&
+      isWithinProfileScope(entry.who, profile),
   );
   const totalSpent = monthExpenses.reduce(
     (sum, expense) => sum + expense.amount,
@@ -200,6 +205,8 @@ export function deriveFinancialSelectors({
   const monthIncomeTotal = income + extraIncome;
   const available = monthIncomeTotal - totalSpent;
   const monthDebts = debts.filter((debt) => {
+    if (!isReceivableWithinProfileScope(debt.destination, profile))
+      return false;
     const debtMonth = debt.month || viewMonth;
     if (debtMonth > viewMonth) return false;
     if (debt.paid >= debt.amount)
@@ -212,7 +219,8 @@ export function deriveFinancialSelectors({
   );
   const activeInstallments = installments.filter(
     (installment) =>
-      installment.paidInstallments < installment.totalInstallments,
+      installment.paidInstallments < installment.totalInstallments &&
+      isWithinProfileScope(installment.who, profile),
   );
   const remaining = activeInstallments.reduce(
     (sum, installment) =>
