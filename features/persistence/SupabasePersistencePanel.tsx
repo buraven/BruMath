@@ -27,19 +27,27 @@ export function SupabasePersistencePanel({
 }: Props) {
   const [email, setEmail] = useState("");
   const [message, setMessage] = useState("");
-  if (!configured || status === "loading" || status === "local") return null;
+  const [sending, setSending] = useState(false);
+  if (!configured || status === "local") return null;
 
   const sendLink = async () => {
     try {
+      setSending(true);
+      setMessage("");
       await onSendMagicLink(email);
-      setMessage("Enviamos um link de acesso para seu e-mail.");
+      setMessage(
+        "Se o acesso estiver autorizado, enviaremos um link para este e-mail.",
+      );
     } catch {
       setMessage("Não foi possível enviar o link agora.");
+    } finally {
+      setSending(false);
     }
   };
 
   return (
     <section className="persistence-panel" aria-live="polite">
+      {status === "loading" && <span>Restaurando sua sessão segura…</span>}
       {status === "auth-required" && (
         <>
           <strong>Conecte sua persistência segura</strong>
@@ -55,13 +63,14 @@ export function SupabasePersistencePanel({
             <button
               type="button"
               className="primary-button compact"
-              disabled={!email}
+              disabled={!email || sending}
               onClick={() => void sendLink()}
             >
-              Enviar link
+              {sending ? "Enviando…" : "Enviar link"}
             </button>
           </div>
           {message && <small>{message}</small>}
+          {error && <small>{error}</small>}
         </>
       )}
       {status === "bootstrapping" && (

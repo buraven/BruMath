@@ -2287,3 +2287,15 @@ textarea {
 .receive-summary strong {
   color: var(--text);
 }
+
+.persistence-gate {
+  min-height: 100dvh;
+  display: grid;
+  place-items: center;
+  padding: 1.5rem;
+  background: var(--bg);
+}
+
+.persistence-gate .persistence-panel {
+  width: min(100%, 30rem);
+}

@@ -28,6 +28,23 @@ confirmada. A RPC delega a validação existente, substitui o snapshot de forma
 atômica e não cria marcadores em `local_imports` — esses continuam reservados
 para a migração explícita de `brumath-data`.
 
+## Setup de autenticação do app
+
+O BruMath é privado: usuários autorizados devem ser criados previamente no
+Supabase Auth. No Dashboard do Supabase, mantenha o provider de e-mail ativo e
+desabilite **Allow new users to sign up**. O app solicita Magic Link com
+`shouldCreateUser: false`, portanto não cria contas pelo navegador.
+
+Configure a **Site URL** e as **Redirect URLs** para cada domínio Preview e
+Production permitido. O app deriva `emailRedirectTo` da origem atual, sem
+hardcode de domínio. Mantenha somente estas variáveis públicas no Vercel:
+
+- `NEXT_PUBLIC_SUPABASE_URL`
+- `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`
+
+Nunca use `service_role` no browser. O `brumath-data` local é preservado como
+backup durante a migração explícita e não é apagado pelo app.
+
 ## Harness remoto sintético
 
 `pnpm test:supabase:e2e` não faz parte da suíte local comum. Ele exige duas

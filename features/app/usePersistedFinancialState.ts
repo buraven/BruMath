@@ -99,6 +99,7 @@ export function usePersistedFinancialState(defaults: AppFinancialData) {
   const remoteWasActivatedRef = useRef(false);
   const lastRemoteSnapshotRef = useRef("");
   const remoteQueueRef = useRef(Promise.resolve());
+  const initializeRemoteRef = useRef<(() => Promise<void>) | undefined>();
 
   const snapshot = useMemo<AppFinancialData>(
     () => ({
@@ -164,8 +165,14 @@ export function usePersistedFinancialState(defaults: AppFinancialData) {
     const client = createBruMathSupabaseClient();
     let mounted = true;
     const initialize = async () => {
-      const { data } = await client.auth.getSession();
+      const { data, error } = await client.auth.getSession();
       if (!mounted) return;
+      if (error) {
+        setIsAuthenticated(false);
+        setPersistenceError("Não foi possível restaurar sua sessão.");
+        setStatus("auth-required");
+        return;
+      }
       setIsAuthenticated(Boolean(data.session));
       if (!data.session) {
         setStatus("auth-required");
@@ -194,22 +201,29 @@ export function usePersistedFinancialState(defaults: AppFinancialData) {
         lastRemoteSnapshotRef.current = normalizeSnapshot(remote);
         applySnapshot(remote);
         setStatus("remote");
-      } catch (error) {
+      } catch {
         if (!mounted) return;
-        setPersistenceError(
-          error instanceof Error
-            ? error.message
-            : "Não foi possível preparar a persistência remota.",
-        );
+        setPersistenceError("Não foi possível preparar a persistência remota.");
         setStatus("remote-error");
       }
     };
+    initializeRemoteRef.current = initialize;
     void initialize();
-    const { data: listener } = client.auth.onAuthStateChange(() => {
-      void initialize();
-    });
+    const { data: listener } = client.auth.onAuthStateChange(
+      (_event, session) => {
+        if (!session) {
+          remoteBackendRef.current = false;
+          remoteSourceRef.current = undefined;
+          setIsAuthenticated(false);
+          setStatus("auth-required");
+          return;
+        }
+        void initialize();
+      },
+    );
     return () => {
       mounted = false;
+      initializeRemoteRef.current = undefined;
       listener.subscription.unsubscribe();
     };
   }, [initial]);
@@ -284,17 +298,19 @@ export function usePersistedFinancialState(defaults: AppFinancialData) {
       lastRemoteSnapshotRef.current = normalizeSnapshot(remote);
       applySnapshot(remote);
       setStatus("remote");
-    } catch (error) {
+    } catch {
       setPersistenceError(
-        error instanceof Error
-          ? error.message
-          : "A migração não foi concluída. Os dados locais foram preservados.",
+        "A migração não foi concluída. Os dados locais foram preservados.",
       );
       setStatus("migration-required");
     }
   };
 
   const retryRemoteWrite = async () => {
+    if (!remoteBackendRef.current) {
+      await initializeRemoteRef.current?.();
+      return;
+    }
     const source = remoteSourceRef.current;
     if (!source) return;
     try {
@@ -314,7 +330,8 @@ export function usePersistedFinancialState(defaults: AppFinancialData) {
     remoteBackendRef.current = false;
     remoteSourceRef.current = undefined;
     setIsAuthenticated(false);
-    setStatus("local");
+    setPersistenceError("");
+    setStatus("auth-required");
   };
 
   return {

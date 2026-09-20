@@ -304,10 +304,9 @@ nenhuma mutação financeira ocorre sem preview e confirmação explícita.
 ### PR #57 — Supabase Persistence (em implementação)
 
 Substituir progressivamente a persistência exclusiva em `localStorage` por uma camada
-real baseada em Supabase/PostgreSQL, sem migração big bang. O Financial Context continuará
-dependendo de `FinancialDataSource`; a implementação futura será
-`SupabaseFinancialDataSource`, sem acoplamento direto de Assistant Engine, Tools ou UI ao
-banco.
+real baseada em Supabase/PostgreSQL, sem migração big bang. O Financial Context continua
+dependendo de `FinancialDataSource`, com `SupabaseFinancialDataSource` sem acoplamento
+direto de Assistant Engine, Tools ou UI ao banco.
 
 O planejamento inclui projeto Supabase, PostgreSQL, schema financeiro, repositories e
 adapters, autenticação, Row Level Security, migração segura dos dados existentes,

@@ -7,7 +7,7 @@ export async function requestMagicLink(
 ) {
   const { error } = await client.auth.signInWithOtp({
     email,
-    options: { emailRedirectTo },
+    options: { emailRedirectTo, shouldCreateUser: false },
   });
   if (error) throw new Error("Não foi possível enviar o link de acesso.");
 }

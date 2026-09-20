@@ -55,6 +55,7 @@ import { CreditCardFormDialog } from "../features/invoices/CreditCardFormDialog"
 import { useThemePreference } from "../features/preferences/useThemePreference";
 import { usePersistedFinancialState } from "../features/app/usePersistedFinancialState";
 import { SupabasePersistencePanel } from "../features/persistence/SupabasePersistencePanel";
+import { canRenderFinancialApplication } from "../lib/persistence/financialAccessGate";
 import {
   deriveCategorySpending,
   deriveFinancialSelectors,
@@ -484,22 +485,34 @@ export default function Page() {
   });
   const categorySpending = deriveCategorySpending(monthExpenses);
 
+  if (
+    !canRenderFinancialApplication({
+      supabaseConfigured: persistence.configured,
+      persistenceStatus: persistence.status,
+    })
+  ) {
+    return (
+      <main className="persistence-gate">
+        <SupabasePersistencePanel
+          configured={persistence.configured}
+          status={persistence.status}
+          error={persistence.error}
+          migrationPreview={persistence.migrationPreview}
+          onSendMagicLink={persistence.sendMagicLink}
+          onImport={persistence.importLocalData}
+          onRetry={persistence.retryRemoteWrite}
+          onSignOut={persistence.signOut}
+        />
+      </main>
+    );
+  }
+
   return (
     <>
       <div className="app-shell">
         {toast && <div className="toast">{toast}</div>}
         <AppSidebar activeTab={tab} onNavigate={switchTab} />
         <div className="app-workspace">
-          <SupabasePersistencePanel
-            configured={persistence.configured}
-            status={persistence.status}
-            error={persistence.error}
-            migrationPreview={persistence.migrationPreview}
-            onSendMagicLink={persistence.sendMagicLink}
-            onImport={persistence.importLocalData}
-            onRetry={persistence.retryRemoteWrite}
-            onSignOut={persistence.signOut}
-          />
           <header className="topbar">
             <div className="brand-area">
               <div className="brand">
