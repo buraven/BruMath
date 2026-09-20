@@ -110,28 +110,33 @@ test("serializes rapid mutations and persists the newest snapshot", async () => 
 });
 
 test("flush waits for a pending remote write before logout can continue", async () => {
-  let release: (() => void) | undefined;
+  let releaseWrite!: () => void;
+  let signalPersistStarted!: () => void;
+  const persistStarted = new Promise<void>((resolve) => {
+    signalPersistStarted = resolve;
+  });
   const queue = new RemoteSnapshotWriteQueue(
     (snapshot: { revision: number }) => String(snapshot.revision),
     async (snapshot) => {
       await new Promise<void>((resolve) => {
-        release = resolve;
+        releaseWrite = resolve;
+        signalPersistStarted();
       });
       return snapshot;
     },
   );
   queue.markConfirmed({ revision: 0 });
-  void queue.enqueue({ revision: 1 });
+  const pendingWrite = queue.enqueue({ revision: 1 });
+  await persistStarted;
   const pendingLogout = queue.flush({ revision: 1 });
   let completed = false;
   void pendingLogout.then(() => {
     completed = true;
   });
 
-  await Promise.resolve();
   assert.equal(completed, false);
-  release?.();
-  await pendingLogout;
+  releaseWrite();
+  await Promise.all([pendingWrite, pendingLogout]);
   assert.equal(completed, true);
 });
 
