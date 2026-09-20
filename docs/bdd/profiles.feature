@@ -20,4 +20,4 @@ Funcionalidade: PERF - O perfil ativo determina o recorte dos dados financeiros
   Cenário: PERF-004 A troca de perfil não mantém valores do perfil anterior
     Dado a mesma competência com dados para Bruna e Matheus
     Quando a pessoa trocar o perfil ativo
-    Então Home, Categorias, Limites e Faturas recalculam pelo novo escopo
+    Então Home, Categorias, Limites, Entradas, Recebíveis, Parcelas, Faturas e Calendário recalculam pelo novo escopo

@@ -1,3 +1,4 @@
+import type { DebtDestination, Person } from "../app/AppTypes";
 import type { TransactionOwner } from "./transactions";
 
 /**
@@ -10,4 +11,12 @@ export function isWithinProfileScope(
   profile: TransactionOwner,
 ): boolean {
   return profile === "Casal" || owner === profile;
+}
+
+/** Receivables are scoped by their configured financial destination. */
+export function isReceivableWithinProfileScope(
+  destination: DebtDestination,
+  profile: Person,
+): boolean {
+  return profile === "Casal" || destination === profile.toLowerCase();
 }

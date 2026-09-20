@@ -470,13 +470,13 @@ export default function Page() {
   const selectedMonthExpenses = monthExpenses
     .slice()
     .sort((a, b) => b.date.localeCompare(a.date) || b.id - a.id);
-  const selectedIncome = incomeEntries
-    .filter((i) => i.date.startsWith(viewMonth))
-    .sort((a, b) => b.date.localeCompare(a.date) || b.id - a.id);
+  const selectedIncome = monthIncome.sort(
+    (a, b) => b.date.localeCompare(a.date) || b.id - a.id,
+  );
   const selectedDebts = monthDebts
     .slice()
     .sort((a, b) => a.person.localeCompare(b.person) || b.id - a.id);
-  const selectedInstallments = installments
+  const selectedInstallments = activeInstallments
     .slice()
     .sort((a, b) => a.nextDue.localeCompare(b.nextDue));
   const monthName = monthLabel(viewMonth);

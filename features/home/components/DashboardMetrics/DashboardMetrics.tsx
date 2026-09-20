@@ -44,7 +44,7 @@ export function DashboardMetrics({
     {
       label: "Saldo disponível",
       value: balance,
-      detail: "Previsto para o mês",
+      detail: "Antes dos compromissos",
       icon: <WalletCards size={18} />,
       tone: "blue",
     },
