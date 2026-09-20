@@ -81,6 +81,17 @@ type RpcImportResult = { imported: boolean; snapshot: RemoteSnapshot };
 const monthDate = (month: string) => `${month.slice(0, 7)}-01`;
 const monthValue = (date: string) => date.slice(0, 7);
 
+function stableJson(value: unknown): string {
+  if (Array.isArray(value)) return `[${value.map(stableJson).join(",")}]`;
+  if (value && typeof value === "object") {
+    return `{${Object.entries(value as Record<string, unknown>)
+      .sort(([left], [right]) => left.localeCompare(right))
+      .map(([key, item]) => `${JSON.stringify(key)}:${stableJson(item)}`)
+      .join(",")}}`;
+  }
+  return JSON.stringify(value) ?? "null";
+}
+
 export function toRemoteSnapshot(snapshot: AppFinancialData): RemoteSnapshot {
   return {
     settings: {
@@ -164,6 +175,17 @@ export function toRemoteSnapshot(snapshot: AppFinancialData): RemoteSnapshot {
         amount: payment.amount,
       })),
   };
+}
+
+/**
+ * Canonical identity of the financial state persisted by Supabase. It accepts
+ * harmless React/JSON round-trip differences (optional fields, object order,
+ * month serialization) while retaining every stored financial value.
+ */
+export function normalizePersistedFinancialSnapshot(
+  snapshot: AppFinancialData,
+) {
+  return stableJson(toRemoteSnapshot(snapshot));
 }
 
 export function fromRemoteSnapshot(snapshot: RemoteSnapshot): AppFinancialData {

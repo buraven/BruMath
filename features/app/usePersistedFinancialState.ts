@@ -11,10 +11,12 @@ import {
   hasImportedLocalSnapshot,
   localStorageSourceHash,
   type LocalMigrationPreview,
-  normalizeSnapshot,
   previewLocalMigration,
 } from "../../lib/persistence/LocalSnapshotMigration";
-import { SupabaseFinancialImportTarget } from "../../lib/persistence/SupabaseFinancialImportTarget";
+import {
+  normalizePersistedFinancialSnapshot,
+  SupabaseFinancialImportTarget,
+} from "../../lib/persistence/SupabaseFinancialImportTarget";
 import { RemoteSnapshotWriteQueue } from "../../lib/persistence/RemoteSnapshotWriteQueue";
 import {
   createBruMathSupabaseClient,
@@ -215,7 +217,7 @@ export function usePersistedFinancialState(defaults: AppFinancialData) {
         remoteBackendRef.current = true;
         remoteWasActivatedRef.current = true;
         const writer = new RemoteSnapshotWriteQueue(
-          normalizeSnapshot,
+          normalizePersistedFinancialSnapshot,
           async (nextSnapshot) => source.write(nextSnapshot, revision()),
         );
         writer.markConfirmed(remote);
@@ -308,7 +310,7 @@ export function usePersistedFinancialState(defaults: AppFinancialData) {
       remoteBackendRef.current = true;
       remoteWasActivatedRef.current = true;
       const writer = new RemoteSnapshotWriteQueue(
-        normalizeSnapshot,
+        normalizePersistedFinancialSnapshot,
         async (nextSnapshot) => source.write(nextSnapshot, revision()),
       );
       writer.markConfirmed(remote);

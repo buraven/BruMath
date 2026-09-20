@@ -37,6 +37,7 @@ export class RemoteSnapshotWriteQueue<TSnapshot> {
           );
         }
         this.confirmed = confirmed;
+        if (currentRequest === this.requestId) this.pending = confirmed;
       });
     this.tail = next;
     return next;
