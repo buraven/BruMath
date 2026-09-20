@@ -1,6 +1,14 @@
 "use client";
 
-import { Check, Monitor, Moon, Settings2, Sun, Users } from "lucide-react";
+import {
+  Check,
+  LogOut,
+  Monitor,
+  Moon,
+  Settings2,
+  Sun,
+  Users,
+} from "lucide-react";
 import styles from "./PreferencesScreen.module.css";
 
 type Profile = "Bruna" | "Matheus" | "Casal";
@@ -11,6 +19,7 @@ type PreferencesScreenProps = {
   theme: ThemeMode;
   onProfileChange: (profile: Profile) => void;
   onThemeChange: (theme: ThemeMode) => void;
+  onSignOut?: () => void;
 };
 
 const profiles: Array<{ value: Profile; detail: string }> = [
@@ -40,6 +49,7 @@ export function PreferencesScreen({
   theme,
   onProfileChange,
   onThemeChange,
+  onSignOut,
 }: PreferencesScreenProps) {
   return (
     <section className={styles.screen} aria-labelledby="preferences-title">
@@ -112,6 +122,21 @@ export function PreferencesScreen({
           })}
         </div>
       </section>
+
+      {onSignOut && (
+        <section className={styles.section} aria-labelledby="sign-out-title">
+          <div className={styles.sectionHeading}>
+            <LogOut size={18} />
+            <div>
+              <h2 id="sign-out-title">Sessão</h2>
+              <p>Encerre o acesso seguro neste dispositivo.</p>
+            </div>
+          </div>
+          <button type="button" className={styles.signOut} onClick={onSignOut}>
+            <LogOut size={17} aria-hidden="true" /> Sair do BruMath
+          </button>
+        </section>
+      )}
     </section>
   );
 }

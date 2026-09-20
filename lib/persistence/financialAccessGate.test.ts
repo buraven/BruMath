@@ -1,6 +1,9 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { canRenderFinancialApplication } from "./financialAccessGate";
+import {
+  canOfferSupabaseSignOut,
+  canRenderFinancialApplication,
+} from "./financialAccessGate";
 
 test("keeps financial UI behind the configured Supabase auth gate", () => {
   assert.equal(
@@ -37,5 +40,29 @@ test("keeps financial UI behind the configured Supabase auth gate", () => {
       persistenceStatus: "local",
     }),
     true,
+  );
+});
+
+test("offers logout only while the Supabase backend is active", () => {
+  assert.equal(
+    canOfferSupabaseSignOut({
+      supabaseConfigured: true,
+      persistenceStatus: "remote",
+    }),
+    true,
+  );
+  assert.equal(
+    canOfferSupabaseSignOut({
+      supabaseConfigured: true,
+      persistenceStatus: "auth-required",
+    }),
+    false,
+  );
+  assert.equal(
+    canOfferSupabaseSignOut({
+      supabaseConfigured: false,
+      persistenceStatus: "local",
+    }),
+    false,
   );
 });

@@ -53,9 +53,13 @@ import { PreferencesScreen } from "../features/preferences/PreferencesScreen";
 import { InvoicesScreen } from "../features/invoices/InvoicesScreen";
 import { CreditCardFormDialog } from "../features/invoices/CreditCardFormDialog";
 import { useThemePreference } from "../features/preferences/useThemePreference";
+import { createSignOutConfirmation } from "../features/preferences/createSignOutConfirmation";
 import { usePersistedFinancialState } from "../features/app/usePersistedFinancialState";
 import { SupabasePersistencePanel } from "../features/persistence/SupabasePersistencePanel";
-import { canRenderFinancialApplication } from "../lib/persistence/financialAccessGate";
+import {
+  canOfferSupabaseSignOut,
+  canRenderFinancialApplication,
+} from "../lib/persistence/financialAccessGate";
 import {
   deriveCategorySpending,
   deriveFinancialSelectors,
@@ -484,6 +488,10 @@ export default function Page() {
     formatMoney: money,
   });
   const categorySpending = deriveCategorySpending(monthExpenses);
+  const canSignOut = canOfferSupabaseSignOut({
+    supabaseConfigured: persistence.configured,
+    persistenceStatus: persistence.status,
+  });
 
   if (
     !canRenderFinancialApplication({
@@ -814,6 +822,14 @@ export default function Page() {
                 theme={theme}
                 onProfileChange={setActiveProfile}
                 onThemeChange={applyTheme}
+                {...(canSignOut
+                  ? {
+                      onSignOut: () =>
+                        setConfirmation(
+                          createSignOutConfirmation(persistence.signOut),
+                        ),
+                    }
+                  : {})}
               />
             )}
           </main>

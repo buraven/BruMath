@@ -326,7 +326,12 @@ export function usePersistedFinancialState(defaults: AppFinancialData) {
 
   const signOut = async () => {
     if (!isBruMathSupabaseConfigured()) return;
-    await createBruMathSupabaseClient().auth.signOut();
+    const { error } = await createBruMathSupabaseClient().auth.signOut();
+    if (error) {
+      setPersistenceError("Não foi possível encerrar sua sessão agora.");
+      setStatus("remote-error");
+      return;
+    }
     remoteBackendRef.current = false;
     remoteSourceRef.current = undefined;
     setIsAuthenticated(false);
