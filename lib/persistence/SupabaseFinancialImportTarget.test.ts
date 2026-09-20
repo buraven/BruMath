@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import test from "node:test";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { AppFinancialData } from "../app/AppTypes";
@@ -142,6 +143,43 @@ test("writes a runtime snapshot only through the atomic replacement RPC", async 
   assert.equal(rpcArguments?.p_household_id, "household");
   assert.equal(rpcArguments?.p_revision_hash, "revision");
   assert.deepEqual(persisted, snapshot);
+});
+
+test("replaces a snapshot with an explicit removal before final reconciliation", async () => {
+  const replacement: AppFinancialData = { ...snapshot, expenses: [] };
+  let persisted = toRemoteSnapshot(snapshot);
+  const client = {
+    rpc: async (_name: string, arguments_: Record<string, unknown>) => {
+      persisted = arguments_.p_snapshot as ReturnType<typeof toRemoteSnapshot>;
+      return { data: persisted, error: null };
+    },
+  } as unknown as SupabaseClient;
+
+  const result = await replaceSupabaseFinancialSnapshot({
+    client,
+    householdId: "household",
+    snapshot: replacement,
+    revisionHash: "removal-revision",
+  });
+
+  assert.equal(persisted.expenses.length, 0);
+  assert.equal(result.expenses.length, 0);
+  assert.deepEqual(result, replacement);
+
+  const migration = readFileSync(
+    "supabase/migrations/20260920102209_replace_financial_snapshot.sql",
+    "utf8",
+  );
+  const validation = migration.indexOf("Validate the complete replacement");
+  const staleExpenseDeletion = migration.indexOf(
+    "delete from public.expenses current",
+  );
+  const delegatedImport = migration.indexOf(
+    "v_result := public.import_financial_snapshot",
+  );
+  assert.ok(validation >= 0);
+  assert.ok(staleExpenseDeletion > validation);
+  assert.ok(delegatedImport > staleExpenseDeletion);
 });
 
 test("bootstraps only through the authenticated household RPC", async () => {
