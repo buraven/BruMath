@@ -5,7 +5,10 @@ import type { AppFinancialData } from "../../lib/app/AppTypes";
 import type { FinancialDataSnapshot } from "../../lib/assistant/context/FinancialDataSource";
 import { SupabaseFinancialDataSource } from "../../lib/assistant/context/SupabaseFinancialDataSource";
 import { BruMathDataRepository } from "../../lib/persistence/BruMathDataRepository";
-import { resolvePersistenceWriteTarget } from "../../lib/persistence/financialPersistencePolicy";
+import {
+  resolvePersistenceWriteTarget,
+  type FinancialPersistenceStatus,
+} from "../../lib/persistence/financialPersistencePolicy";
 import {
   importLocalSnapshot,
   hasImportedLocalSnapshot,
@@ -27,15 +30,7 @@ import {
   requestMagicLink,
 } from "../../lib/persistence/supabaseAuth";
 
-export type PersistenceStatus =
-  | "loading"
-  | "local"
-  | "auth-required"
-  | "bootstrapping"
-  | "migration-required"
-  | "migrating"
-  | "remote"
-  | "remote-error";
+export type PersistenceStatus = FinancialPersistenceStatus;
 
 function toAppData(
   snapshot: FinancialDataSnapshot,
@@ -252,10 +247,10 @@ export function usePersistedFinancialState(defaults: AppFinancialData) {
   }, [initial]);
 
   useEffect(() => {
-    if (!hasHydrated || status !== "remote") {
-      return;
-    }
     const writeTarget = resolvePersistenceWriteTarget({
+      hasHydrated,
+      supabaseConfigured: isBruMathSupabaseConfigured(),
+      status,
       remoteActive: remoteBackendRef.current,
       remoteWasActivated: remoteWasActivatedRef.current,
     });
