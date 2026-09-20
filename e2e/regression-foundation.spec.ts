@@ -2,6 +2,7 @@ import { expect, test, type Page } from "@playwright/test";
 import {
   createFinancialState,
   openWithFinancialState,
+  waitForPersistedFinancialState,
 } from "./helpers/financialState";
 
 async function openTab(page: Page, name: string) {
@@ -275,6 +276,17 @@ test("adiantar parcelas preserva o cancelamento, competências e reload @desktop
   );
   await page.getByLabel("Próximo mês").click();
   await expect(page.getByText("Notebook", { exact: true })).toBeVisible();
+  await waitForPersistedFinancialState(
+    page,
+    (state) =>
+      state.installments.some(
+        (item) =>
+          item.title === "Notebook" &&
+          item.paidInstallments === 2 &&
+          item.nextDue === "2026-11-10",
+      ),
+    "Notebook com 2 parcelas pagas e 2 restantes",
+  );
   await page.reload();
   await openTab(page, "Calendário");
   await expect(page.getByText("Notebook", { exact: true })).toBeVisible();
@@ -304,6 +316,14 @@ test("entradas extras criam, editam, excluem e reconciliam totais pela UI @deskt
       .filter({ hasText: "Total disponível antes dos gastos" }),
   ).toContainText("R$ 1.250,00");
 
+  await waitForPersistedFinancialState(
+    page,
+    (state) =>
+      state.incomeEntries.some(
+        (entry) => entry.title === "Bônus" && entry.amount === 250,
+      ),
+    "entrada extra Bônus de R$ 250",
+  );
   await page.reload();
   await openTab(page, "Entradas & extras");
   await expect(page.getByText("Bônus", { exact: true })).toBeVisible();

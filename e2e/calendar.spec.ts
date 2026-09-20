@@ -4,6 +4,7 @@ import {
   nubankCard,
   openCalendar,
   openWithFinancialState,
+  waitForPersistedFinancialState,
 } from "./helpers/financialState";
 
 test("calendário projeta histórico, compromisso e vencimento sem duplicar compras @desktop", async ({
@@ -149,6 +150,17 @@ test("calendário filtra perfil e reutiliza a ação existente de parcela @deskt
     page.getByRole("region", { name: "Acompanhe seus compromissos" }),
   ).toContainText("Próximo: 12/10");
   await expect(page.getByText("Curso", { exact: true })).toHaveCount(1);
+  await waitForPersistedFinancialState(
+    page,
+    (state) =>
+      state.installments.some(
+        (item) =>
+          item.title === "Curso" &&
+          item.paidInstallments === 1 &&
+          item.nextDue === "2026-10-12",
+      ),
+    "Curso com 1 parcela paga e próximo vencimento em 12/10",
+  );
   await page.reload();
   await openCalendar(page);
   await page.getByRole("button", { name: "Selecionar 2026-09-12" }).click();

@@ -1,4 +1,4 @@
-import type { Page } from "@playwright/test";
+import { expect, type Page } from "@playwright/test";
 import type { AppFinancialData } from "../../lib/app/AppTypes";
 
 export function createFinancialState(
@@ -75,6 +75,30 @@ export async function openWithFinancialState(
       name: new RegExp(`gastos de ${formattedMonth}`, "i"),
     })
     .waitFor();
+}
+
+export async function waitForPersistedFinancialState(
+  page: Page,
+  predicate: (state: AppFinancialData) => boolean,
+  description: string,
+) {
+  await expect
+    .poll(
+      async () => {
+        const snapshot = await page.evaluate(() =>
+          window.localStorage.getItem("brumath-data"),
+        );
+        if (!snapshot) return false;
+
+        try {
+          return predicate(JSON.parse(snapshot) as AppFinancialData);
+        } catch {
+          return false;
+        }
+      },
+      { message: `Aguardando persistência local: ${description}` },
+    )
+    .toBe(true);
 }
 
 export async function openInvoices(page: Page) {
