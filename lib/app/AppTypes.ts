@@ -161,9 +161,11 @@ export type AppModal =
   | "installment"
   | "debt"
   | "income"
+  | "income-base"
   | "receive"
   | "advance"
-  | "settings";
+  | "settings"
+  | "card";
 
 export type AppFinancialData = {
   expenses: Expense[];

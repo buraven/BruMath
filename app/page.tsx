@@ -22,6 +22,7 @@ import {
 } from "lucide-react";
 import { ConfirmationDialog } from "../components/ui/ConfirmationDialog";
 import { IncomeFormDialog } from "../components/finance/IncomeFormDialog";
+import { BaseIncomeDialog } from "../components/finance/BaseIncomeDialog";
 import { ReceivableFormDialog } from "../components/finance/ReceivableFormDialog";
 import { ReceivePaymentDialog } from "../components/finance/ReceivePaymentDialog";
 import { ExpenseList } from "../components/finance/ExpenseList";
@@ -81,6 +82,7 @@ import {
 } from "../features/app/defaultFinancialData";
 import { DEFAULT_PERSONAL_LIMITS } from "../lib/finance/personalLimits";
 import type {
+  AppModal,
   Confirmation,
   CreditCard as CreditCardModel,
   Debt,
@@ -182,17 +184,7 @@ export default function Page() {
     viewMonth: dateKey(),
   });
   const [toast, setToast] = useState("");
-  const [modal, setModal] = useState<
-    | "none"
-    | "expense"
-    | "installment"
-    | "debt"
-    | "income"
-    | "receive"
-    | "advance"
-    | "settings"
-    | "card"
-  >("none");
+  const [modal, setModal] = useState<AppModal>("none");
   const [advancingInstallment, setAdvancingInstallment] =
     useState<Installment | null>(null);
   const [confirmation, setConfirmation] = useState<Confirmation | null>(null);
@@ -644,6 +636,7 @@ export default function Page() {
                     installments={selectedInstallments}
                     formatMoney={money}
                     formatDate={shortDate}
+                    onEditBaseIncome={() => setModal("income-base")}
                     onOpenIncome={() => switchTab("income")}
                     onOpenDebts={() => switchTab("debts")}
                     onOpenFuture={() => switchTab("future")}
@@ -1009,6 +1002,17 @@ export default function Page() {
           }}
           onClose={() => setModal("none")}
           onInvalid={setToast}
+        />
+      )}
+      {modal === "income-base" && (
+        <BaseIncomeDialog
+          income={income}
+          onSave={(nextIncome) => {
+            setIncome(nextIncome);
+            setModal("none");
+            setToast("Renda mensal atualizada 💚");
+          }}
+          onClose={() => setModal("none")}
         />
       )}
       {modal === "settings" && (

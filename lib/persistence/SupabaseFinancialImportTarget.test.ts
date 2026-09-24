@@ -75,6 +75,15 @@ test("maps a local snapshot to the deterministic RPC representation", () => {
   assert.deepEqual(fromRemoteSnapshot(remote), snapshot);
 });
 
+test("round-trips an edited base income through the remote snapshot settings", () => {
+  const edited = { ...snapshot, income: 14_250 };
+  const remote = toRemoteSnapshot(edited);
+
+  assert.equal(remote.settings.income, 14_250);
+  assert.equal(fromRemoteSnapshot(remote).income, 14_250);
+  assert.equal(fromRemoteSnapshot(remote).incomeEntries.length, 0);
+});
+
 test("round-trips optional historical invoice facts without changing legacy snapshots", () => {
   const enriched: AppFinancialData = {
     ...snapshot,

@@ -9,6 +9,7 @@ type Props = {
   installments: readonly Installment[];
   formatMoney: (value: number) => string;
   formatDate: (value: string) => string;
+  onEditBaseIncome: () => void;
   onOpenIncome: () => void;
   onOpenDebts: () => void;
   onOpenFuture: () => void;
@@ -21,6 +22,7 @@ export function HomeFinancialHighlights({
   installments,
   formatMoney,
   formatDate,
+  onEditBaseIncome,
   onOpenIncome,
   onOpenDebts,
   onOpenFuture,
@@ -60,9 +62,14 @@ export function HomeFinancialHighlights({
             <dd>{formatMoney(extraIncome)}</dd>
           </div>
         </dl>
-        <button type="button" onClick={onOpenIncome}>
-          Ver entradas
-        </button>
+        <div className={styles.actions}>
+          <button type="button" onClick={onEditBaseIncome}>
+            Editar renda mensal
+          </button>
+          <button type="button" onClick={onOpenIncome}>
+            Ver entradas
+          </button>
+        </div>
       </article>
 
       <article className={styles.card}>
