@@ -84,6 +84,40 @@ test("round-trips an edited base income through the remote snapshot settings", (
   assert.equal(fromRemoteSnapshot(remote).incomeEntries.length, 0);
 });
 
+test("round-trips the additive category catalog and stable fact references", () => {
+  const categorized = {
+    ...snapshot,
+    categories: [
+      { id: "category:food", name: "Alimentação", active: true, sortOrder: 0 },
+      {
+        id: "category:archive",
+        name: "Alimentação",
+        active: false,
+        sortOrder: 1,
+      },
+    ],
+    expenses: [{ ...snapshot.expenses[0]!, categoryId: "category:archive" }],
+    installments: [
+      {
+        id: 12,
+        title: "Plano",
+        category: "Alimentação",
+        categoryId: "category:food",
+        who: "Casal" as const,
+        amount: 50,
+        totalInstallments: 2,
+        paidInstallments: 0,
+        nextDue: "2026-10-01",
+      },
+    ],
+  };
+  const remote = toRemoteSnapshot(categorized);
+  assert.equal(remote.categories?.[1]?.active, false);
+  assert.equal(remote.expenses[0]?.category_legacy_id, "category:archive");
+  assert.equal(remote.installments[0]?.category_legacy_id, "category:food");
+  assert.deepEqual(fromRemoteSnapshot(remote), categorized);
+});
+
 test("round-trips optional historical invoice facts without changing legacy snapshots", () => {
   const enriched: AppFinancialData = {
     ...snapshot,
@@ -311,7 +345,7 @@ test("uses the import RPC and returns its persisted snapshot", async () => {
     },
   );
 
-  assert.equal(rpcName, "import_financial_snapshot_v2");
+  assert.equal(rpcName, "import_financial_snapshot_v3");
   assert.equal(rpcArguments?.p_household_id, "household");
   assert.equal(rpcArguments?.p_source_hash, "hash");
   assert.deepEqual(Object.keys(rpcArguments ?? {}).sort(), [
@@ -331,7 +365,7 @@ test("preserves sanitized RPC metadata instead of replacing it with a generic er
       data: null,
       error: {
         code: "42883",
-        message: "function public.import_financial_snapshot_v2 does not exist",
+        message: "function public.import_financial_snapshot_v3 does not exist",
         details: "No function matches the given name and argument types.",
         hint: "Check the function signature.",
       },
@@ -351,12 +385,12 @@ test("preserves sanitized RPC metadata instead of replacing it with a generic er
     (error: unknown) => {
       assert.ok(error instanceof SupabaseImportRpcError);
       assert.deepEqual(error.diagnostic(), {
-        stage: "import_financial_snapshot_v2",
+        stage: "import_financial_snapshot_v3",
         function: "SupabaseFinancialImportTarget.importAtomically",
         rpcStarted: true,
         rpcResponded: true,
         code: "42883",
-        message: "function public.import_financial_snapshot_v2 does not exist",
+        message: "function public.import_financial_snapshot_v3 does not exist",
         details: "No function matches the given name and argument types.",
         hint: "Check the function signature.",
       });
@@ -402,7 +436,7 @@ test("writes a runtime snapshot only through the atomic replacement RPC", async 
     revisionHash: "revision",
   });
 
-  assert.equal(rpcName, "replace_financial_snapshot_v2");
+  assert.equal(rpcName, "replace_financial_snapshot_v3");
   assert.equal(rpcArguments?.p_household_id, "household");
   assert.equal(rpcArguments?.p_revision_hash, "revision");
   assert.deepEqual(persisted, snapshot);
@@ -462,6 +496,31 @@ test("keeps the v1 reconciliation guardrail on a legacy projection in the v2 mig
   assert.match(
     migration,
     /public\.replace_financial_snapshot\(p_household_id, v_legacy_snapshot, p_revision_hash\)/,
+  );
+});
+
+test("keeps the v3 category migration authorized and aligned with the legacy contract", () => {
+  const migration = readFileSync(
+    "supabase/migrations/20260924144301_dynamic_categories_foundation.sql",
+    "utf8",
+  );
+  assert.match(
+    migration,
+    /grant select, insert, update, delete on public\.financial_categories to authenticated;/,
+  );
+  assert.match(
+    migration,
+    /translate\(regexp_replace\(btrim\(name, ' '\), ' \+', ' ', 'g'\)/,
+  );
+  assert.match(
+    migration,
+    /encode\(convert_to\(canonical_name, 'UTF8'\), 'hex'\)/,
+  );
+  assert.match(migration, /foreign key \(household_id, category_legacy_id\)/);
+  assert.match(migration, /replace_financial_snapshot_v3\(uuid,jsonb,text\)/);
+  assert.match(
+    migration,
+    /import_financial_snapshot_v3\(uuid,text,jsonb,jsonb\)/,
   );
 });
 

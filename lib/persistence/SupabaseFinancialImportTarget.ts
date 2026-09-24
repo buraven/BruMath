@@ -1,11 +1,18 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
-import type { AppFinancialData } from "../app/AppTypes";
+import type { AppFinancialData, Category } from "../app/AppTypes";
 import type {
   FinancialImportTarget,
   LocalMigrationPreview,
 } from "./LocalSnapshotMigration";
 
 export type RemoteSnapshot = {
+  categories?: Array<{
+    legacy_id: string;
+    name: string;
+    icon: string | null;
+    active: boolean;
+    sort_order: number;
+  }>;
   settings: {
     income: number;
     budgets: AppFinancialData["budgets"];
@@ -26,6 +33,7 @@ export type RemoteSnapshot = {
       | null;
     credit_card_legacy_id: number | null;
     invoice_reference_month?: string | null;
+    category_legacy_id?: string | null;
   }>;
   installments: Array<{
     legacy_id: number;
@@ -37,6 +45,7 @@ export type RemoteSnapshot = {
     paid_installments: number;
     next_due: string;
     credit_card_legacy_id: number | null;
+    category_legacy_id?: string | null;
   }>;
   receivables: Array<{
     legacy_id: number;
@@ -150,7 +159,7 @@ export class SupabaseImportRpcError extends Error {
 
   diagnostic() {
     return {
-      stage: "import_financial_snapshot_v2",
+      stage: "import_financial_snapshot_v3",
       function: "SupabaseFinancialImportTarget.importAtomically",
       rpcStarted: this.rpcStarted,
       rpcResponded: this.rpcResponded,
@@ -194,6 +203,21 @@ function stableJson(value: unknown): string {
 
 export function toRemoteSnapshot(snapshot: AppFinancialData): RemoteSnapshot {
   return {
+    ...(snapshot.categories
+      ? {
+          categories: [...snapshot.categories]
+            .sort(
+              (a, b) => a.sortOrder - b.sortOrder || a.id.localeCompare(b.id),
+            )
+            .map((category) => ({
+              legacy_id: category.id,
+              name: category.name,
+              icon: category.icon ?? null,
+              active: category.active,
+              sort_order: category.sortOrder,
+            })),
+        }
+      : {}),
     settings: {
       income: snapshot.income,
       budgets: snapshot.budgets,
@@ -216,6 +240,9 @@ export function toRemoteSnapshot(snapshot: AppFinancialData): RemoteSnapshot {
         invoice_reference_month: expense.invoiceReferenceMonth
           ? monthDate(expense.invoiceReferenceMonth)
           : null,
+        ...(expense.categoryId
+          ? { category_legacy_id: expense.categoryId }
+          : {}),
       })),
     installments: [...snapshot.installments]
       .sort((a, b) => a.id - b.id)
@@ -232,6 +259,9 @@ export function toRemoteSnapshot(snapshot: AppFinancialData): RemoteSnapshot {
           `Parcela ${installment.id}.nextDue`,
         ),
         credit_card_legacy_id: installment.creditCardId ?? null,
+        ...(installment.categoryId
+          ? { category_legacy_id: installment.categoryId }
+          : {}),
       })),
     receivables: [...snapshot.debts]
       .sort((a, b) => a.id - b.id)
@@ -381,6 +411,19 @@ export function simulateImportV2RoundTrip(
 
 export function fromRemoteSnapshot(snapshot: RemoteSnapshot): AppFinancialData {
   return {
+    ...(snapshot.categories
+      ? {
+          categories: snapshot.categories.map(
+            (category): Category => ({
+              id: category.legacy_id,
+              name: category.name,
+              ...(category.icon ? { icon: category.icon } : {}),
+              active: category.active,
+              sortOrder: category.sort_order,
+            }),
+          ),
+        }
+      : {}),
     expenses: snapshot.expenses.map((expense) => ({
       id: expense.legacy_id,
       title: expense.title,
@@ -397,6 +440,9 @@ export function fromRemoteSnapshot(snapshot: RemoteSnapshot): AppFinancialData {
       ...(expense.invoice_reference_month
         ? { invoiceReferenceMonth: monthValue(expense.invoice_reference_month) }
         : {}),
+      ...(expense.category_legacy_id
+        ? { categoryId: expense.category_legacy_id }
+        : {}),
     })),
     installments: snapshot.installments.map((installment) => ({
       id: installment.legacy_id,
@@ -409,6 +455,9 @@ export function fromRemoteSnapshot(snapshot: RemoteSnapshot): AppFinancialData {
       nextDue: installment.next_due,
       ...(installment.credit_card_legacy_id !== null
         ? { creditCardId: installment.credit_card_legacy_id }
+        : {}),
+      ...(installment.category_legacy_id
+        ? { categoryId: installment.category_legacy_id }
         : {}),
     })),
     debts: snapshot.receivables.map((debt) => ({
@@ -531,7 +580,7 @@ export class SupabaseFinancialImportTarget implements FinancialImportTarget {
     let result: Awaited<ReturnType<SupabaseClient["rpc"]>>;
     try {
       result = await this.client.rpc(
-        "import_financial_snapshot_v2",
+        "import_financial_snapshot_v3",
         arguments_,
       );
     } catch (error) {
@@ -570,7 +619,7 @@ export async function replaceSupabaseFinancialSnapshot({
   snapshot: AppFinancialData;
   revisionHash: string;
 }): Promise<AppFinancialData> {
-  const result = await client.rpc("replace_financial_snapshot_v2", {
+  const result = await client.rpc("replace_financial_snapshot_v3", {
     p_household_id: householdId,
     p_snapshot: toRemoteSnapshot(snapshot),
     p_revision_hash: revisionHash,

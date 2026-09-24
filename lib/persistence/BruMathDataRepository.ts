@@ -1,4 +1,5 @@
 import type { AppFinancialData, Debt } from "../app/AppTypes";
+import { hydrateCategoryCatalog } from "../finance/categoryCatalog";
 import { resolvePersonalLimits } from "../finance/personalLimits";
 
 const STORAGE_KEY = "brumath-data";
@@ -11,6 +12,7 @@ export type BruMathStoredData = Partial<AppFinancialData> & {
 export type AppFinancialDataDefaults = Pick<
   AppFinancialData,
   | "expenses"
+  | "categories"
   | "installments"
   | "debts"
   | "incomeEntries"
@@ -49,8 +51,14 @@ export class BruMathDataRepository {
 
   load(defaults: AppFinancialDataDefaults): AppFinancialData {
     const data = this.readStoredData();
-    if (Object.keys(data).length === 0) return defaults;
-    return {
+    if (Object.keys(data).length === 0) {
+      return hydrateCategoryCatalog({
+        ...defaults,
+        categories: defaults.categories ?? [],
+      });
+    }
+    return hydrateCategoryCatalog({
+      categories: Array.isArray(data.categories) ? data.categories : [],
       expenses: Array.isArray(data.expenses)
         ? data.expenses
         : defaults.expenses,
@@ -100,7 +108,7 @@ export class BruMathDataRepository {
         : (defaults.installmentReimbursementAllocations ?? []),
       activeProfile: data.activeProfile ?? defaults.activeProfile,
       viewMonth: data.viewMonth ?? defaults.viewMonth,
-    };
+    });
   }
 
   save(data: AppFinancialData) {
