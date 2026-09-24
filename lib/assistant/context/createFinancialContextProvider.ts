@@ -281,6 +281,8 @@ function buildContext(
     expenses: data.expenses,
     installments: data.installments,
     payments: data.invoicePayments ?? [],
+    adjustments: data.invoiceAdjustments ?? [],
+    installmentEvents: data.installmentInvoiceEvents ?? [],
     profile: scope.profile,
     referenceMonth: scope.month,
   }).map((invoice) => ({

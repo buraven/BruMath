@@ -21,14 +21,17 @@ import {
   SupabaseFinancialImportTarget,
 } from "../../lib/persistence/SupabaseFinancialImportTarget";
 import { RemoteSnapshotWriteQueue } from "../../lib/persistence/RemoteSnapshotWriteQueue";
+import { RemoteSessionInitializationGate } from "../../lib/persistence/RemoteSessionInitializationGate";
 import {
   createBruMathSupabaseClient,
   isBruMathSupabaseConfigured,
 } from "../../lib/persistence/supabaseClient";
 import {
   bootstrapFinancialHousehold,
+  magicLinkRedirectUrl,
   requestMagicLink,
 } from "../../lib/persistence/supabaseAuth";
+import { decideAuthenticatedBootstrap } from "./remoteBootstrapDecision";
 
 export type PersistenceStatus = FinancialPersistenceStatus;
 
@@ -55,6 +58,11 @@ function toAppData(
     invoicePayments: [
       ...(snapshot.invoicePayments ?? []),
     ] as AppFinancialData["invoicePayments"],
+    invoiceAdjustments: [...(snapshot.invoiceAdjustments ?? [])],
+    installmentInvoiceEvents: [...(snapshot.installmentInvoiceEvents ?? [])],
+    installmentReimbursementAllocations: [
+      ...(snapshot.installmentReimbursementAllocations ?? []),
+    ],
     activeProfile: snapshot.activeProfile ?? fallback.activeProfile,
     viewMonth: snapshot.viewMonth ?? fallback.viewMonth,
   };
@@ -80,6 +88,16 @@ export function usePersistedFinancialState(defaults: AppFinancialData) {
   const [invoicePayments, setInvoicePayments] = useState(
     initial.invoicePayments,
   );
+  const [invoiceAdjustments, setInvoiceAdjustments] = useState(
+    initial.invoiceAdjustments ?? [],
+  );
+  const [installmentInvoiceEvents, setInstallmentInvoiceEvents] = useState(
+    initial.installmentInvoiceEvents ?? [],
+  );
+  const [
+    installmentReimbursementAllocations,
+    setInstallmentReimbursementAllocations,
+  ] = useState(initial.installmentReimbursementAllocations ?? []);
   const [activeProfile, setActiveProfile] = useState(initial.activeProfile);
   const [viewMonth, setViewMonth] = useState(initial.viewMonth);
   const [status, setStatus] = useState<PersistenceStatus>("loading");
@@ -98,6 +116,9 @@ export function usePersistedFinancialState(defaults: AppFinancialData) {
   // untouched for recovery, but a remote failure must remain visible.
   const remoteWasActivatedRef = useRef(false);
   const remoteWriterRef = useRef<RemoteSnapshotWriteQueue<AppFinancialData>>();
+  const remoteInitializationGateRef = useRef(
+    new RemoteSessionInitializationGate(),
+  );
   const initializeRemoteRef = useRef<(() => Promise<void>) | undefined>();
   const localSourceHashRef = useRef("");
   const legacyLocalSourceHashRef = useRef("");
@@ -114,6 +135,9 @@ export function usePersistedFinancialState(defaults: AppFinancialData) {
       personalLimits,
       creditCards,
       invoicePayments,
+      invoiceAdjustments,
+      installmentInvoiceEvents,
+      installmentReimbursementAllocations,
       activeProfile,
       viewMonth,
     }),
@@ -128,6 +152,9 @@ export function usePersistedFinancialState(defaults: AppFinancialData) {
       personalLimits,
       creditCards,
       invoicePayments,
+      invoiceAdjustments,
+      installmentInvoiceEvents,
+      installmentReimbursementAllocations,
       activeProfile,
       viewMonth,
     ],
@@ -144,6 +171,11 @@ export function usePersistedFinancialState(defaults: AppFinancialData) {
     setPersonalLimits(data.personalLimits);
     setCreditCards(data.creditCards);
     setInvoicePayments(data.invoicePayments);
+    setInvoiceAdjustments(data.invoiceAdjustments ?? []);
+    setInstallmentInvoiceEvents(data.installmentInvoiceEvents ?? []);
+    setInstallmentReimbursementAllocations(
+      data.installmentReimbursementAllocations ?? [],
+    );
     setActiveProfile(data.activeProfile);
     setViewMonth(data.viewMonth);
   };
@@ -183,42 +215,59 @@ export function usePersistedFinancialState(defaults: AppFinancialData) {
         return;
       }
       try {
-        setStatus("bootstrapping");
-        const householdId = await bootstrapFinancialHousehold(client);
-        if (!mounted) return;
-        householdIdRef.current = householdId;
-        const target = new SupabaseFinancialImportTarget(client);
-        const source = new SupabaseFinancialDataSource(client, householdId);
-        remoteSourceRef.current = source;
-        if (localExists) {
-          const preview = previewLocalMigration(
-            localSnapshot,
-            localSourceHashRef.current,
-          );
-          setMigrationPreview(preview);
-          if (!preview.valid) throw new Error(preview.issues.join(" "));
-          const wasImported = await hasImportedLocalSnapshot({
-            target,
-            householdId,
-            sourceHash: preview.sourceHash,
-            legacySourceHash: legacyLocalSourceHashRef.current,
-          });
-          if (!wasImported) {
-            setStatus("migration-required");
-            return;
-          }
-        }
-        const remote = toAppData(await source.read(), initial);
-        remoteBackendRef.current = true;
-        remoteWasActivatedRef.current = true;
-        const writer = new RemoteSnapshotWriteQueue(
-          normalizePersistedFinancialSnapshot,
-          async (nextSnapshot) => source.write(nextSnapshot, revision()),
+        await remoteInitializationGateRef.current.initialize(
+          data.session.user.id,
+          async () => {
+            setStatus("bootstrapping");
+            const householdId = await bootstrapFinancialHousehold(client);
+            if (!mounted) return;
+            householdIdRef.current = householdId;
+            const target = new SupabaseFinancialImportTarget(client);
+            const source = new SupabaseFinancialDataSource(client, householdId);
+            remoteSourceRef.current = source;
+            // A successful remote read is the only safe basis for deciding
+            // whether legacy local data can be offered for explicit migration.
+            const remote = toAppData(await source.read(), initial);
+            if (!mounted) return;
+            let localAlreadyImported = false;
+            if (localExists) {
+              const preview = previewLocalMigration(
+                localSnapshot,
+                localSourceHashRef.current,
+              );
+              setMigrationPreview(preview);
+              if (!preview.valid) throw new Error(preview.issues.join(" "));
+              localAlreadyImported = await hasImportedLocalSnapshot({
+                target,
+                householdId,
+                sourceHash: preview.sourceHash,
+                legacySourceHash: legacyLocalSourceHashRef.current,
+              });
+            }
+            const bootstrapDecision = decideAuthenticatedBootstrap({
+              localExists,
+              remote,
+              localAlreadyImported,
+            });
+            if (bootstrapDecision === "migration-required") {
+              setStatus("migration-required");
+              return;
+            }
+            if (bootstrapDecision === "remote-error") {
+              throw new Error("Não foi possível ler o snapshot remoto.");
+            }
+            remoteBackendRef.current = true;
+            remoteWasActivatedRef.current = true;
+            const writer = new RemoteSnapshotWriteQueue(
+              normalizePersistedFinancialSnapshot,
+              async (nextSnapshot) => source.write(nextSnapshot, revision()),
+            );
+            writer.markConfirmed(remote);
+            remoteWriterRef.current = writer;
+            applySnapshot(remote);
+            setStatus("remote");
+          },
         );
-        writer.markConfirmed(remote);
-        remoteWriterRef.current = writer;
-        applySnapshot(remote);
-        setStatus("remote");
       } catch {
         if (!mounted) return;
         setPersistenceError("Não foi possível preparar a persistência remota.");
@@ -230,6 +279,7 @@ export function usePersistedFinancialState(defaults: AppFinancialData) {
     const { data: listener } = client.auth.onAuthStateChange(
       (_event, session) => {
         if (!session) {
+          remoteInitializationGateRef.current.reset();
           remoteBackendRef.current = false;
           remoteSourceRef.current = undefined;
           setIsAuthenticated(false);
@@ -281,7 +331,10 @@ export function usePersistedFinancialState(defaults: AppFinancialData) {
     await requestMagicLink(
       createBruMathSupabaseClient(),
       email,
-      window.location.origin,
+      magicLinkRedirectUrl(
+        window.location.origin,
+        process.env.NODE_ENV === "development",
+      ),
     );
   };
 
@@ -387,6 +440,12 @@ export function usePersistedFinancialState(defaults: AppFinancialData) {
     setCreditCards,
     invoicePayments,
     setInvoicePayments,
+    invoiceAdjustments,
+    setInvoiceAdjustments,
+    installmentInvoiceEvents,
+    setInstallmentInvoiceEvents,
+    installmentReimbursementAllocations,
+    setInstallmentReimbursementAllocations,
     activeProfile,
     setActiveProfile,
     viewMonth,

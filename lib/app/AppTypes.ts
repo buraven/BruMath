@@ -25,6 +25,27 @@ export type Expense = {
   personalLimitBucket?: PersonalLimitBucket;
   /** A purchase may be linked to a card but remains one expense. */
   creditCardId?: number;
+  /** Historical imports may retain the issuer's explicit invoice competence. */
+  invoiceReferenceMonth?: string;
+};
+
+export type InvoiceAdjustmentType =
+  | "previous_balance"
+  | "credit"
+  | "debit"
+  | "reversal"
+  | "discount"
+  | "installment_anticipation_discount";
+
+export type InvoiceAdjustment = {
+  id: number;
+  cardId: number;
+  referenceMonth: string;
+  type: InvoiceAdjustmentType;
+  /** Signed amount: positive debits increase the invoice; credits reduce it. */
+  amount: number;
+  description: string;
+  date?: string;
 };
 
 export type CreditCard = {
@@ -59,6 +80,40 @@ export type Installment = {
   nextDue: string;
   /** Optional by design: an installment can be paid outside a credit card. */
   creditCardId?: number;
+};
+
+export type InstallmentInvoiceEventType =
+  | "regular"
+  | "anticipated"
+  | "historical";
+
+export type InstallmentInvoiceEvent = {
+  id: number;
+  installmentId: number;
+  cardId: number;
+  referenceMonth: string;
+  installmentNumber: number;
+  amount: number;
+  type: InstallmentInvoiceEventType;
+  date?: string;
+};
+
+export type InstallmentReimbursementStatus =
+  | "future"
+  | "due"
+  | "received"
+  | "cancelled";
+
+/** Traces an independent third-party reimbursement back to a card installment. */
+export type InstallmentReimbursementAllocation = {
+  id: number;
+  installmentId: number;
+  person: string;
+  installmentNumber: number;
+  amount: number;
+  expectedMonth: string;
+  status: InstallmentReimbursementStatus;
+  debtId?: number;
 };
 
 export type Debt = {
@@ -121,6 +176,9 @@ export type AppFinancialData = {
   personalLimits: PersonalLimitConfiguration;
   creditCards: CreditCard[];
   invoicePayments: InvoicePayment[];
+  invoiceAdjustments?: InvoiceAdjustment[];
+  installmentInvoiceEvents?: InstallmentInvoiceEvent[];
+  installmentReimbursementAllocations?: InstallmentReimbursementAllocation[];
   activeProfile: Person;
   viewMonth: string;
 };

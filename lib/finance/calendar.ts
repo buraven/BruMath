@@ -3,6 +3,8 @@ import type {
   Expense,
   IncomeEntry,
   Installment,
+  InvoiceAdjustment,
+  InstallmentInvoiceEvent,
   InvoicePayment,
   Person,
 } from "../app/AppTypes";
@@ -89,6 +91,8 @@ export function deriveCalendarProjection({
   installments,
   cards,
   payments,
+  adjustments = [],
+  installmentEvents = [],
   baseBalance,
   referenceDate = `${month}-01`,
 }: {
@@ -99,6 +103,8 @@ export function deriveCalendarProjection({
   installments: readonly Installment[];
   cards: readonly CreditCard[];
   payments: readonly InvoicePayment[];
+  adjustments?: readonly InvoiceAdjustment[];
+  installmentEvents?: readonly InstallmentInvoiceEvent[];
   baseBalance: number;
   referenceDate?: string;
 }): CalendarProjection {
@@ -144,7 +150,12 @@ export function deriveCalendarProjection({
       installment.paidInstallments < installment.totalInstallments &&
       isWithinProfileScope(installment.who, profile),
   );
-  for (const installment of activeInstallments) {
+  // A card-linked installment is an item of its derived invoice. The invoice
+  // due date, rather than the installment itself, is the cash commitment.
+  const standaloneInstallments = activeInstallments.filter(
+    (installment) => !installment.creditCardId,
+  );
+  for (const installment of standaloneInstallments) {
     if (belongsToMonth(installment.nextDue, month)) {
       items.push({
         id: `installment:${installment.id}:${installment.nextDue}`,
@@ -168,6 +179,8 @@ export function deriveCalendarProjection({
       expenses,
       installments,
       payments,
+      adjustments,
+      installmentEvents,
       profile,
       referenceMonth,
     }),
@@ -208,14 +221,33 @@ export function deriveCalendarProjection({
     grouped.set(item.date, dayItems);
   }
 
-  const knownFutureCommitments = activeInstallments
+  const standaloneCommitments = standaloneInstallments
     .filter(
       (installment) =>
-        !installment.creditCardId &&
         belongsToMonth(installment.nextDue, month) &&
         isOnOrAfter(installment.nextDue, referenceDate),
     )
     .reduce((total, installment) => total + installment.amount, 0);
+
+  const invoiceCommitments = invoices
+    .filter(
+      (invoice) =>
+        invoice.status === "open" &&
+        belongsToMonth(invoice.dueDate, month) &&
+        isOnOrAfter(invoice.dueDate, referenceDate),
+    )
+    .reduce((total, invoice) => {
+      // The existing base balance already includes card purchases registered in
+      // this same competence. Only the invoice portion not already reflected
+      // there is a future cash commitment. Card installments are never
+      // expenses, so they remain fully represented by the invoice.
+      const expensesAlreadyInBase = invoice.expenses
+        .filter((expense) => belongsToMonth(expense.date, month))
+        .reduce((sum, expense) => sum + expense.amount, 0);
+      return total + Math.max(0, invoice.total - expensesAlreadyInBase);
+    }, 0);
+
+  const knownFutureCommitments = standaloneCommitments + invoiceCommitments;
 
   return {
     month,

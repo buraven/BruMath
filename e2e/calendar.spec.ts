@@ -166,3 +166,43 @@ test("calendário filtra perfil e reutiliza a ação existente de parcela @deskt
   await page.getByRole("button", { name: "Selecionar 2026-09-12" }).click();
   await expect(page.getByLabel("Agenda do dia")).not.toContainText("Curso");
 });
+
+test("calendário mostra a fatura e não repete a parcela vinculada ao cartão @desktop", async ({
+  page,
+}) => {
+  await openWithFinancialState(
+    page,
+    createFinancialState({
+      viewMonth: "2026-10",
+      creditCards: [{ ...nubankCard, dueDay: 10 }],
+      installments: [
+        {
+          id: 30,
+          title: "Mercado Livre",
+          category: "Casa",
+          who: "Bruna",
+          amount: 153.75,
+          totalInstallments: 10,
+          paidInstallments: 2,
+          nextDue: "2026-09-20",
+          creditCardId: nubankCard.id,
+        },
+      ],
+    }),
+  );
+  await openCalendar(page);
+
+  await page.getByRole("button", { name: "Selecionar 2026-10-10" }).click();
+  await expect(page.getByLabel("Agenda do dia")).toContainText(
+    "Vencimento Nubank",
+  );
+  await expect(page.getByLabel("Agenda do dia")).not.toContainText(
+    "Mercado Livre",
+  );
+  await expect(page.getByLabel("Resumo do calendário")).toContainText(
+    "R$ 153,75",
+  );
+  await expect(
+    page.getByRole("region", { name: "Acompanhe seus compromissos" }),
+  ).toContainText("Nenhuma parcela ativa.");
+});

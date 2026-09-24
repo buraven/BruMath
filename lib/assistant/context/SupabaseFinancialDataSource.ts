@@ -36,6 +36,9 @@ export class SupabaseFinancialDataSource implements FinancialDataSource {
       incomeEntries,
       cards,
       payments,
+      adjustments,
+      installmentEvents,
+      reimbursementAllocations,
     ] = await Promise.all([
       scope("financial_settings").single(),
       scope("expenses"),
@@ -44,6 +47,9 @@ export class SupabaseFinancialDataSource implements FinancialDataSource {
       scope("income_entries"),
       scope("credit_cards"),
       scope("invoice_payments"),
+      scope("invoice_adjustments"),
+      scope("installment_invoice_events"),
+      scope("installment_reimbursement_allocations"),
     ]);
     const failed = [
       settings,
@@ -53,6 +59,9 @@ export class SupabaseFinancialDataSource implements FinancialDataSource {
       incomeEntries,
       cards,
       payments,
+      adjustments,
+      installmentEvents,
+      reimbursementAllocations,
     ].find((result) => result.error && result.error.code !== "PGRST116");
     if (failed?.error)
       throw new Error("Não foi possível carregar os dados financeiros.");
@@ -79,6 +88,9 @@ export class SupabaseFinancialDataSource implements FinancialDataSource {
           : {}),
         ...(row.credit_card_legacy_id
           ? { creditCardId: row.credit_card_legacy_id }
+          : {}),
+        ...(row.invoice_reference_month
+          ? { invoiceReferenceMonth: row.invoice_reference_month.slice(0, 7) }
           : {}),
       })) as PersistedExpense[],
       installments: (installments.data ?? []).map((row: any) => ({
@@ -133,6 +145,39 @@ export class SupabaseFinancialDataSource implements FinancialDataSource {
         paidAt: row.paid_at,
         amount: Number(row.amount),
       })) as PersistedInvoicePayment[],
+      invoiceAdjustments: (adjustments.data ?? []).map((row: any) => ({
+        id: row.legacy_id,
+        cardId: row.card_legacy_id,
+        referenceMonth: row.reference_month.slice(0, 7),
+        type: row.adjustment_type,
+        amount: Number(row.amount),
+        description: row.description,
+        ...(row.occurred_on ? { date: row.occurred_on } : {}),
+      })),
+      installmentInvoiceEvents: (installmentEvents.data ?? []).map(
+        (row: any) => ({
+          id: row.legacy_id,
+          installmentId: row.installment_legacy_id,
+          cardId: row.card_legacy_id,
+          referenceMonth: row.reference_month.slice(0, 7),
+          installmentNumber: row.installment_number,
+          amount: Number(row.amount),
+          type: row.event_type,
+          ...(row.occurred_on ? { date: row.occurred_on } : {}),
+        }),
+      ),
+      installmentReimbursementAllocations: (
+        reimbursementAllocations.data ?? []
+      ).map((row: any) => ({
+        id: row.legacy_id,
+        installmentId: row.installment_legacy_id,
+        person: row.person,
+        installmentNumber: row.installment_number,
+        amount: Number(row.amount),
+        expectedMonth: row.expected_month.slice(0, 7),
+        status: row.status,
+        ...(row.debt_legacy_id ? { debtId: row.debt_legacy_id } : {}),
+      })),
       activeProfile: configuration.active_profile,
       viewMonth: configuration.view_month.slice(0, 7),
       hasStoredData: true,

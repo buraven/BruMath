@@ -84,6 +84,11 @@ export class LocalStorageFinancialDataSource implements FinancialDataSource {
       }),
       creditCards: asArray<PersistedCreditCard>(data.creditCards),
       invoicePayments: asArray<PersistedInvoicePayment>(data.invoicePayments),
+      invoiceAdjustments: asArray(data.invoiceAdjustments),
+      installmentInvoiceEvents: asArray(data.installmentInvoiceEvents),
+      installmentReimbursementAllocations: asArray(
+        data.installmentReimbursementAllocations,
+      ),
       hasStoredData,
     };
   }

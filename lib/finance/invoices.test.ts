@@ -296,3 +296,119 @@ test("does not count a visible zero cycle as an open invoice or a payable balanc
   assert.equal(filterInvoices(invoices, "due").length, 1);
   assert.equal(filterInvoices(invoices, "paid").length, 0);
 });
+
+test("uses explicit historical competence and invoice adjustments without manufacturing expenses", () => {
+  const invoices = deriveInvoices({
+    cards: [card],
+    expenses: [
+      expense({ date: "2026-08-21", invoiceReferenceMonth: "2026-08" }),
+    ],
+    payments: [],
+    adjustments: [
+      {
+        id: 1,
+        cardId: 1,
+        referenceMonth: "2026-08",
+        type: "previous_balance",
+        amount: 20,
+        description: "Saldo anterior",
+      },
+      {
+        id: 2,
+        cardId: 1,
+        referenceMonth: "2026-08",
+        type: "credit",
+        amount: -5,
+        description: "Crédito",
+      },
+    ],
+    profile: "Bruna",
+    referenceMonth: "2026-08",
+  });
+  assert.equal(invoices[0]?.expenses.length, 1);
+  assert.equal(invoices[0]?.adjustments.length, 2);
+  assert.equal(invoices[0]?.total, 115);
+  assert.equal(
+    deriveInvoices({
+      cards: [card],
+      expenses: [expense({ date: "2026-08-21" })],
+      payments: [],
+      profile: "Bruna",
+      referenceMonth: "2026-08",
+    })[0]?.total,
+    0,
+  );
+});
+
+test("historical anticipated installment events end the plan inside the invoice", () => {
+  const plan: Installment = {
+    id: 10,
+    title: "Compra",
+    category: "Outros",
+    who: "Bruna",
+    amount: 50,
+    totalInstallments: 6,
+    paidInstallments: 2,
+    nextDue: "2026-08-20",
+    creditCardId: 1,
+  };
+  const [invoice] = deriveInvoices({
+    cards: [card],
+    expenses: [],
+    payments: [],
+    installments: [plan],
+    profile: "Bruna",
+    referenceMonth: "2026-08",
+    installmentEvents: [
+      {
+        id: 1,
+        installmentId: 10,
+        cardId: 1,
+        referenceMonth: "2026-08",
+        installmentNumber: 3,
+        amount: 50,
+        type: "regular",
+      },
+      {
+        id: 2,
+        installmentId: 10,
+        cardId: 1,
+        referenceMonth: "2026-08",
+        installmentNumber: 4,
+        amount: 50,
+        type: "anticipated",
+      },
+      {
+        id: 3,
+        installmentId: 10,
+        cardId: 1,
+        referenceMonth: "2026-08",
+        installmentNumber: 5,
+        amount: 50,
+        type: "anticipated",
+      },
+      {
+        id: 4,
+        installmentId: 10,
+        cardId: 1,
+        referenceMonth: "2026-08",
+        installmentNumber: 6,
+        amount: 50,
+        type: "anticipated",
+      },
+    ],
+    adjustments: [
+      {
+        id: 5,
+        cardId: 1,
+        referenceMonth: "2026-08",
+        type: "installment_anticipation_discount",
+        amount: -2,
+        description: "Desconto",
+      },
+    ],
+  });
+  assert.equal(invoice?.installments.length, 4);
+  assert.equal(invoice?.total, 198);
+  assert.equal(invoice?.expenses.length, 0);
+});

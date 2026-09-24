@@ -166,7 +166,117 @@ test("finds an adjacent invoice cycle due in the visible month without duplicati
     projection.items.filter((item) => item.type === "expense").length,
     0,
   );
+  assert.equal(projection.forecast.knownFutureCommitments, 100);
+});
+
+test("uses the invoice, not its card installment, as the calendar commitment", () => {
+  const cardInstallment: Installment = {
+    id: 9,
+    title: "Mercado Livre",
+    category: "Casa",
+    who: "Bruna",
+    amount: 153.75,
+    totalInstallments: 10,
+    paidInstallments: 2,
+    nextDue: "2026-09-20",
+    creditCardId: card.id,
+  };
+  const projection = deriveCalendarProjection({
+    month: "2026-10",
+    profile: "Bruna",
+    expenses: [],
+    incomeEntries: [],
+    installments: [cardInstallment],
+    cards: [card],
+    payments: [],
+    baseBalance: 1_000,
+  });
+
+  assert.equal(
+    projection.items.filter((item) => item.type === "installment_due").length,
+    0,
+  );
+  const invoice = projection.items.find((item) => item.type === "invoice_due");
+  assert.equal(invoice?.date, "2026-10-10");
+  assert.equal(invoice?.amount, 153.75);
+  assert.equal(projection.forecast.knownFutureCommitments, 153.75);
+});
+
+test("does not subtract a same-month card purchase twice through its invoice", () => {
+  const projection = deriveCalendarProjection({
+    month: "2026-09",
+    profile: "Bruna",
+    expenses: [expense({ date: "2026-09-10" })],
+    incomeEntries: [],
+    installments: [],
+    cards: [{ ...card, dueDay: 27 }],
+    payments: [],
+    baseBalance: 900,
+  });
+
+  assert.equal(
+    projection.items.find((item) => item.type === "invoice_due")?.amount,
+    100,
+  );
   assert.equal(projection.forecast.knownFutureCommitments, 0);
+  assert.equal(projection.forecast.projectedBalance, 900);
+});
+
+test("keeps a cardless installment as its own commitment", () => {
+  const projection = deriveCalendarProjection({
+    month: "2026-09",
+    profile: "Bruna",
+    expenses: [],
+    incomeEntries: [],
+    installments: [
+      {
+        id: 10,
+        title: "Curso",
+        category: "Educação",
+        who: "Bruna",
+        amount: 90,
+        totalInstallments: 2,
+        paidInstallments: 0,
+        nextDue: "2026-09-15",
+      },
+    ],
+    cards: [],
+    payments: [],
+    baseBalance: 1_000,
+  });
+
+  assert.equal(
+    projection.items.filter((item) => item.type === "installment_due").length,
+    1,
+  );
+  assert.equal(projection.forecast.knownFutureCommitments, 90);
+});
+
+test("a paid invoice no longer consumes future commitments", () => {
+  const projection = deriveCalendarProjection({
+    month: "2026-09",
+    profile: "Bruna",
+    expenses: [expense()],
+    incomeEntries: [],
+    installments: [],
+    cards: [card],
+    payments: [
+      {
+        id: 11,
+        cardId: card.id,
+        referenceMonth: "2026-08",
+        paidAt: "2026-09-10",
+        amount: 100,
+      },
+    ],
+    baseBalance: 1_000,
+  });
+
+  assert.equal(projection.forecast.knownFutureCommitments, 0);
+  assert.equal(
+    projection.items.find((item) => item.type === "invoice_due")?.status,
+    "paid",
+  );
 });
 
 test("shows an empty invoice closing as an operational marker, never a debt", () => {

@@ -20,6 +20,9 @@ export type AppFinancialDataDefaults = Pick<
   | "personalLimits"
   | "creditCards"
   | "invoicePayments"
+  | "invoiceAdjustments"
+  | "installmentInvoiceEvents"
+  | "installmentReimbursementAllocations"
   | "activeProfile"
   | "viewMonth"
 >;
@@ -81,6 +84,20 @@ export class BruMathDataRepository {
       invoicePayments: Array.isArray(data.invoicePayments)
         ? data.invoicePayments
         : defaults.invoicePayments,
+      // These collections were added after the first local snapshot schema.
+      // Empty arrays keep an old snapshot semantically equivalent while making
+      // every newer snapshot explicit and round-trippable.
+      invoiceAdjustments: Array.isArray(data.invoiceAdjustments)
+        ? data.invoiceAdjustments
+        : (defaults.invoiceAdjustments ?? []),
+      installmentInvoiceEvents: Array.isArray(data.installmentInvoiceEvents)
+        ? data.installmentInvoiceEvents
+        : (defaults.installmentInvoiceEvents ?? []),
+      installmentReimbursementAllocations: Array.isArray(
+        data.installmentReimbursementAllocations,
+      )
+        ? data.installmentReimbursementAllocations
+        : (defaults.installmentReimbursementAllocations ?? []),
       activeProfile: data.activeProfile ?? defaults.activeProfile,
       viewMonth: data.viewMonth ?? defaults.viewMonth,
     };
