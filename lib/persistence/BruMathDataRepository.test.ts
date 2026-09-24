@@ -107,3 +107,45 @@ test("persists and reloads a newly created credit card", () => {
     });
   }
 });
+
+test("persists and reloads an edited base income independently from income entries", () => {
+  const values = new Map<string, string>();
+  const previousWindow = globalThis.window;
+  Object.defineProperty(globalThis, "window", {
+    configurable: true,
+    value: {
+      localStorage: {
+        getItem: (key: string) => values.get(key) ?? null,
+        setItem: (key: string, value: string) => values.set(key, value),
+      },
+    },
+  });
+
+  try {
+    const repository = new BruMathDataRepository();
+    repository.save({
+      ...defaults,
+      income: 15_500,
+      incomeEntries: [
+        {
+          id: 1,
+          title: "Reembolso",
+          amount: 75,
+          who: "Casal",
+          date: "2026-09-05",
+          destination: "conta",
+          note: "",
+        },
+      ],
+    });
+
+    const reloaded = repository.load(defaults);
+    assert.equal(reloaded.income, 15_500);
+    assert.equal(reloaded.incomeEntries.length, 1);
+  } finally {
+    Object.defineProperty(globalThis, "window", {
+      configurable: true,
+      value: previousWindow,
+    });
+  }
+});

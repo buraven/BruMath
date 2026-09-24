@@ -103,6 +103,80 @@ test("derives the existing month, limit and receivable values without mixing per
   );
 });
 
+test("updates base income without treating it as an extra entry", async () => {
+  const data: AppFinancialData = {
+    expenses: [
+      {
+        id: 1,
+        title: "Mercado",
+        cat: "Alimentação",
+        who: "Casal",
+        amount: 100,
+        date: "2026-09-05",
+      },
+    ],
+    installments: [
+      {
+        id: 2,
+        title: "Curso",
+        category: "Educação",
+        who: "Casal",
+        amount: 50,
+        totalInstallments: 2,
+        paidInstallments: 0,
+        nextDue: "2026-09-20",
+      },
+    ],
+    debts: [],
+    incomeEntries: [
+      {
+        id: 3,
+        title: "Reembolso",
+        amount: 40,
+        who: "Casal",
+        date: "2026-09-10",
+        destination: "conta",
+        note: "",
+      },
+    ],
+    income: 1_000,
+    budgets: {},
+    limits: { Bruna: 350, Matheus: 350 },
+    personalLimits: DEFAULT_PERSONAL_LIMITS,
+    creditCards: [],
+    invoicePayments: [],
+    activeProfile: "Casal",
+    viewMonth: "2026-09",
+  };
+  const edited = { ...data, income: 1_500 };
+  const home = deriveFinancialSelectors({ ...edited, profile: "Casal" });
+
+  assert.equal(home.extraIncome, 40);
+  assert.equal(home.monthIncomeTotal, 1_540);
+  assert.equal(home.available, 1_440);
+
+  const calendar = deriveCalendarProjection({
+    month: edited.viewMonth,
+    profile: "Casal",
+    expenses: edited.expenses,
+    incomeEntries: edited.incomeEntries,
+    installments: edited.installments,
+    cards: [],
+    payments: [],
+    baseBalance: home.available,
+  });
+  assert.equal(calendar.forecast.projectedBalance, 1_390);
+
+  const context = createFinancialContextProvider({ read: async () => edited });
+  const summary = await context.getSummary({
+    profile: "Casal",
+    month: "2026-09",
+  });
+  assert.equal(summary.value.baseIncome, 1_500);
+  assert.equal(summary.value.extraIncome, 40);
+  assert.equal(summary.value.available, 1_440);
+});
+
 test("derives category distribution only from the selected expenses", () => {
   const result = deriveCategorySpending([
     {
