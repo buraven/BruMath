@@ -1,8 +1,10 @@
 import type {
   CreditCard,
   Expense,
+  InvoiceAdjustment,
   InvoicePayment,
   Installment,
+  InstallmentInvoiceEvent,
   Person,
 } from "../app/AppTypes";
 import { isWithinProfileScope } from "./profileScope";
@@ -23,6 +25,7 @@ export type DerivedInvoice = {
   dueDate: string;
   expenses: readonly Expense[];
   installments: readonly InvoiceInstallmentItem[];
+  adjustments: readonly InvoiceAdjustment[];
   total: number;
   paidAmount: number;
   status: InvoiceStatus;
@@ -40,6 +43,7 @@ export type InvoiceInstallmentItem = {
   date: string;
   currentInstallment: number;
   totalInstallments: number;
+  eventType?: InstallmentInvoiceEvent["type"];
 };
 
 export function filterInvoices(
@@ -143,6 +147,8 @@ export function deriveInvoices({
   expenses,
   payments,
   installments = [],
+  adjustments = [],
+  installmentEvents = [],
   profile,
   referenceMonth,
 }: {
@@ -150,6 +156,8 @@ export function deriveInvoices({
   expenses: readonly Expense[];
   payments: readonly InvoicePayment[];
   installments?: readonly Installment[];
+  adjustments?: readonly InvoiceAdjustment[];
+  installmentEvents?: readonly InstallmentInvoiceEvent[];
   profile: Person;
   referenceMonth: string;
 }): readonly DerivedInvoice[] {
@@ -159,14 +167,23 @@ export function deriveInvoices({
       const invoiceExpenses = expenses.filter(
         (expense) =>
           expense.creditCardId === card.id &&
-          resolveInvoiceReferenceMonth(expense.date, card.closingDay) ===
+          (expense.invoiceReferenceMonth ??
+            resolveInvoiceReferenceMonth(expense.date, card.closingDay)) ===
             referenceMonth,
       );
-      const invoiceInstallments = installments
+      const cardEvents = installmentEvents.filter(
+        (event) =>
+          event.cardId === card.id && event.referenceMonth === referenceMonth,
+      );
+      const eventInstallmentIds = new Set(
+        cardEvents.map((event) => event.installmentId),
+      );
+      const invoiceInstallments: InvoiceInstallmentItem[] = installments
         .filter(
           (installment) =>
             installment.creditCardId === card.id &&
             installment.paidInstallments < installment.totalInstallments &&
+            !eventInstallmentIds.has(installment.id) &&
             resolveInvoiceReferenceMonth(
               installment.nextDue,
               card.closingDay,
@@ -182,15 +199,45 @@ export function deriveInvoices({
           currentInstallment: installment.paidInstallments + 1,
           totalInstallments: installment.totalInstallments,
         }));
+      const eventInstallments: InvoiceInstallmentItem[] = cardEvents.flatMap(
+        (event) => {
+          const installment = installments.find(
+            (candidate) => candidate.id === event.installmentId,
+          );
+          if (!installment) return [];
+          return [
+            {
+              id: `installment-event:${event.id}`,
+              title: installment.title,
+              category: installment.category,
+              owner: installment.who,
+              amount: event.amount,
+              date: event.date ?? installment.nextDue,
+              currentInstallment: event.installmentNumber,
+              totalInstallments: installment.totalInstallments,
+              eventType: event.type,
+            } satisfies InvoiceInstallmentItem,
+          ];
+        },
+      );
+      const invoiceAdjustments = adjustments.filter(
+        (adjustment) =>
+          adjustment.cardId === card.id &&
+          adjustment.referenceMonth === referenceMonth,
+      );
       const expenseTotal = invoiceExpenses.reduce(
         (sum, expense) => sum + expense.amount,
         0,
       );
-      const installmentTotal = invoiceInstallments.reduce(
-        (sum, installment) => sum + installment.amount,
+      const installmentTotal = [
+        ...invoiceInstallments,
+        ...eventInstallments,
+      ].reduce((sum, installment) => sum + installment.amount, 0);
+      const adjustmentTotal = invoiceAdjustments.reduce(
+        (sum, adjustment) => sum + adjustment.amount,
         0,
       );
-      const total = expenseTotal + installmentTotal;
+      const total = expenseTotal + installmentTotal + adjustmentTotal;
       const paidAmount = payments
         .filter(
           (payment) =>
@@ -205,7 +252,10 @@ export function deriveInvoices({
           (categoryMap.get(expense.cat) ?? 0) + expense.amount,
         );
       }
-      for (const installment of invoiceInstallments) {
+      for (const installment of [
+        ...invoiceInstallments,
+        ...eventInstallments,
+      ]) {
         categoryMap.set(
           installment.category,
           (categoryMap.get(installment.category) ?? 0) + installment.amount,
@@ -218,7 +268,8 @@ export function deriveInvoices({
         closingDate: resolveInvoiceClosingDate(card, referenceMonth),
         dueDate: resolveInvoiceDueDate(card, referenceMonth),
         expenses: invoiceExpenses,
-        installments: invoiceInstallments,
+        installments: [...invoiceInstallments, ...eventInstallments],
+        adjustments: invoiceAdjustments,
         total,
         paidAmount,
         status:

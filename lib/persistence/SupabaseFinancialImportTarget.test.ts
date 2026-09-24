@@ -5,8 +5,12 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import type { AppFinancialData } from "../app/AppTypes";
 import {
   fromRemoteSnapshot,
+  normalizePersistedFinancialSnapshot,
   replaceSupabaseFinancialSnapshot,
+  simulateImportV2RoundTrip,
+  SupabaseImportRpcError,
   SupabaseFinancialImportTarget,
+  toLegacyImportSnapshot,
   toRemoteSnapshot,
 } from "./SupabaseFinancialImportTarget";
 import { bootstrapFinancialHousehold } from "./supabaseAuth";
@@ -47,6 +51,9 @@ const snapshot: AppFinancialData = {
     },
   ],
   invoicePayments: [],
+  invoiceAdjustments: [],
+  installmentInvoiceEvents: [],
+  installmentReimbursementAllocations: [],
   activeProfile: "Bruna",
   viewMonth: "2026-09",
 };
@@ -63,8 +70,207 @@ test("maps a local snapshot to the deterministic RPC representation", () => {
     occurred_on: "2026-09-02",
     personal_limit_bucket: "bruna_personal",
     credit_card_legacy_id: 4,
+    invoice_reference_month: null,
   });
   assert.deepEqual(fromRemoteSnapshot(remote), snapshot);
+});
+
+test("round-trips optional historical invoice facts without changing legacy snapshots", () => {
+  const enriched: AppFinancialData = {
+    ...snapshot,
+    expenses: [{ ...snapshot.expenses[0]!, invoiceReferenceMonth: "2026-09" }],
+    invoiceAdjustments: [
+      {
+        id: 20,
+        cardId: 4,
+        referenceMonth: "2026-09",
+        type: "discount",
+        amount: -2.5,
+        description: "Desconto",
+      },
+    ],
+    installmentInvoiceEvents: [],
+    installmentReimbursementAllocations: [
+      {
+        id: 21,
+        installmentId: 7,
+        person: "Terceiro",
+        installmentNumber: 2,
+        amount: 200,
+        expectedMonth: "2026-10",
+        status: "future",
+      },
+    ],
+  };
+  const remote = toRemoteSnapshot(enriched);
+  assert.equal(remote.expenses[0]?.invoice_reference_month, "2026-09-01");
+  assert.equal(remote.invoice_adjustments?.[0]?.amount, -2.5);
+  assert.deepEqual(fromRemoteSnapshot(remote), enriched);
+});
+
+test("projects v2 additions away only for the legacy RPC, then restores their canonical contract", () => {
+  const enriched: AppFinancialData = {
+    ...snapshot,
+    expenses: [{ ...snapshot.expenses[0]!, invoiceReferenceMonth: "2026-10" }],
+    installments: [
+      {
+        id: 7,
+        title: "Plano sintético",
+        category: "Teste",
+        who: "Bruna",
+        amount: 50,
+        totalInstallments: 3,
+        paidInstallments: 1,
+        nextDue: "2026-10-01",
+        creditCardId: 4,
+      },
+    ],
+    invoiceAdjustments: [
+      {
+        id: 20,
+        cardId: 4,
+        referenceMonth: "2026-10",
+        type: "previous_balance",
+        amount: 10,
+        description: "Saldo anterior",
+      },
+    ],
+    installmentInvoiceEvents: [
+      {
+        id: 21,
+        installmentId: 7,
+        cardId: 4,
+        referenceMonth: "2026-10",
+        installmentNumber: 2,
+        amount: 50,
+        type: "anticipated",
+      },
+    ],
+    installmentReimbursementAllocations: [
+      {
+        id: 22,
+        installmentId: 7,
+        person: "Terceiro",
+        installmentNumber: 2,
+        amount: 75,
+        expectedMonth: "2026-11",
+        status: "future",
+      },
+    ],
+  };
+  const remote = toRemoteSnapshot(enriched);
+  const legacy = toLegacyImportSnapshot(remote);
+
+  assert.equal(legacy.expenses[0]?.invoice_reference_month, undefined);
+  assert.equal(legacy.invoice_adjustments, undefined);
+  assert.equal(legacy.installment_invoice_events, undefined);
+  assert.equal(legacy.installment_reimbursement_allocations, undefined);
+  assert.equal(
+    normalizePersistedFinancialSnapshot(simulateImportV2RoundTrip(enriched)),
+    normalizePersistedFinancialSnapshot(enriched),
+  );
+});
+
+test("preserves month competences through date persistence while requiring civil installment dates", () => {
+  const monthly: AppFinancialData = {
+    ...snapshot,
+    installments: [
+      {
+        id: 7,
+        title: "Parcela sintética",
+        category: "Teste",
+        who: "Bruna",
+        amount: 10,
+        totalInstallments: 4,
+        paidInstallments: 1,
+        nextDue: "2026-10-01",
+        creditCardId: 4,
+      },
+    ],
+    debts: [
+      {
+        id: 30,
+        person: "Terceiro",
+        amount: 10,
+        paid: 0,
+        destination: "casal",
+        note: "Teste",
+        month: "2026-10",
+        receivedMonth: "2026-11",
+      },
+    ],
+    invoicePayments: [
+      {
+        id: 31,
+        cardId: 4,
+        referenceMonth: "2027-01",
+        paidAt: "2027-01-05",
+        amount: 10,
+      },
+    ],
+    invoiceAdjustments: [
+      {
+        id: 32,
+        cardId: 4,
+        referenceMonth: "2026-09",
+        type: "credit",
+        amount: -1,
+        description: "Crédito",
+      },
+    ],
+    installmentInvoiceEvents: [
+      {
+        id: 33,
+        installmentId: 7,
+        cardId: 4,
+        referenceMonth: "2026-10",
+        installmentNumber: 2,
+        amount: 10,
+        type: "regular",
+      },
+    ],
+    installmentReimbursementAllocations: [
+      {
+        id: 34,
+        installmentId: 7,
+        person: "Terceiro",
+        installmentNumber: 2,
+        amount: 10,
+        expectedMonth: "2026-11",
+        status: "future",
+      },
+    ],
+  };
+  const remote = toRemoteSnapshot(monthly);
+  assert.deepEqual(
+    [
+      remote.settings.view_month,
+      remote.receivables[0]?.competence_month,
+      remote.receivables[0]?.received_month,
+      remote.invoice_payments[0]?.reference_month,
+      remote.invoice_adjustments?.[0]?.reference_month,
+      remote.installment_invoice_events?.[0]?.reference_month,
+      remote.installment_reimbursement_allocations?.[0]?.expected_month,
+    ],
+    [
+      "2026-09-01",
+      "2026-10-01",
+      "2026-11-01",
+      "2027-01-01",
+      "2026-09-01",
+      "2026-10-01",
+      "2026-11-01",
+    ],
+  );
+  assert.deepEqual(fromRemoteSnapshot(remote), monthly);
+  assert.throws(
+    () =>
+      toRemoteSnapshot({
+        ...monthly,
+        installments: [{ ...monthly.installments[0]!, nextDue: "2026-10" }],
+      }),
+    /nextDue deve usar o formato YYYY-MM-DD/,
+  );
 });
 
 test("uses the import RPC and returns its persisted snapshot", async () => {
@@ -96,10 +302,58 @@ test("uses the import RPC and returns its persisted snapshot", async () => {
     },
   );
 
-  assert.equal(rpcName, "import_financial_snapshot");
+  assert.equal(rpcName, "import_financial_snapshot_v2");
   assert.equal(rpcArguments?.p_household_id, "household");
   assert.equal(rpcArguments?.p_source_hash, "hash");
+  assert.deepEqual(Object.keys(rpcArguments ?? {}).sort(), [
+    "p_household_id",
+    "p_snapshot",
+    "p_source_hash",
+    "p_summary",
+  ]);
+  assert.ok(rpcArguments?.p_snapshot);
+  assert.ok(rpcArguments?.p_summary);
   assert.deepEqual(persisted, snapshot);
+});
+
+test("preserves sanitized RPC metadata instead of replacing it with a generic error", async () => {
+  const client = {
+    rpc: async () => ({
+      data: null,
+      error: {
+        code: "42883",
+        message: "function public.import_financial_snapshot_v2 does not exist",
+        details: "No function matches the given name and argument types.",
+        hint: "Check the function signature.",
+      },
+    }),
+  } as unknown as SupabaseClient;
+  const target = new SupabaseFinancialImportTarget(client);
+  await assert.rejects(
+    () =>
+      target.importAtomically("household", snapshot, "hash", {
+        expenses: 1,
+        installments: 0,
+        receivables: 0,
+        incomeEntries: 0,
+        creditCards: 1,
+        invoicePayments: 0,
+      }),
+    (error: unknown) => {
+      assert.ok(error instanceof SupabaseImportRpcError);
+      assert.deepEqual(error.diagnostic(), {
+        stage: "import_financial_snapshot_v2",
+        function: "SupabaseFinancialImportTarget.importAtomically",
+        rpcStarted: true,
+        rpcResponded: true,
+        code: "42883",
+        message: "function public.import_financial_snapshot_v2 does not exist",
+        details: "No function matches the given name and argument types.",
+        hint: "Check the function signature.",
+      });
+      return true;
+    },
+  );
 });
 
 test("does not treat a remote import lookup failure as a missing import", async () => {
@@ -139,7 +393,7 @@ test("writes a runtime snapshot only through the atomic replacement RPC", async 
     revisionHash: "revision",
   });
 
-  assert.equal(rpcName, "replace_financial_snapshot");
+  assert.equal(rpcName, "replace_financial_snapshot_v2");
   assert.equal(rpcArguments?.p_household_id, "household");
   assert.equal(rpcArguments?.p_revision_hash, "revision");
   assert.deepEqual(persisted, snapshot);
@@ -167,7 +421,7 @@ test("replaces a snapshot with an explicit removal before final reconciliation",
   assert.deepEqual(result, replacement);
 
   const migration = readFileSync(
-    "supabase/migrations/20260920102209_replace_financial_snapshot.sql",
+    "supabase/migrations/20260920105934_replace_financial_snapshot.sql",
     "utf8",
   );
   const validation = migration.indexOf("Validate the complete replacement");
@@ -180,6 +434,26 @@ test("replaces a snapshot with an explicit removal before final reconciliation",
   assert.ok(validation >= 0);
   assert.ok(staleExpenseDeletion > validation);
   assert.ok(delegatedImport > staleExpenseDeletion);
+});
+
+test("keeps the v1 reconciliation guardrail on a legacy projection in the v2 migration", () => {
+  const migration = readFileSync(
+    "supabase/migrations/20260923231716_import_v2_canonical_reconciliation.sql",
+    "utf8",
+  );
+  assert.match(migration, /item\.value - 'invoice_reference_month'/);
+  assert.match(
+    migration,
+    /p_snapshot - 'invoice_adjustments' - 'installment_invoice_events' - 'installment_reimbursement_allocations'/,
+  );
+  assert.match(
+    migration,
+    /public\.import_financial_snapshot\(p_household_id, p_source_hash, v_legacy_snapshot, p_summary\)/,
+  );
+  assert.match(
+    migration,
+    /public\.replace_financial_snapshot\(p_household_id, v_legacy_snapshot, p_revision_hash\)/,
+  );
 });
 
 test("bootstraps only through the authenticated household RPC", async () => {

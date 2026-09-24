@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { brumathSupabaseAuthOptions } from "./supabaseClient";
-import { requestMagicLink } from "./supabaseAuth";
+import { magicLinkRedirectUrl, requestMagicLink } from "./supabaseAuth";
 
 test("persists and refreshes Supabase sessions in the browser", () => {
   assert.deepEqual(brumathSupabaseAuthOptions, {
@@ -33,4 +33,15 @@ test("requests a Magic Link without allowing app-side signup", async () => {
     emailRedirectTo: "https://example.test",
     shouldCreateUser: false,
   });
+});
+
+test("derives the Magic Link callback from the active origin", () => {
+  assert.equal(
+    magicLinkRedirectUrl("http://192.168.15.12:3000", true),
+    "http://192.168.15.12:3000/auth/callback",
+  );
+  assert.equal(
+    magicLinkRedirectUrl("https://brumath.example.test", false),
+    "https://brumath.example.test",
+  );
 });

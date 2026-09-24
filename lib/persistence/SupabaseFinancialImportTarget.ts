@@ -25,6 +25,7 @@ export type RemoteSnapshot = {
       | AppFinancialData["expenses"][number]["personalLimitBucket"]
       | null;
     credit_card_legacy_id: number | null;
+    invoice_reference_month?: string | null;
   }>;
   installments: Array<{
     legacy_id: number;
@@ -74,11 +75,110 @@ export type RemoteSnapshot = {
     paid_at: string;
     amount: number;
   }>;
+  invoice_adjustments?: Array<{
+    legacy_id: number;
+    card_legacy_id: number;
+    reference_month: string;
+    adjustment_type: NonNullable<
+      AppFinancialData["invoiceAdjustments"]
+    >[number]["type"];
+    amount: number;
+    description: string;
+    occurred_on: string | null;
+  }>;
+  installment_invoice_events?: Array<{
+    legacy_id: number;
+    installment_legacy_id: number;
+    card_legacy_id: number;
+    reference_month: string;
+    installment_number: number;
+    amount: number;
+    event_type: NonNullable<
+      AppFinancialData["installmentInvoiceEvents"]
+    >[number]["type"];
+    occurred_on: string | null;
+  }>;
+  installment_reimbursement_allocations?: Array<{
+    legacy_id: number;
+    installment_legacy_id: number;
+    person: string;
+    installment_number: number;
+    amount: number;
+    expected_month: string;
+    status: NonNullable<
+      AppFinancialData["installmentReimbursementAllocations"]
+    >[number]["status"];
+    debt_legacy_id: number | null;
+  }>;
 };
 
 type RpcImportResult = { imported: boolean; snapshot: RemoteSnapshot };
 
-const monthDate = (month: string) => `${month.slice(0, 7)}-01`;
+type SafeRpcError = {
+  code?: unknown;
+  message?: unknown;
+  details?: unknown;
+  hint?: unknown;
+  status?: unknown;
+};
+
+/** Contains only PostgREST error metadata; never includes the snapshot or auth. */
+export class SupabaseImportRpcError extends Error {
+  readonly rpcStarted = true;
+  readonly rpcResponded: boolean;
+  readonly code?: string;
+  readonly details?: string;
+  readonly hint?: string;
+  readonly status?: number;
+
+  constructor(error: SafeRpcError | undefined, rpcResponded: boolean) {
+    const message =
+      typeof error?.message === "string"
+        ? error.message
+        : rpcResponded
+          ? "A RPC não retornou dados."
+          : "A RPC não retornou resposta.";
+    super(message);
+    this.name = "SupabaseImportRpcError";
+    this.rpcResponded = rpcResponded;
+    this.code = typeof error?.code === "string" ? error.code : undefined;
+    this.details =
+      typeof error?.details === "string" ? error.details : undefined;
+    this.hint = typeof error?.hint === "string" ? error.hint : undefined;
+    this.status = typeof error?.status === "number" ? error.status : undefined;
+  }
+
+  diagnostic() {
+    return {
+      stage: "import_financial_snapshot_v2",
+      function: "SupabaseFinancialImportTarget.importAtomically",
+      rpcStarted: this.rpcStarted,
+      rpcResponded: this.rpcResponded,
+      ...(this.code ? { code: this.code } : {}),
+      message: this.message,
+      ...(this.details ? { details: this.details } : {}),
+      ...(this.hint ? { hint: this.hint } : {}),
+      ...(this.status ? { status: this.status } : {}),
+    };
+  }
+}
+
+function assert(condition: unknown, message: string): asserts condition {
+  if (!condition) throw new Error(message);
+}
+
+const monthDate = (month: string, field = "competência") => {
+  assert(/^\d{4}-\d{2}$/.test(month), `${field} deve usar o formato YYYY-MM.`);
+  return `${month}-01`;
+};
+
+const civilDate = (date: string, field: string) => {
+  assert(
+    /^\d{4}-\d{2}-\d{2}$/.test(date),
+    `${field} deve usar o formato YYYY-MM-DD.`,
+  );
+  return date;
+};
 const monthValue = (date: string) => date.slice(0, 7);
 
 function stableJson(value: unknown): string {
@@ -110,9 +210,12 @@ export function toRemoteSnapshot(snapshot: AppFinancialData): RemoteSnapshot {
         category: expense.cat,
         responsible: expense.who,
         amount: expense.amount,
-        occurred_on: expense.date,
+        occurred_on: civilDate(expense.date, `Despesa ${expense.id}.date`),
         personal_limit_bucket: expense.personalLimitBucket ?? null,
         credit_card_legacy_id: expense.creditCardId ?? null,
+        invoice_reference_month: expense.invoiceReferenceMonth
+          ? monthDate(expense.invoiceReferenceMonth)
+          : null,
       })),
     installments: [...snapshot.installments]
       .sort((a, b) => a.id - b.id)
@@ -124,7 +227,10 @@ export function toRemoteSnapshot(snapshot: AppFinancialData): RemoteSnapshot {
         amount: installment.amount,
         total_installments: installment.totalInstallments,
         paid_installments: installment.paidInstallments,
-        next_due: installment.nextDue,
+        next_due: civilDate(
+          installment.nextDue,
+          `Parcela ${installment.id}.nextDue`,
+        ),
         credit_card_legacy_id: installment.creditCardId ?? null,
       })),
     receivables: [...snapshot.debts]
@@ -171,8 +277,49 @@ export function toRemoteSnapshot(snapshot: AppFinancialData): RemoteSnapshot {
         legacy_id: payment.id,
         card_legacy_id: payment.cardId,
         reference_month: monthDate(payment.referenceMonth),
-        paid_at: payment.paidAt,
+        paid_at: civilDate(payment.paidAt, `Pagamento ${payment.id}.paidAt`),
         amount: payment.amount,
+      })),
+    invoice_adjustments: [...(snapshot.invoiceAdjustments ?? [])]
+      .sort((a, b) => a.id - b.id)
+      .map((adjustment) => ({
+        legacy_id: adjustment.id,
+        card_legacy_id: adjustment.cardId,
+        reference_month: monthDate(adjustment.referenceMonth),
+        adjustment_type: adjustment.type,
+        amount: adjustment.amount,
+        description: adjustment.description,
+        occurred_on: adjustment.date
+          ? civilDate(adjustment.date, `Ajuste ${adjustment.id}.date`)
+          : null,
+      })),
+    installment_invoice_events: [...(snapshot.installmentInvoiceEvents ?? [])]
+      .sort((a, b) => a.id - b.id)
+      .map((event) => ({
+        legacy_id: event.id,
+        installment_legacy_id: event.installmentId,
+        card_legacy_id: event.cardId,
+        reference_month: monthDate(event.referenceMonth),
+        installment_number: event.installmentNumber,
+        amount: event.amount,
+        event_type: event.type,
+        occurred_on: event.date
+          ? civilDate(event.date, `Evento ${event.id}.date`)
+          : null,
+      })),
+    installment_reimbursement_allocations: [
+      ...(snapshot.installmentReimbursementAllocations ?? []),
+    ]
+      .sort((a, b) => a.id - b.id)
+      .map((allocation) => ({
+        legacy_id: allocation.id,
+        installment_legacy_id: allocation.installmentId,
+        person: allocation.person,
+        installment_number: allocation.installmentNumber,
+        amount: allocation.amount,
+        expected_month: monthDate(allocation.expectedMonth),
+        status: allocation.status,
+        debt_legacy_id: allocation.debtId ?? null,
       })),
   };
 }
@@ -186,6 +333,50 @@ export function normalizePersistedFinancialSnapshot(
   snapshot: AppFinancialData,
 ) {
   return stableJson(toRemoteSnapshot(snapshot));
+}
+
+/**
+ * The original import RPC owns the legacy collections only. This projection is
+ * intentionally identical to the v2 SQL boundary: additive history fields are
+ * absent while every legacy financial value remains available for its guardrail.
+ */
+export function toLegacyImportSnapshot(
+  snapshot: RemoteSnapshot,
+): RemoteSnapshot {
+  const {
+    invoice_adjustments: _invoiceAdjustments,
+    installment_invoice_events: _installmentInvoiceEvents,
+    installment_reimbursement_allocations: _installmentReimbursementAllocations,
+    ...legacy
+  } = snapshot;
+  return {
+    ...legacy,
+    expenses: snapshot.expenses.map(
+      ({ invoice_reference_month: _invoiceReferenceMonth, ...expense }) =>
+        expense,
+    ),
+  };
+}
+
+/**
+ * Mirrors the v2 RPC's legacy projection followed by its additive overlay.
+ * It is used before an import so the browser cannot approve a source snapshot
+ * that the server-side reconciliation contract would reject structurally.
+ */
+export function simulateImportV2RoundTrip(
+  snapshot: AppFinancialData,
+): AppFinancialData {
+  const source = toRemoteSnapshot(snapshot);
+  const legacy = toLegacyImportSnapshot(source);
+  const persisted: RemoteSnapshot = {
+    ...legacy,
+    expenses: source.expenses,
+    invoice_adjustments: source.invoice_adjustments ?? [],
+    installment_invoice_events: source.installment_invoice_events ?? [],
+    installment_reimbursement_allocations:
+      source.installment_reimbursement_allocations ?? [],
+  };
+  return fromRemoteSnapshot(persisted);
 }
 
 export function fromRemoteSnapshot(snapshot: RemoteSnapshot): AppFinancialData {
@@ -202,6 +393,9 @@ export function fromRemoteSnapshot(snapshot: RemoteSnapshot): AppFinancialData {
         : {}),
       ...(expense.credit_card_legacy_id !== null
         ? { creditCardId: expense.credit_card_legacy_id }
+        : {}),
+      ...(expense.invoice_reference_month
+        ? { invoiceReferenceMonth: monthValue(expense.invoice_reference_month) }
         : {}),
     })),
     installments: snapshot.installments.map((installment) => ({
@@ -260,6 +454,43 @@ export function fromRemoteSnapshot(snapshot: RemoteSnapshot): AppFinancialData {
       paidAt: payment.paid_at,
       amount: Number(payment.amount),
     })),
+    invoiceAdjustments: (snapshot.invoice_adjustments ?? []).map(
+      (adjustment) => ({
+        id: adjustment.legacy_id,
+        cardId: adjustment.card_legacy_id,
+        referenceMonth: monthValue(adjustment.reference_month),
+        type: adjustment.adjustment_type,
+        amount: Number(adjustment.amount),
+        description: adjustment.description,
+        ...(adjustment.occurred_on ? { date: adjustment.occurred_on } : {}),
+      }),
+    ),
+    installmentInvoiceEvents: (snapshot.installment_invoice_events ?? []).map(
+      (event) => ({
+        id: event.legacy_id,
+        installmentId: event.installment_legacy_id,
+        cardId: event.card_legacy_id,
+        referenceMonth: monthValue(event.reference_month),
+        installmentNumber: event.installment_number,
+        amount: Number(event.amount),
+        type: event.event_type,
+        ...(event.occurred_on ? { date: event.occurred_on } : {}),
+      }),
+    ),
+    installmentReimbursementAllocations: (
+      snapshot.installment_reimbursement_allocations ?? []
+    ).map((allocation) => ({
+      id: allocation.legacy_id,
+      installmentId: allocation.installment_legacy_id,
+      person: allocation.person,
+      installmentNumber: allocation.installment_number,
+      amount: Number(allocation.amount),
+      expectedMonth: monthValue(allocation.expected_month),
+      status: allocation.status,
+      ...(allocation.debt_legacy_id !== null
+        ? { debtId: allocation.debt_legacy_id }
+        : {}),
+    })),
     activeProfile: snapshot.settings.active_profile,
     viewMonth: monthValue(snapshot.settings.view_month),
   };
@@ -291,14 +522,31 @@ export class SupabaseFinancialImportTarget implements FinancialImportTarget {
     sourceHash: string,
     summary: LocalMigrationPreview["counts"],
   ): Promise<AppFinancialData> {
-    const result = await this.client.rpc("import_financial_snapshot", {
+    const arguments_ = {
       p_household_id: householdId,
       p_source_hash: sourceHash,
       p_snapshot: toRemoteSnapshot(snapshot),
       p_summary: summary,
-    });
+    };
+    let result: Awaited<ReturnType<SupabaseClient["rpc"]>>;
+    try {
+      result = await this.client.rpc(
+        "import_financial_snapshot_v2",
+        arguments_,
+      );
+    } catch (error) {
+      throw new SupabaseImportRpcError(
+        error && typeof error === "object"
+          ? (error as SafeRpcError)
+          : undefined,
+        false,
+      );
+    }
     if (result.error || !result.data)
-      throw new Error("Não foi possível importar os dados financeiros locais.");
+      throw new SupabaseImportRpcError(
+        result.error as SafeRpcError | undefined,
+        true,
+      );
     const payload = result.data as RpcImportResult;
     if (!payload.snapshot)
       throw new Error("A importação não retornou um snapshot válido.");
@@ -322,7 +570,7 @@ export async function replaceSupabaseFinancialSnapshot({
   snapshot: AppFinancialData;
   revisionHash: string;
 }): Promise<AppFinancialData> {
-  const result = await client.rpc("replace_financial_snapshot", {
+  const result = await client.rpc("replace_financial_snapshot_v2", {
     p_household_id: householdId,
     p_snapshot: toRemoteSnapshot(snapshot),
     p_revision_hash: revisionHash,
