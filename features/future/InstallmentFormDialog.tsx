@@ -5,11 +5,17 @@ import { Check } from "lucide-react";
 import { DateInput } from "../../components/ui/DateInput";
 import { FormDialog } from "../../components/ui/FormDialog";
 import { MoneyInput } from "../../components/ui/MoneyInput";
-import type { CreditCard, Installment, Person } from "../../lib/app/AppTypes";
+import type {
+  Category,
+  CreditCard,
+  Installment,
+  Person,
+} from "../../lib/app/AppTypes";
+import { CategorySelector } from "../categories/CategorySelector";
 
 type Props = {
   installment: Installment | null;
-  categories: readonly string[];
+  categories: readonly Category[];
   activeProfile: Person;
   defaultNextDue: string;
   creditCards: readonly CreditCard[];
@@ -28,12 +34,17 @@ export function InstallmentFormDialog({
   onClose,
   onInvalid,
 }: Props) {
+  const defaultCategory =
+    categories.find(
+      (category) => category.active && category.name === "Outros",
+    ) ?? categories.find((category) => category.active);
   const [form, setForm] = useState(() =>
     installment
       ? {
           title: installment.title,
           amount: String(installment.amount),
           category: installment.category,
+          categoryId: installment.categoryId ?? "",
           who: installment.who,
           total: String(installment.totalInstallments),
           paid: String(installment.paidInstallments),
@@ -45,7 +56,8 @@ export function InstallmentFormDialog({
       : {
           title: "",
           amount: "",
-          category: "Outros",
+          category: defaultCategory?.name ?? "Outros",
+          categoryId: defaultCategory?.id ?? "",
           who: activeProfile,
           total: "",
           paid: "0",
@@ -70,7 +82,8 @@ export function InstallmentFormDialog({
             !amount ||
             amount < 0 ||
             !total ||
-            total < 1
+            total < 1 ||
+            !form.categoryId
           ) {
             onInvalid("Preencha os dados da parcela.");
             return;
@@ -81,6 +94,7 @@ export function InstallmentFormDialog({
               title: form.title.trim(),
               amount,
               category: form.category,
+              ...(form.categoryId ? { categoryId: form.categoryId } : {}),
               who: form.who,
               totalInstallments: total,
               paidInstallments: paid,
@@ -166,19 +180,18 @@ export function InstallmentFormDialog({
           </label>
         </div>
         <div className="form-grid">
-          <label className="field">
-            <span>Categoria</span>
-            <select
-              value={form.category}
-              onChange={(event) =>
-                setForm({ ...form, category: event.target.value })
-              }
-            >
-              {categories.map((category) => (
-                <option key={category}>{category}</option>
-              ))}
-            </select>
-          </label>
+          <CategorySelector
+            categories={categories}
+            valueId={form.categoryId || undefined}
+            fallbackName={form.category}
+            onChange={(category) =>
+              setForm({
+                ...form,
+                category: category.name,
+                categoryId: category.id,
+              })
+            }
+          />
           <label className="field">
             <span>Quem</span>
             <select

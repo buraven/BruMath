@@ -16,6 +16,7 @@ export type RegisterExpenseInput = {
   description: string;
   amount: number;
   category: string;
+  categoryId?: string;
   owner: TransactionOwner;
   date: string;
   personalLimitBucket?: PersonalLimitBucket;
@@ -39,6 +40,9 @@ function isRegisterExpenseInput(value: unknown): value is RegisterExpenseInput {
     input.amount > 0 &&
     typeof input.category === "string" &&
     Boolean(input.category.trim()) &&
+    (input.categoryId === undefined ||
+      (typeof input.categoryId === "string" &&
+        Boolean(input.categoryId.trim()))) &&
     (input.owner === "Bruna" ||
       input.owner === "Matheus" ||
       input.owner === "Casal") &&
@@ -101,6 +105,7 @@ export function createRegisterExpenseAction(
         description: input.description.trim(),
         amount: input.amount,
         category: input.category.trim(),
+        ...(input.categoryId ? { categoryId: input.categoryId } : {}),
         owner: input.owner,
         type: "expense",
         date: input.date,

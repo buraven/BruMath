@@ -5,9 +5,15 @@ import { Check } from "lucide-react";
 import { DateInput } from "../../components/ui/DateInput";
 import { FormDialog } from "../../components/ui/FormDialog";
 import { MoneyInput } from "../../components/ui/MoneyInput";
-import type { CreditCard, Expense, Person } from "../../lib/app/AppTypes";
+import type {
+  Category,
+  CreditCard,
+  Expense,
+  Person,
+} from "../../lib/app/AppTypes";
 import { PERSONAL_LIMIT_BUCKETS } from "../../lib/finance/personalLimits";
 import type { PersonalLimitBucket } from "../../lib/finance/personalLimitBuckets";
+import { CategorySelector } from "../categories/CategorySelector";
 
 const personalLimitLabels: Record<PersonalLimitBucket, string> = {
   bruna_nails: "Bruna — Unha",
@@ -17,7 +23,7 @@ const personalLimitLabels: Record<PersonalLimitBucket, string> = {
 
 type Props = {
   expense: Expense | null;
-  categories: readonly string[];
+  categories: readonly Category[];
   activeProfile: Person;
   viewMonth: string;
   creditCards: readonly CreditCard[];
@@ -38,12 +44,17 @@ export function ExpenseFormDialog({
   onClose,
   onInvalid,
 }: Props) {
+  const defaultCategory =
+    categories.find(
+      (category) => category.active && category.name === "Outros",
+    ) ?? categories.find((category) => category.active);
   const [form, setForm] = useState(() =>
     expense
       ? {
           title: expense.title,
           amount: String(expense.amount),
           cat: expense.cat,
+          categoryId: expense.categoryId ?? "",
           who: expense.who,
           date: expense.date,
           personalLimitBucket: expense.personalLimitBucket ?? "",
@@ -54,7 +65,8 @@ export function ExpenseFormDialog({
       : {
           title: "",
           amount: "",
-          cat: "Outros",
+          cat: defaultCategory?.name ?? "Outros",
+          categoryId: defaultCategory?.id ?? "",
           who: activeProfile,
           date: `${viewMonth}-01`,
           personalLimitBucket: "",
@@ -71,7 +83,7 @@ export function ExpenseFormDialog({
         onSubmit={(event) => {
           event.preventDefault();
           const amount = Number(form.amount.replace(",", "."));
-          if (!form.title.trim() || !amount || amount < 0) {
+          if (!form.title.trim() || !amount || amount < 0 || !form.categoryId) {
             onInvalid("Preencha descrição e valor.");
             return;
           }
@@ -81,6 +93,7 @@ export function ExpenseFormDialog({
               title: form.title.trim(),
               amount,
               cat: form.cat,
+              ...(form.categoryId ? { categoryId: form.categoryId } : {}),
               who: form.who,
               date: form.date || `${viewMonth}-01`,
               ...(form.personalLimitBucket
@@ -151,19 +164,14 @@ export function ExpenseFormDialog({
           </label>
         </div>
         <div className="form-grid">
-          <label className="field">
-            <span>Categoria</span>
-            <select
-              value={form.cat}
-              onChange={(event) =>
-                setForm({ ...form, cat: event.target.value })
-              }
-            >
-              {categories.map((category) => (
-                <option key={category}>{category}</option>
-              ))}
-            </select>
-          </label>
+          <CategorySelector
+            categories={categories}
+            valueId={form.categoryId || undefined}
+            fallbackName={form.cat}
+            onChange={(category) =>
+              setForm({ ...form, cat: category.name, categoryId: category.id })
+            }
+          />
           <label className="field">
             <span>Quem</span>
             <select

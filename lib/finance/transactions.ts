@@ -6,6 +6,7 @@ export type Transaction = {
   description: string;
   amount: number;
   category: string;
+  categoryId?: string;
   owner: TransactionOwner;
   type: TransactionType;
   date: string;

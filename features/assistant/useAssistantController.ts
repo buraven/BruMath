@@ -31,19 +31,21 @@ import {
 import { AppStateTransactionRepository } from "../app/AppStateTransactionRepository";
 import type {
   ChatMessage,
+  Category,
   CompactAssistantMessage,
   Confirmation,
   Expense,
   Person,
 } from "../../lib/app/AppTypes";
 import type { FinancialDataSource } from "../../lib/assistant/context/FinancialDataSource";
+import { resolveActiveCategory } from "../../lib/assistant/conversation/conversationContext";
 
 type ResponseMode = "compact" | "full";
 
 type UseAssistantControllerOptions = {
   activeProfile: Person;
   viewMonth: string;
-  categories: string[];
+  categories: readonly Category[];
   setExpenses: Dispatch<SetStateAction<Expense[]>>;
   setConfirmation: Dispatch<SetStateAction<Confirmation | null>>;
   setToast: Dispatch<SetStateAction<string>>;
@@ -115,11 +117,25 @@ export function useAssistantController({
       input: RegisterExpensePlan & { owner: Person },
     ) => {
       const expenseId = Date.now();
+      const category = resolveActiveCategory(input.category, categories);
+      if (!category) {
+        conversationContext.current = {
+          pendingIntent: createPendingExpenseIntent({
+            ...input,
+            category: undefined,
+          }),
+        };
+        completePending(
+          `“${input.category}” não é uma categoria ativa cadastrada. Informe uma das categorias disponíveis.`,
+        );
+        return;
+      }
       const proposal = createRegisterExpenseProposal({
         id: `expense:${expenseId}`,
         description: input.description,
         amount: input.amount,
         category: input.category,
+        categoryId: category.id,
         owner: input.owner,
         date: input.date ?? `${viewMonth}-01`,
         ...(input.personalLimitBucket

@@ -1,4 +1,5 @@
 import type { AssistantProfile } from "../contracts";
+import type { Category } from "../../app/AppTypes";
 import type {
   ConversationContext,
   PendingExpenseIntent,
@@ -35,15 +36,32 @@ const semanticCategories: Readonly<Record<string, string>> = {
   gatos: "Pets",
 };
 
-function resolveCategory(value: string, categories: readonly string[]) {
+export function resolveActiveCategory(
+  value: string,
+  categories: readonly Category[] | readonly string[],
+) {
   const normalized = normalize(value);
-  const exactCategory = categories.find(
-    (category) => normalize(category) === normalized,
+  const activeCategories = categories
+    .map((category) =>
+      typeof category === "string"
+        ? {
+            id: `legacy:${normalize(category)}`,
+            name: category,
+            active: true,
+            sortOrder: 0,
+          }
+        : category,
+    )
+    .filter((category) => category.active);
+  const exactCategory = activeCategories.find(
+    (category) => normalize(category.name) === normalized,
   );
   if (exactCategory) return exactCategory;
 
   const semanticCategory = semanticCategories[normalized];
-  return categories.find((category) => category === semanticCategory);
+  return activeCategories.find(
+    (category) => category.name === semanticCategory,
+  );
 }
 
 function resolveOwner(value: string): AssistantProfile | undefined {
@@ -100,7 +118,7 @@ export function createPendingExpenseIntent(
 export function resolvePendingExpenseReply(
   pending: PendingExpenseIntent,
   reply: string,
-  categories: readonly string[],
+  categories: readonly Category[] | readonly string[],
 ): PendingExpenseResolution {
   const value = reply.trim();
   if (
@@ -114,10 +132,21 @@ export function resolvePendingExpenseReply(
     pending.missingFields.includes("category") &&
     isCategoryHelpQuestion(value)
   ) {
+    const activeNames = categories
+      .filter(
+        (category): category is Category =>
+          typeof category !== "string" && category.active,
+      )
+      .map((category) => category.name);
     return {
       kind: "clarifying",
       intent: pending,
-      question: `As categorias disponíveis são: ${categories.join(", ")}. Qual você quer usar?`,
+      question: `As categorias disponíveis são: ${(activeNames.length
+        ? activeNames
+        : categories.filter(
+            (category): category is string => typeof category === "string",
+          )
+      ).join(", ")}. Qual você quer usar?`,
     };
   }
 
@@ -125,10 +154,10 @@ export function resolvePendingExpenseReply(
   const needsCategory = pending.missingFields.includes("category");
   const needsOwner = pending.missingFields.includes("owner");
   const resolvedCategory = needsCategory
-    ? resolveCategory(value, categories)
+    ? resolveActiveCategory(value, categories)
     : undefined;
   const resolvedOwner = needsOwner ? resolveOwner(value) : undefined;
-  const category = pending.category ?? resolvedCategory;
+  const category = pending.category ?? resolvedCategory?.name;
   const owner = pending.owner ?? resolvedOwner;
   const description =
     pending.description ??
