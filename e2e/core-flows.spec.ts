@@ -76,13 +76,43 @@ test("Gasto criado, editado e excluído atualiza categoria e bucket sem duplicar
   const dialog = page.getByRole("dialog");
   await dialog.getByLabel("O que foi?").fill("Almoço de trabalho");
   await dialog.getByLabel("Valor").fill("5000");
-  await dialog.getByLabel("Categoria").selectOption("Alimentação");
+  const categoryTrigger = dialog.getByLabel("Categoria");
+  await expect(categoryTrigger).toHaveAttribute("aria-haspopup", "listbox");
+  await categoryTrigger.click();
+  const categorySearch = dialog.getByRole("searchbox", {
+    name: "Buscar categoria",
+  });
+  await expect(categorySearch).toBeFocused();
+  await categorySearch.press("Escape");
+  await expect(categorySearch).toHaveCount(0);
+  await categoryTrigger.click();
+  await dialog.getByRole("searchbox", { name: "Buscar categoria" }).fill("ali");
+  await dialog.getByRole("option", { name: "Alimentação" }).click();
   await dialog.getByLabel("Quem").selectOption("Bruna");
   await dialog.getByLabel("Usar limite pessoal").selectOption("bruna_personal");
   await dialog.getByRole("button", { name: "Salvar gasto" }).click();
   await expect(
     page.getByText("Almoço de trabalho", { exact: true }),
   ).toBeVisible();
+  await waitForPersistedFinancialState(
+    page,
+    (state) => {
+      const expense = state.expenses.find(
+        (item) => item.title === "Almoço de trabalho",
+      );
+      return Boolean(
+        expense?.cat === "Alimentação" &&
+          expense.categoryId &&
+          state.categories?.some(
+            (category) =>
+              category.id === expense.categoryId &&
+              category.name === "Alimentação",
+          ) &&
+          expense.personalLimitBucket === "bruna_personal",
+      );
+    },
+    "gasto Almoço de trabalho com categoria e bucket coerentes",
+  );
 
   await page.getByLabel("Editar Almoço de trabalho").click();
   await page.getByRole("dialog").getByLabel("Valor").fill("6000");

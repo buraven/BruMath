@@ -1,7 +1,7 @@
 "use client";
 
 import { ChevronDown, Search } from "lucide-react";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useId, useMemo, useRef, useState } from "react";
 import type { Category } from "../../lib/app/AppTypes";
 import { searchCategories } from "./categorySelectorHelpers";
 
@@ -24,6 +24,7 @@ export function CategorySelector({
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
   const inputRef = useRef<HTMLInputElement>(null);
+  const labelId = useId();
   const selected = categories.find((category) => category.id === valueId);
   const options = useMemo(
     () => searchCategories(categories, query),
@@ -37,10 +38,13 @@ export function CategorySelector({
 
   return (
     <div className="category-selector">
-      <span className="field-label">{label}</span>
+      <span id={labelId} className="field-label">
+        {label}
+      </span>
       <button
         type="button"
         className="category-selector-trigger"
+        aria-labelledby={labelId}
         aria-haspopup="listbox"
         aria-expanded={open}
         onClick={() => {
