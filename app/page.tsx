@@ -74,7 +74,6 @@ import {
 import { renderCategoryIcon } from "../features/app/renderCategoryIcon";
 import { HomeFinancialHighlights } from "../features/home/components/HomeFinancialHighlights/HomeFinancialHighlights";
 import {
-  DEFAULT_CATEGORIES,
   DEFAULT_BUDGETS,
   INITIAL_EXPENSES,
   INITIAL_INSTALLMENTS,
@@ -141,6 +140,7 @@ export default function Page() {
   const {
     expenses,
     setExpenses,
+    categories,
     installments,
     setInstallments,
     debts,
@@ -200,7 +200,7 @@ export default function Page() {
   } = useAssistantController({
     activeProfile,
     viewMonth,
-    categories: [...DEFAULT_CATEGORIES],
+    categories,
     setExpenses,
     setConfirmation,
     setToast,
@@ -920,7 +920,7 @@ export default function Page() {
       {modal === "expense" && (
         <ExpenseFormDialog
           expense={editingExpense}
-          categories={DEFAULT_CATEGORIES}
+          categories={categories}
           creditCards={creditCards}
           initialCreditCardId={expenseCardPreset}
           activeProfile={activeProfile}
@@ -941,7 +941,7 @@ export default function Page() {
       {modal === "installment" && (
         <InstallmentFormDialog
           installment={editingInstallment}
-          categories={DEFAULT_CATEGORIES}
+          categories={categories}
           activeProfile={activeProfile}
           defaultNextDue={`${addMonths(viewMonth, 1)}-10`}
           creditCards={creditCards}

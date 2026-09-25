@@ -4,6 +4,7 @@ import {
   contextSummary,
   completeExpenseIntent,
   createPendingExpenseIntent,
+  resolveActiveCategory,
   resolvePendingExpenseReply,
 } from "./conversationContext";
 
@@ -199,4 +200,16 @@ test("preserves the last deterministic query for a scoped follow-up", () => {
 
   assert.match(summary ?? "", /getFinancialSummary/);
   assert.match(summary ?? "", /período/i);
+});
+
+test("resolves assistant categories from the active household catalog only", () => {
+  const categories = [
+    { id: "archived-food", name: "Alimentação", active: false, sortOrder: 0 },
+    { id: "food", name: "Alimentação", active: true, sortOrder: 1 },
+    { id: "pets", name: "Pets", active: true, sortOrder: 2 },
+  ];
+
+  assert.equal(resolveActiveCategory("mercado", categories)?.id, "food");
+  assert.equal(resolveActiveCategory("pets", categories)?.id, "pets");
+  assert.equal(resolveActiveCategory("inexistente", categories), undefined);
 });

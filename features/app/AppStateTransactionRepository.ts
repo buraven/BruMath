@@ -36,6 +36,9 @@ export class AppStateTransactionRepository implements TransactionRepository {
         id,
         title: transaction.description,
         cat: transaction.category,
+        ...(transaction.categoryId
+          ? { categoryId: transaction.categoryId }
+          : {}),
         who: transaction.owner,
         amount: transaction.amount,
         date: transaction.date,
