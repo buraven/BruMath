@@ -32,6 +32,7 @@ import {
   requestMagicLink,
 } from "../../lib/persistence/supabaseAuth";
 import { decideAuthenticatedBootstrap } from "./remoteBootstrapDecision";
+import { hydrateCategoryCatalog } from "../../lib/finance/categoryCatalog";
 
 export type PersistenceStatus = FinancialPersistenceStatus;
 
@@ -40,6 +41,7 @@ function toAppData(
   fallback: AppFinancialData,
 ): AppFinancialData {
   return {
+    categories: [...(snapshot.categories ?? [])],
     expenses: [...snapshot.expenses] as AppFinancialData["expenses"],
     installments: [
       ...snapshot.installments,
@@ -77,6 +79,7 @@ export function usePersistedFinancialState(defaults: AppFinancialData) {
   const defaultsRef = useRef(defaults);
   const initial = defaultsRef.current;
   const [expenses, setExpenses] = useState(initial.expenses);
+  const [categories, setCategories] = useState(initial.categories ?? []);
   const [installments, setInstallments] = useState(initial.installments);
   const [debts, setDebts] = useState(initial.debts);
   const [incomeEntries, setIncomeEntries] = useState(initial.incomeEntries);
@@ -125,6 +128,7 @@ export function usePersistedFinancialState(defaults: AppFinancialData) {
 
   const snapshot = useMemo<AppFinancialData>(
     () => ({
+      categories,
       expenses,
       installments,
       debts,
@@ -142,6 +146,7 @@ export function usePersistedFinancialState(defaults: AppFinancialData) {
       viewMonth,
     }),
     [
+      categories,
       expenses,
       installments,
       debts,
@@ -161,23 +166,25 @@ export function usePersistedFinancialState(defaults: AppFinancialData) {
   );
 
   const applySnapshot = (data: AppFinancialData) => {
-    setExpenses(data.expenses);
-    setInstallments(data.installments);
-    setDebts(data.debts);
-    setIncomeEntries(data.incomeEntries);
-    setIncome(data.income);
-    setBudgets(data.budgets);
-    setLimits(data.limits);
-    setPersonalLimits(data.personalLimits);
-    setCreditCards(data.creditCards);
-    setInvoicePayments(data.invoicePayments);
-    setInvoiceAdjustments(data.invoiceAdjustments ?? []);
-    setInstallmentInvoiceEvents(data.installmentInvoiceEvents ?? []);
+    const hydrated = hydrateCategoryCatalog(data);
+    setCategories(hydrated.categories);
+    setExpenses(hydrated.expenses);
+    setInstallments(hydrated.installments);
+    setDebts(hydrated.debts);
+    setIncomeEntries(hydrated.incomeEntries);
+    setIncome(hydrated.income);
+    setBudgets(hydrated.budgets);
+    setLimits(hydrated.limits);
+    setPersonalLimits(hydrated.personalLimits);
+    setCreditCards(hydrated.creditCards);
+    setInvoicePayments(hydrated.invoicePayments);
+    setInvoiceAdjustments(hydrated.invoiceAdjustments ?? []);
+    setInstallmentInvoiceEvents(hydrated.installmentInvoiceEvents ?? []);
     setInstallmentReimbursementAllocations(
-      data.installmentReimbursementAllocations ?? [],
+      hydrated.installmentReimbursementAllocations ?? [],
     );
-    setActiveProfile(data.activeProfile);
-    setViewMonth(data.viewMonth);
+    setActiveProfile(hydrated.activeProfile);
+    setViewMonth(hydrated.viewMonth);
   };
 
   useEffect(() => {
@@ -422,6 +429,8 @@ export function usePersistedFinancialState(defaults: AppFinancialData) {
   return {
     expenses,
     setExpenses,
+    categories,
+    setCategories,
     installments,
     setInstallments,
     debts,

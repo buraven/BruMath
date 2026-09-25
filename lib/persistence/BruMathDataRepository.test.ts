@@ -149,3 +149,47 @@ test("persists and reloads an edited base income independently from income entri
     });
   }
 });
+
+test("upgrades a legacy snapshot to a persisted category catalog without changing totals", () => {
+  const values = new Map<string, string>();
+  const previousWindow = globalThis.window;
+  Object.defineProperty(globalThis, "window", {
+    configurable: true,
+    value: {
+      localStorage: {
+        getItem: (key: string) => values.get(key) ?? null,
+        setItem: (key: string, value: string) => values.set(key, value),
+      },
+    },
+  });
+  try {
+    const repository = new BruMathDataRepository();
+    repository.save({
+      ...defaults,
+      expenses: [
+        {
+          id: 92,
+          title: "Histórico",
+          cat: "Categoria antiga",
+          who: "Casal",
+          amount: 91,
+          date: "2026-09-01",
+        },
+      ],
+      installments: [],
+      budgets: { Transporte: 80 },
+    });
+    const reloaded = repository.load(defaults);
+    assert.equal(reloaded.expenses[0]?.amount, 91);
+    assert.ok(reloaded.expenses[0]?.categoryId);
+    assert.ok(
+      reloaded.categories?.some((item) => item.name === "Categoria antiga"),
+    );
+    assert.ok(reloaded.categories?.some((item) => item.name === "Transporte"));
+  } finally {
+    Object.defineProperty(globalThis, "window", {
+      configurable: true,
+      value: previousWindow,
+    });
+  }
+});

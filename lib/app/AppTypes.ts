@@ -18,6 +18,8 @@ export type Expense = {
   id: number;
   title: string;
   cat: string;
+  /** Stable category identity. `cat` remains during the legacy transition. */
+  categoryId?: string;
   who: Person;
   amount: number;
   date: string;
@@ -73,6 +75,8 @@ export type Installment = {
   id: number;
   title: string;
   category: string;
+  /** Stable category identity. `category` remains during the legacy transition. */
+  categoryId?: string;
   who: Person;
   amount: number;
   totalInstallments: number;
@@ -137,6 +141,15 @@ export type IncomeEntry = {
   note: string;
 };
 
+/** Household-owned category metadata. Names are editable; IDs are not. */
+export type Category = {
+  id: string;
+  name: string;
+  icon?: string;
+  active: boolean;
+  sortOrder: number;
+};
+
 export type ChatMessage = {
   id: number;
   role: "assistant" | "user";
@@ -168,6 +181,7 @@ export type AppModal =
   | "card";
 
 export type AppFinancialData = {
+  categories?: Category[];
   expenses: Expense[];
   installments: Installment[];
   debts: Debt[];

@@ -1,5 +1,7 @@
 import type { Expense, Installment } from "../../lib/app/AppTypes";
-
+// The fixed form list remains intact until the searchable catalog selector is
+// introduced in #61. The foundation still bootstraps Transporte because it is
+// already a valid budget/icon category in persisted data.
 export const DEFAULT_CATEGORIES = [
   "Casa",
   "Carro",

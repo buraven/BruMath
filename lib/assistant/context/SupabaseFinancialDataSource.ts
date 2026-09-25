@@ -39,6 +39,7 @@ export class SupabaseFinancialDataSource implements FinancialDataSource {
       adjustments,
       installmentEvents,
       reimbursementAllocations,
+      categories,
     ] = await Promise.all([
       scope("financial_settings").single(),
       scope("expenses"),
@@ -50,6 +51,7 @@ export class SupabaseFinancialDataSource implements FinancialDataSource {
       scope("invoice_adjustments"),
       scope("installment_invoice_events"),
       scope("installment_reimbursement_allocations"),
+      scope("financial_categories"),
     ]);
     const failed = [
       settings,
@@ -62,6 +64,7 @@ export class SupabaseFinancialDataSource implements FinancialDataSource {
       adjustments,
       installmentEvents,
       reimbursementAllocations,
+      categories,
     ].find((result) => result.error && result.error.code !== "PGRST116");
     if (failed?.error)
       throw new Error("Não foi possível carregar os dados financeiros.");
@@ -72,6 +75,13 @@ export class SupabaseFinancialDataSource implements FinancialDataSource {
       personal_limits: {},
     };
     return {
+      categories: (categories.data ?? []).map((row: any) => ({
+        id: row.legacy_id,
+        name: row.name,
+        ...(row.icon ? { icon: row.icon } : {}),
+        active: row.active,
+        sortOrder: row.sort_order,
+      })),
       income: Number(configuration.income),
       budgets: configuration.budgets,
       limits: configuration.limits,
@@ -92,6 +102,9 @@ export class SupabaseFinancialDataSource implements FinancialDataSource {
         ...(row.invoice_reference_month
           ? { invoiceReferenceMonth: row.invoice_reference_month.slice(0, 7) }
           : {}),
+        ...(row.category_legacy_id
+          ? { categoryId: row.category_legacy_id }
+          : {}),
       })) as PersistedExpense[],
       installments: (installments.data ?? []).map((row: any) => ({
         id: row.legacy_id,
@@ -104,6 +117,9 @@ export class SupabaseFinancialDataSource implements FinancialDataSource {
         nextDue: row.next_due,
         ...(row.credit_card_legacy_id
           ? { creditCardId: row.credit_card_legacy_id }
+          : {}),
+        ...(row.category_legacy_id
+          ? { categoryId: row.category_legacy_id }
           : {}),
       })) as PersistedInstallment[],
       debts: (debts.data ?? []).map((row: any) => ({

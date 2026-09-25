@@ -20,6 +20,9 @@ export type FinancialImportTarget = {
 
 export function normalizeSnapshot(snapshot: AppFinancialData) {
   return JSON.stringify({
+    categories: [...(snapshot.categories ?? [])].sort((a, b) =>
+      a.id.localeCompare(b.id),
+    ),
     expenses: [...snapshot.expenses].sort((a, b) => a.id - b.id),
     installments: [...snapshot.installments].sort((a, b) => a.id - b.id),
     debts: [...snapshot.debts].sort((a, b) => a.id - b.id),

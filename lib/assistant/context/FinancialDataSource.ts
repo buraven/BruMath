@@ -2,6 +2,7 @@ import type { AssistantProfile } from "../contracts";
 import type { PersonalLimitBucket } from "../../finance/personalLimitBuckets";
 import type { PersonalLimitConfiguration } from "../../finance/personalLimits";
 import type {
+  Category,
   InstallmentInvoiceEvent,
   InstallmentReimbursementAllocation,
   InvoiceAdjustment,
@@ -12,6 +13,7 @@ export type PersistedExpense = {
   id: number;
   title: string;
   cat: string;
+  categoryId?: string;
   who: AssistantProfile;
   amount: number;
   date: string;
@@ -24,6 +26,7 @@ export type PersistedInstallment = {
   id: number;
   title: string;
   category: string;
+  categoryId?: string;
   who: AssistantProfile;
   amount: number;
   totalInstallments: number;
@@ -74,6 +77,7 @@ export type PersistedIncomeEntry = {
 };
 
 export type FinancialDataSnapshot = {
+  categories?: readonly Category[];
   expenses: readonly PersistedExpense[];
   installments: readonly PersistedInstallment[];
   debts: readonly PersistedDebt[];
