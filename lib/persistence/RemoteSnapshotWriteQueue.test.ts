@@ -4,6 +4,7 @@ import type { AppFinancialData } from "../app/AppTypes";
 import {
   fromRemoteSnapshot,
   normalizePersistedFinancialSnapshot,
+  SupabaseSnapshotWriteError,
   toRemoteSnapshot,
 } from "./SupabaseFinancialImportTarget";
 import { RemoteSnapshotWriteQueue } from "./RemoteSnapshotWriteQueue";
@@ -159,6 +160,25 @@ test("keeps a failed remote write observable without any local fallback", async 
   await queue.enqueue({ revision: 1 }, true);
   await queue.enqueue({ revision: 1 });
   assert.equal(attempts, 2);
+});
+
+test("preserves the sanitized Supabase diagnostic through the write queue", async () => {
+  const failure = new SupabaseSnapshotWriteError(
+    { code: "42501", message: "permission denied", status: 403 },
+    { rpcStarted: true, rpcResponded: true },
+  );
+  const queue = new RemoteSnapshotWriteQueue(
+    (snapshot: { revision: number }) => String(snapshot.revision),
+    async () => {
+      throw failure;
+    },
+  );
+  queue.markConfirmed({ revision: 0 });
+
+  await assert.rejects(
+    () => queue.enqueue({ revision: 1 }),
+    (error: unknown) => error === failure,
+  );
 });
 
 test("uses the same queue for installment create, edit and delete snapshots", async () => {

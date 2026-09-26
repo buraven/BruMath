@@ -3,11 +3,13 @@
 import { useState } from "react";
 import type { PersistenceStatus } from "../app/usePersistedFinancialState";
 import type { LocalMigrationPreview } from "../../lib/persistence/LocalSnapshotMigration";
+import type { RemotePersistenceDiagnostic } from "../../lib/persistence/SupabaseFinancialImportTarget";
 
 type Props = {
   status: PersistenceStatus;
   configured: boolean;
   error: string;
+  diagnostic?: RemotePersistenceDiagnostic;
   migrationPreview?: LocalMigrationPreview;
   onSendMagicLink: (email: string) => Promise<void>;
   onImport: () => Promise<void>;
@@ -19,6 +21,7 @@ export function SupabasePersistencePanel({
   status,
   configured,
   error,
+  diagnostic,
   migrationPreview,
   onSendMagicLink,
   onImport,
@@ -28,6 +31,7 @@ export function SupabasePersistencePanel({
   const [email, setEmail] = useState("");
   const [message, setMessage] = useState("");
   const [sending, setSending] = useState(false);
+  const diagnosticText = diagnostic ? JSON.stringify(diagnostic, null, 2) : "";
   if (!configured || status === "local") return null;
 
   const sendLink = async () => {
@@ -129,6 +133,21 @@ export function SupabasePersistencePanel({
         <>
           <strong>Não foi possível salvar remotamente</strong>
           <span>{error || "Tente novamente antes de continuar."}</span>
+          {diagnostic && (
+            <details className="persistence-diagnostic">
+              <summary>Detalhes técnicos sanitizados</summary>
+              <pre>{diagnosticText}</pre>
+              <button
+                type="button"
+                className="secondary-button"
+                onClick={() =>
+                  void navigator.clipboard?.writeText(diagnosticText)
+                }
+              >
+                Copiar diagnóstico
+              </button>
+            </details>
+          )}
           <div className="persistence-actions">
             <button
               type="button"

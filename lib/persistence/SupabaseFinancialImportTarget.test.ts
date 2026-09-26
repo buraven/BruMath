@@ -10,10 +10,12 @@ import {
 import {
   fromRemoteSnapshot,
   normalizePersistedFinancialSnapshot,
+  remotePersistenceDiagnostic,
   replaceSupabaseFinancialSnapshot,
   simulateImportV2RoundTrip,
   SupabaseImportRpcError,
   SupabaseFinancialImportTarget,
+  SupabaseSnapshotWriteError,
   toLegacyImportSnapshot,
   toRemoteSnapshot,
 } from "./SupabaseFinancialImportTarget";
@@ -560,6 +562,51 @@ test("writes a runtime snapshot only through the atomic replacement RPC", async 
   assert.equal(rpcArguments?.p_household_id, "household");
   assert.equal(rpcArguments?.p_revision_hash, "revision");
   assert.deepEqual(persisted, snapshot);
+});
+
+test("preserves a sanitized V4 RPC error without exposing the snapshot or credentials", async () => {
+  const client = {
+    rpc: async () => ({
+      data: null,
+      error: {
+        code: "P0001",
+        message: "persisted snapshot does not reconcile with source snapshot",
+        details: 'payload {"income":13000,"access_token":"eyJ.secret.value"}',
+        hint: "Retry only after inspecting the remote snapshot.",
+        status: 400,
+      },
+    }),
+  } as unknown as SupabaseClient;
+
+  await assert.rejects(
+    () =>
+      replaceSupabaseFinancialSnapshot({
+        client,
+        householdId: "household",
+        snapshot,
+        revisionHash: "revision",
+      }),
+    (error: unknown) => {
+      assert.ok(error instanceof SupabaseSnapshotWriteError);
+      const diagnostic = remotePersistenceDiagnostic(error);
+      assert.deepEqual(diagnostic, {
+        stage: "replace_financial_snapshot_v4",
+        function: "replaceSupabaseFinancialSnapshot",
+        rpcStarted: true,
+        rpcResponded: true,
+        code: "P0001",
+        message: "persisted snapshot does not reconcile with source snapshot",
+        details: "Detalhe estruturado omitido.",
+        hint: "Retry only after inspecting the remote snapshot.",
+        status: 400,
+      });
+      assert.doesNotMatch(
+        JSON.stringify(diagnostic),
+        /income|access_token|eyJ/,
+      );
+      return true;
+    },
+  );
 });
 
 test("replaces a snapshot with an explicit removal before final reconciliation", async () => {

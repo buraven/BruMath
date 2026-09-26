@@ -18,7 +18,9 @@ import {
 } from "../../lib/persistence/LocalSnapshotMigration";
 import {
   normalizePersistedFinancialSnapshot,
+  remotePersistenceDiagnostic,
   SupabaseFinancialImportTarget,
+  type RemotePersistenceDiagnostic,
 } from "../../lib/persistence/SupabaseFinancialImportTarget";
 import { RemoteSnapshotWriteQueue } from "../../lib/persistence/RemoteSnapshotWriteQueue";
 import { RemoteSessionInitializationGate } from "../../lib/persistence/RemoteSessionInitializationGate";
@@ -109,6 +111,8 @@ export function usePersistedFinancialState(defaults: AppFinancialData) {
   const [viewMonth, setViewMonth] = useState(initial.viewMonth);
   const [status, setStatus] = useState<PersistenceStatus>("loading");
   const [persistenceError, setPersistenceError] = useState("");
+  const [persistenceDiagnostic, setPersistenceDiagnostic] =
+    useState<RemotePersistenceDiagnostic>();
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [hasLocalSnapshot, setHasLocalSnapshot] = useState(false);
   const [migrationPreview, setMigrationPreview] =
@@ -331,8 +335,12 @@ export function usePersistedFinancialState(defaults: AppFinancialData) {
       .enqueue(snapshot)
       .then(() => {
         setPersistenceError("");
+        setPersistenceDiagnostic(undefined);
       })
-      .catch(() => {
+      .catch((error: unknown) => {
+        const diagnostic = remotePersistenceDiagnostic(error);
+        console.error("Remote financial persistence failed", diagnostic);
+        setPersistenceDiagnostic(diagnostic);
         setPersistenceError(
           "A alteração não foi salva no Supabase. Os dados locais não foram usados como fallback; tente novamente.",
         );
@@ -397,8 +405,12 @@ export function usePersistedFinancialState(defaults: AppFinancialData) {
     try {
       await writer.enqueue(snapshot, true);
       setPersistenceError("");
+      setPersistenceDiagnostic(undefined);
       setStatus("remote");
-    } catch {
+    } catch (error) {
+      const diagnostic = remotePersistenceDiagnostic(error);
+      console.error("Remote financial persistence retry failed", diagnostic);
+      setPersistenceDiagnostic(diagnostic);
       setPersistenceError("Ainda não foi possível salvar os dados remotos.");
       setStatus("remote-error");
     }
@@ -472,6 +484,7 @@ export function usePersistedFinancialState(defaults: AppFinancialData) {
       configured: isBruMathSupabaseConfigured(),
       status,
       error: persistenceError,
+      diagnostic: persistenceDiagnostic,
       isAuthenticated,
       hasLocalSnapshot,
       migrationPreview,
