@@ -872,6 +872,62 @@ test("keeps the V4 legacy writer projection migration aligned for replace and im
   assert.doesNotMatch(migration, /import_financial_snapshot_v2\(/);
 });
 
+test("guards the public V1 and V2 writers while preserving the V4 internal chain", () => {
+  const migration = readFileSync(
+    "supabase/migrations/20260926190553_legacy_writer_external_guard.sql",
+    "utf8",
+  );
+
+  for (const writer of [
+    "replace_financial_snapshot",
+    "import_financial_snapshot",
+    "replace_financial_snapshot_v2",
+    "import_financial_snapshot_v2",
+  ]) {
+    assert.match(
+      migration,
+      new RegExp(`${writer} is disabled after the V4 category-budget rollout`),
+    );
+  }
+  assert.match(
+    migration,
+    /current_setting\('brumath\.v4_snapshot_writer', true\) is distinct from 'enabled'/,
+  );
+  assert.match(migration, /create schema if not exists brumath_internal;/);
+  assert.match(
+    migration,
+    /alter function public\.replace_financial_snapshot\(uuid, jsonb, text\)\s+rename to replace_financial_snapshot_v1_internal;/,
+  );
+  assert.match(
+    migration,
+    /brumath_internal\.replace_financial_snapshot_v2_internal\(/,
+  );
+  assert.match(
+    migration,
+    /brumath_internal\.import_financial_snapshot_v1_internal\(/,
+  );
+  assert.match(
+    migration,
+    /grant execute on function public\.replace_financial_snapshot_v2\(uuid, jsonb, text\) to authenticated;/,
+  );
+  assert.match(
+    migration,
+    /grant usage on schema brumath_internal to authenticated;/,
+  );
+  assert.match(
+    migration,
+    /grant usage on schema brumath_internal to service_role;/,
+  );
+  assert.match(
+    migration,
+    /revoke all on function public\.import_financial_snapshot_v2\(uuid, text, jsonb, jsonb\) from anon;/,
+  );
+  assert.doesNotMatch(
+    migration,
+    /grant execute on function public\.replace_financial_snapshot\(uuid, jsonb, text\) to anon;/,
+  );
+});
+
 test("bootstraps only through the authenticated household RPC", async () => {
   let rpcName = "";
   const client = {
