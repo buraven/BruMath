@@ -132,6 +132,84 @@ type SafeRpcError = {
   status?: unknown;
 };
 
+export type RemotePersistenceDiagnostic = {
+  stage: "replace_financial_snapshot_v4" | "remote_snapshot_reconciliation";
+  function: string;
+  rpcStarted: boolean;
+  rpcResponded: boolean;
+  code?: string;
+  message: string;
+  details?: string;
+  hint?: string;
+  status?: number;
+};
+
+const sanitizeDiagnosticText = (value: unknown) => {
+  if (typeof value !== "string") return undefined;
+  const normalized = value.trim().slice(0, 500);
+  if (!normalized) return undefined;
+  if (/[{}\[\]]/.test(normalized)) return "Detalhe estruturado omitido.";
+  return normalized
+    .replace(/\bBearer\s+\S+/gi, "Bearer [redigido]")
+    .replace(/\beyJ[\w-]+\.[\w-]+\.[\w-]+\b/g, "[token redigido]")
+    .replace(/\b(?:sbp|sb_secret|service_role)[\w-]*\b/gi, "[segredo redigido]")
+    .replace(/\b[\w.+-]+@[\w.-]+\.[A-Za-z]{2,}\b/g, "[e-mail redigido]")
+    .replace(/\([^)]*=\s*[^)]*\)/g, "(valor redigido)")
+    .replace(/R\$\s*[\d.,]+/g, "R$ [valor redigido]");
+};
+
+export class SupabaseSnapshotWriteError extends Error {
+  readonly diagnostic: RemotePersistenceDiagnostic;
+
+  constructor(
+    error: SafeRpcError | undefined,
+    {
+      rpcStarted,
+      rpcResponded,
+    }: Pick<RemotePersistenceDiagnostic, "rpcStarted" | "rpcResponded">,
+  ) {
+    const message =
+      sanitizeDiagnosticText(error?.message) ??
+      (rpcResponded
+        ? "A RPC não retornou dados."
+        : "A RPC não retornou resposta.");
+    super(message);
+    this.name = "SupabaseSnapshotWriteError";
+    this.diagnostic = {
+      stage: "replace_financial_snapshot_v4",
+      function: "replaceSupabaseFinancialSnapshot",
+      rpcStarted,
+      rpcResponded,
+      ...(typeof error?.code === "string" ? { code: error.code } : {}),
+      message,
+      ...(sanitizeDiagnosticText(error?.details)
+        ? { details: sanitizeDiagnosticText(error?.details) }
+        : {}),
+      ...(sanitizeDiagnosticText(error?.hint)
+        ? { hint: sanitizeDiagnosticText(error?.hint) }
+        : {}),
+      ...(typeof error?.status === "number" ? { status: error.status } : {}),
+    };
+  }
+}
+
+/** Returns only structured, redacted error metadata — never a snapshot or auth. */
+export function remotePersistenceDiagnostic(
+  error: unknown,
+): RemotePersistenceDiagnostic {
+  if (error instanceof SupabaseSnapshotWriteError) return error.diagnostic;
+  return {
+    stage: "remote_snapshot_reconciliation",
+    function: "RemoteSnapshotWriteQueue.enqueue",
+    rpcStarted: false,
+    rpcResponded: false,
+    message:
+      sanitizeDiagnosticText(
+        error instanceof Error ? error.message : undefined,
+      ) ?? "A persistência remota falhou antes de retornar um diagnóstico.",
+  };
+}
+
 /** Contains only PostgREST error metadata; never includes the snapshot or auth. */
 export class SupabaseImportRpcError extends Error {
   readonly rpcStarted = true;
@@ -625,12 +703,32 @@ export async function replaceSupabaseFinancialSnapshot({
   snapshot: AppFinancialData;
   revisionHash: string;
 }): Promise<AppFinancialData> {
-  const result = await client.rpc("replace_financial_snapshot_v4", {
-    p_household_id: householdId,
-    p_snapshot: toRemoteSnapshot(snapshot),
-    p_revision_hash: revisionHash,
-  });
+  let remoteSnapshot: RemoteSnapshot;
+  try {
+    remoteSnapshot = toRemoteSnapshot(snapshot);
+  } catch (error) {
+    throw new SupabaseSnapshotWriteError(
+      error && typeof error === "object" ? (error as SafeRpcError) : undefined,
+      { rpcStarted: false, rpcResponded: false },
+    );
+  }
+  let result: Awaited<ReturnType<SupabaseClient["rpc"]>>;
+  try {
+    result = await client.rpc("replace_financial_snapshot_v4", {
+      p_household_id: householdId,
+      p_snapshot: remoteSnapshot,
+      p_revision_hash: revisionHash,
+    });
+  } catch (error) {
+    throw new SupabaseSnapshotWriteError(
+      error && typeof error === "object" ? (error as SafeRpcError) : undefined,
+      { rpcStarted: true, rpcResponded: false },
+    );
+  }
   if (result.error || !result.data)
-    throw new Error("Não foi possível salvar os dados financeiros remotos.");
+    throw new SupabaseSnapshotWriteError(
+      result.error as SafeRpcError | undefined,
+      { rpcStarted: true, rpcResponded: true },
+    );
   return fromRemoteSnapshot(result.data as RemoteSnapshot);
 }

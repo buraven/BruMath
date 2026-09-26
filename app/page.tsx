@@ -580,6 +580,7 @@ export default function Page() {
           configured={persistence.configured}
           status={persistence.status}
           error={persistence.error}
+          diagnostic={persistence.diagnostic}
           migrationPreview={persistence.migrationPreview}
           onSendMagicLink={persistence.sendMagicLink}
           onImport={persistence.importLocalData}
