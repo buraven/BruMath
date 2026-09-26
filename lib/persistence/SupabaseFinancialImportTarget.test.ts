@@ -21,6 +21,36 @@ import {
 } from "./SupabaseFinancialImportTarget";
 import { bootstrapFinancialHousehold } from "./supabaseAuth";
 
+function structuralDiffPaths(
+  source: unknown,
+  persisted: unknown,
+  path = "",
+): string[] {
+  if (Object.is(source, persisted)) return [];
+  if (
+    !source ||
+    !persisted ||
+    typeof source !== "object" ||
+    typeof persisted !== "object"
+  ) {
+    return [path || "$"];
+  }
+
+  const sourceRecord = source as Record<string, unknown>;
+  const persistedRecord = persisted as Record<string, unknown>;
+  return [
+    ...new Set([...Object.keys(sourceRecord), ...Object.keys(persistedRecord)]),
+  ]
+    .sort()
+    .flatMap((key) =>
+      structuralDiffPaths(
+        sourceRecord[key],
+        persistedRecord[key],
+        path ? `${path}.${key}` : key,
+      ),
+    );
+}
+
 const snapshot: AppFinancialData = {
   expenses: [
     {
@@ -141,6 +171,74 @@ test("round-trips V4 identity budgets without recreating a legacy name bucket", 
   });
   assert.deepEqual(remote.settings.budgets, {});
   assert.deepEqual(fromRemoteSnapshot(remote), categorized);
+});
+
+test("projects V4 category budgets before the V1 reconciliation boundary", () => {
+  const v4Source = toRemoteSnapshot({
+    ...snapshot,
+    budgets: { "Histórico não resolvido": 0 },
+    categoryBudgets: { "legacy:alimentação": 1400 },
+    categories: [
+      {
+        id: "legacy:alimentação",
+        name: "Alimentação",
+        active: true,
+        sortOrder: 0,
+      },
+      {
+        id: "category:archived-food",
+        name: "Alimentação",
+        active: false,
+        sortOrder: 1,
+      },
+    ],
+    expenses: [{ ...snapshot.expenses[0]!, categoryId: "legacy:alimentação" }],
+    installments: [
+      {
+        id: 12,
+        title: "Plano",
+        category: "Alimentação",
+        categoryId: "legacy:alimentação",
+        who: "Casal",
+        amount: 50,
+        totalInstallments: 2,
+        paidInstallments: 0,
+        nextDue: "2026-10-01",
+      },
+    ],
+  });
+
+  // This is the V3 projection sent to V2/V1 today: V3 correctly removes its
+  // own category fields, but leaves the V4-only settings field intact.
+  const { categories: _categories, ...v3ToV1Source } = v4Source;
+  const v1Source = {
+    ...v3ToV1Source,
+    expenses: v3ToV1Source.expenses.map(
+      ({ category_legacy_id: _categoryId, ...expense }) => expense,
+    ),
+    installments: v3ToV1Source.installments.map(
+      ({ category_legacy_id: _categoryId, ...installment }) => installment,
+    ),
+  };
+
+  // The legacy V1 read-back builds settings from its pre-V4 columns and so
+  // cannot include category_budgets during its own reconciliation guard.
+  const { category_budgets: _categoryBudgets, ...v1Settings } =
+    v1Source.settings;
+  const v1ReadBack = { ...v1Source, settings: v1Settings };
+
+  assert.deepEqual(structuralDiffPaths(v1Source, v1ReadBack), [
+    "settings.category_budgets",
+  ]);
+
+  // The incremental V4 migration projects only this V4-owned field before
+  // calling V3/V2/V1. The base guard can then remain exact and strict.
+  const v4Projection = { ...v1Source, settings: v1Settings };
+  assert.deepEqual(structuralDiffPaths(v4Projection, v1ReadBack), []);
+  assert.deepEqual(v4Source.settings.category_budgets, {
+    "legacy:alimentação": 1400,
+  });
+  assert.deepEqual(v4Source.settings.budgets, { "Histórico não resolvido": 0 });
 });
 
 test("keeps a promoted legacy budget stable through rename, V4 persistence and rehydration", () => {
@@ -735,6 +833,43 @@ test("keeps the V4 budget migration aligned with its identity budget contract", 
     migration,
     /grant execute on function public\.import_financial_snapshot_v4\(uuid,text,jsonb,jsonb\) to authenticated;/,
   );
+});
+
+test("keeps the V4 legacy writer projection migration aligned for replace and import", () => {
+  const migration = readFileSync(
+    "supabase/migrations/20260926120000_v4_category_budget_legacy_projection.sql",
+    "utf8",
+  );
+  assert.match(
+    migration,
+    /v_snapshot_v3 := jsonb_set\(\s*p_snapshot,\s*'\{settings\}',\s*\(p_snapshot -> 'settings'\) - 'category_budgets'/,
+  );
+  assert.match(
+    migration,
+    /replace_financial_snapshot_v3\(\s*p_household_id,\s*v_snapshot_v3/,
+  );
+  assert.match(
+    migration,
+    /import_financial_snapshot_v3\(\s*p_household_id,\s*p_source_hash,\s*v_snapshot_v3/,
+  );
+  assert.match(
+    migration,
+    /jsonb_set\(v_result, '\{settings,category_budgets\}', v_category_budgets, true\)/,
+  );
+  assert.match(
+    migration,
+    /jsonb_set\(\s*v_snapshot,\s*'\{settings,category_budgets\}'/,
+  );
+  assert.match(
+    migration,
+    /grant execute on function public\.replace_financial_snapshot_v4\(uuid,jsonb,text\) to authenticated;/,
+  );
+  assert.match(
+    migration,
+    /grant execute on function public\.import_financial_snapshot_v4\(uuid,text,jsonb,jsonb\) to authenticated;/,
+  );
+  assert.doesNotMatch(migration, /replace_financial_snapshot_v2\(/);
+  assert.doesNotMatch(migration, /import_financial_snapshot_v2\(/);
 });
 
 test("bootstraps only through the authenticated household RPC", async () => {
