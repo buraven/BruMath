@@ -78,6 +78,10 @@ export class BruMathDataRepository {
       budgets: data.budgets
         ? { ...defaults.budgets, ...data.budgets }
         : defaults.budgets,
+      categoryBudgets:
+        data.categoryBudgets && typeof data.categoryBudgets === "object"
+          ? data.categoryBudgets
+          : {},
       limits: data.limits
         ? { ...defaults.limits, ...data.limits }
         : defaults.limits,

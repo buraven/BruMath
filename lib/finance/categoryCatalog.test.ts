@@ -57,7 +57,11 @@ test("bootstraps stable legacy categories from facts, budgets and defaults", () 
     hydrated.installments[0]?.categoryId,
     legacyCategoryId("Transporte"),
   );
-  assert.deepEqual(hydrated.budgets, legacy.budgets);
+  assert.deepEqual(hydrated.budgets, {});
+  assert.deepEqual(hydrated.categoryBudgets, {
+    [legacyCategoryId("Alimentação")]: 400,
+    [legacyCategoryId("Transporte")]: 80,
+  });
   assert.equal(
     hydrated.expenses.reduce((total, expense) => total + expense.amount, 0) +
       hydrated.installments.reduce(
@@ -71,6 +75,90 @@ test("bootstraps stable legacy categories from facts, budgets and defaults", () 
       ),
   );
   assert.deepEqual(hydrateCategoryCatalog(hydrated), hydrated);
+});
+
+test("promotes resolved legacy budgets once so a rename cannot restore the old bucket", () => {
+  const hydrated = hydrateCategoryCatalog({
+    expenses: [
+      {
+        id: 1,
+        title: "Mercado",
+        cat: "Alimentação",
+        who: "Casal" as const,
+        amount: 20,
+        date: "2026-09-01",
+      },
+    ],
+    installments: [],
+    budgets: { Alimentação: 1400 },
+  });
+  const id = legacyCategoryId("Alimentação");
+  const renamed = hydrateCategoryCatalog({
+    ...hydrated,
+    categories: hydrated.categories.map((category) =>
+      category.id === id ? { ...category, name: "Comida" } : category,
+    ),
+  });
+  assert.equal(
+    renamed.categories.find((category) => category.id === id)?.name,
+    "Comida",
+  );
+  assert.equal(renamed.categoryBudgets?.[id], 1400);
+  assert.equal(renamed.budgets.Alimentação, undefined);
+  assert.equal(renamed.expenses[0]?.categoryId, id);
+});
+
+test("keeps an ambiguous legacy budget textual instead of selecting an identity", () => {
+  const hydrated = hydrateCategoryCatalog({
+    expenses: [],
+    installments: [],
+    budgets: { Legado: 0 },
+    categories: [
+      { id: "one", name: "Legado", active: true, sortOrder: 0 },
+      { id: "two", name: " legado ", active: true, sortOrder: 1 },
+    ],
+  });
+  assert.equal(hydrated.budgets.Legado, 0);
+  assert.equal(hydrated.categoryBudgets?.one, undefined);
+  assert.equal(hydrated.categoryBudgets?.two, undefined);
+});
+
+test("existing identity budgets win over a resolved legacy compatibility value", () => {
+  const hydrated = hydrateCategoryCatalog({
+    expenses: [],
+    installments: [],
+    budgets: { Alimentação: 1400 },
+    categoryBudgets: { [legacyCategoryId("Alimentação")]: 1500 },
+  });
+  assert.equal(
+    hydrated.categoryBudgets?.[legacyCategoryId("Alimentação")],
+    1500,
+  );
+  assert.deepEqual(hydrated.budgets, {});
+});
+
+test("preserves competing equivalent legacy budget names without choosing one", () => {
+  const hydrated = hydrateCategoryCatalog({
+    expenses: [],
+    installments: [],
+    budgets: { Alimentação: 1400, " alimentação ": 1500 },
+  });
+  const id = legacyCategoryId("Alimentação");
+  assert.equal(hydrated.categoryBudgets?.[id], undefined);
+  assert.deepEqual(hydrated.budgets, {
+    Alimentação: 1400,
+    " alimentação ": 1500,
+  });
+});
+
+test("promotes a resolved zero budget without converting it to absence", () => {
+  const hydrated = hydrateCategoryCatalog({
+    expenses: [],
+    installments: [],
+    budgets: { Alimentação: 0 },
+  });
+  assert.equal(hydrated.categoryBudgets?.[legacyCategoryId("Alimentação")], 0);
+  assert.deepEqual(hydrated.budgets, {});
 });
 
 test("uses one deterministic legacy normalization and display contract", () => {

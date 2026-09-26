@@ -15,6 +15,13 @@ export default defineConfig({
   },
   webServer: {
     command: "node ./node_modules/next/dist/bin/next dev --port 3100",
+    // The E2E suite seeds an isolated localStorage snapshot. Keep the test
+    // server detached from .env.local so it cannot start the authenticated
+    // Supabase bootstrap or reach a remote financial snapshot.
+    env: {
+      NEXT_PUBLIC_SUPABASE_URL: "",
+      NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: "",
+    },
     url: "http://127.0.0.1:3100",
     reuseExistingServer: !process.env.CI,
     timeout: 120_000,

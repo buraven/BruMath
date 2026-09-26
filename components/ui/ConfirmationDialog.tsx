@@ -1,6 +1,7 @@
 "use client";
 
 import { Receipt, Trash2, X } from "lucide-react";
+import { useEffect, useRef } from "react";
 import type { Confirmation } from "../../lib/app/AppTypes";
 
 type ConfirmationDialogProps = {
@@ -13,6 +14,25 @@ export function ConfirmationDialog({
   confirmation,
   onClose,
 }: ConfirmationDialogProps) {
+  const cancelRef = useRef<HTMLButtonElement>(null);
+  const openerRef = useRef<HTMLElement | null>(null);
+
+  useEffect(() => {
+    openerRef.current =
+      document.activeElement instanceof HTMLElement
+        ? document.activeElement
+        : null;
+    cancelRef.current?.focus();
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") onClose();
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => {
+      window.removeEventListener("keydown", onKeyDown);
+      openerRef.current?.focus();
+    };
+  }, [onClose]);
+
   return (
     <div
       className="modal-backdrop"
@@ -54,7 +74,12 @@ export function ConfirmationDialog({
           </dl>
         )}
         <div className="modal-actions">
-          <button type="button" className="secondary-button" onClick={onClose}>
+          <button
+            ref={cancelRef}
+            type="button"
+            className="secondary-button"
+            onClick={onClose}
+          >
             Cancelar
           </button>
           <button

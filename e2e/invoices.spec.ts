@@ -44,11 +44,7 @@ test("cria cartão, adiciona compra e mantém a fatura após reload @desktop", a
   const dialog = page.getByRole("dialog");
   await dialog.getByLabel("O que foi?").fill("Café");
   await dialog.getByLabel("Valor").fill("10000");
-  const categoryTrigger = dialog.getByLabel("Categoria");
-  await expect(categoryTrigger).toHaveAttribute("aria-haspopup", "listbox");
-  await categoryTrigger.click();
-  await dialog.getByRole("searchbox", { name: "Buscar categoria" }).fill("ali");
-  await dialog.getByRole("option", { name: "Alimentação" }).click();
+  await dialog.getByLabel("Categoria").selectOption({ label: "Alimentação" });
   await dialog.getByLabel("Quem").selectOption("Bruna");
   await expect(dialog.getByLabel("Cartão")).toHaveValue(/\d+/);
   await dialog.getByRole("button", { name: "Salvar gasto" }).click();

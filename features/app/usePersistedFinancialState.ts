@@ -52,6 +52,7 @@ function toAppData(
     ] as AppFinancialData["incomeEntries"],
     income: snapshot.income,
     budgets: { ...snapshot.budgets },
+    categoryBudgets: { ...(snapshot.categoryBudgets ?? {}) },
     limits: snapshot.limits as AppFinancialData["limits"],
     personalLimits: snapshot.personalLimits ?? fallback.personalLimits,
     creditCards: [
@@ -85,6 +86,9 @@ export function usePersistedFinancialState(defaults: AppFinancialData) {
   const [incomeEntries, setIncomeEntries] = useState(initial.incomeEntries);
   const [income, setIncome] = useState(initial.income);
   const [budgets, setBudgets] = useState(initial.budgets);
+  const [categoryBudgets, setCategoryBudgets] = useState(
+    initial.categoryBudgets ?? {},
+  );
   const [limits, setLimits] = useState(initial.limits);
   const [personalLimits, setPersonalLimits] = useState(initial.personalLimits);
   const [creditCards, setCreditCards] = useState(initial.creditCards);
@@ -135,6 +139,7 @@ export function usePersistedFinancialState(defaults: AppFinancialData) {
       incomeEntries,
       income,
       budgets,
+      categoryBudgets,
       limits,
       personalLimits,
       creditCards,
@@ -153,6 +158,7 @@ export function usePersistedFinancialState(defaults: AppFinancialData) {
       incomeEntries,
       income,
       budgets,
+      categoryBudgets,
       limits,
       personalLimits,
       creditCards,
@@ -174,6 +180,7 @@ export function usePersistedFinancialState(defaults: AppFinancialData) {
     setIncomeEntries(hydrated.incomeEntries);
     setIncome(hydrated.income);
     setBudgets(hydrated.budgets);
+    setCategoryBudgets(hydrated.categoryBudgets ?? {});
     setLimits(hydrated.limits);
     setPersonalLimits(hydrated.personalLimits);
     setCreditCards(hydrated.creditCards);
@@ -441,6 +448,8 @@ export function usePersistedFinancialState(defaults: AppFinancialData) {
     setIncome,
     budgets,
     setBudgets,
+    categoryBudgets,
+    setCategoryBudgets,
     limits,
     setLimits,
     personalLimits,

@@ -1,4 +1,5 @@
 import type {
+  Category,
   Debt,
   Expense,
   IncomeEntry,
@@ -58,28 +59,57 @@ export function filterExpensesForProfile(
 export function deriveCategoryDetails({
   expenses,
   budgets,
+  categoryBudgets = {},
+  categories = [],
   profile,
 }: {
   expenses: readonly Expense[];
   budgets: Readonly<Record<string, number>>;
+  categoryBudgets?: Readonly<Record<string, number>>;
+  categories?: readonly Category[];
   profile: Person;
 }): readonly CategoryDetail[] {
   const scopedExpenses = filterExpensesForProfile(expenses, profile);
-  const spendingByCategory = new Map(
-    deriveCategorySpending(scopedExpenses).map((item) => [
-      item.category,
-      item.amount,
-    ]),
+  const categoryById = new Map(
+    categories.map((category) => [category.id, category]),
   );
-  const categories = new Set([
-    ...Object.keys(budgets),
-    ...scopedExpenses.map((expense) => expense.cat),
-  ]);
+  const legacyKey = (name: string) => name;
+  const expenseKey = (expense: Expense) =>
+    expense.categoryId && categoryById.has(expense.categoryId)
+      ? expense.categoryId
+      : legacyKey(expense.cat);
+  const spendingByCategory = new Map<string, number>();
+  for (const expense of scopedExpenses) {
+    const key = expenseKey(expense);
+    spendingByCategory.set(
+      key,
+      (spendingByCategory.get(key) ?? 0) + expense.amount,
+    );
+  }
+  const items = new Map<string, { label: string; configuredLimit?: number }>();
+  for (const category of categories) {
+    items.set(category.id, {
+      label: category.name,
+      configuredLimit: categoryBudgets[category.id],
+    });
+  }
+  for (const [name, amount] of Object.entries(budgets)) {
+    // V4 hydration leaves only unresolved legacy values in this map. Do not
+    // infer an ID here: equivalent legacy spellings may be intentionally
+    // unresolved and must never be merged into an identity budget.
+    const key = legacyKey(name);
+    if (!items.has(key))
+      items.set(key, { label: name, configuredLimit: amount });
+  }
+  for (const expense of scopedExpenses) {
+    const key = expenseKey(expense);
+    if (!items.has(key)) items.set(key, { label: expense.cat });
+  }
 
-  return [...categories]
-    .map((category) => {
-      const spent = spendingByCategory.get(category) ?? 0;
-      const configuredLimit = budgets[category];
+  return [...items.entries()]
+    .map(([id, item]) => {
+      const spent = spendingByCategory.get(id) ?? 0;
+      const configuredLimit = item.configuredLimit;
       const limit =
         typeof configuredLimit === "number" && configuredLimit > 0
           ? configuredLimit
@@ -97,14 +127,14 @@ export function deriveCategoryDetails({
       }
 
       return {
-        category,
+        category: item.label,
         spent,
         limit,
         remaining,
         percentage,
         status,
         expenses: scopedExpenses
-          .filter((expense) => expense.cat === category)
+          .filter((expense) => expenseKey(expense) === id)
           .slice()
           .sort((a, b) => b.date.localeCompare(a.date) || b.id - a.id),
       };
@@ -145,6 +175,8 @@ type FinancialSelectorsInput = {
   incomeEntries: IncomeEntry[];
   income: number;
   budgets: Record<string, number>;
+  categoryBudgets?: Record<string, number>;
+  categories?: Category[];
   personalLimits?: PersonalLimitConfiguration;
   /** Legacy input retained while existing callers migrate to bucket limits. */
   limits?: Record<"Bruna" | "Matheus", number>;
@@ -159,6 +191,8 @@ export function deriveFinancialSelectors({
   incomeEntries,
   income,
   budgets,
+  categoryBudgets = {},
+  categories = [],
   personalLimits,
   limits,
   viewMonth,
@@ -168,15 +202,35 @@ export function deriveFinancialSelectors({
     expenses.filter((expense) => expense.date.startsWith(viewMonth)),
     profile,
   );
-  const categories = Object.entries(budgets).map(([category, budget]) => {
+  const categoryById = new Map(
+    categories.map((category) => [category.id, category]),
+  );
+  const expenseKey = (expense: Expense) =>
+    expense.categoryId && categoryById.has(expense.categoryId)
+      ? expense.categoryId
+      : expense.cat;
+  const limitCategories = new Map<string, { label: string; budget: number }>();
+  for (const category of categories) {
+    limitCategories.set(category.id, {
+      label: category.name,
+      budget: categoryBudgets[category.id] ?? 0,
+    });
+  }
+  for (const [name, budget] of Object.entries(budgets)) {
+    const key = name;
+    if (!limitCategories.has(key))
+      limitCategories.set(key, { label: name, budget });
+  }
+  const categoryLimits = [...limitCategories.entries()].map(([id, item]) => {
     const spent = monthExpenses
-      .filter((expense) => expense.cat === category)
+      .filter((expense) => expenseKey(expense) === id)
       .reduce((sum, expense) => sum + expense.amount, 0);
     return {
-      category,
-      budget,
+      id,
+      label: item.label,
+      budget: item.budget,
       spent,
-      percent: budget ? Math.min(100, (spent / budget) * 100) : 0,
+      percent: item.budget ? Math.min(100, (spent / item.budget) * 100) : 0,
     };
   });
   const limitItems = [
@@ -184,9 +238,9 @@ export function deriveFinancialSelectors({
       resolvePersonalLimits(personalLimits, limits),
       monthExpenses,
     ).filter((limit) => profile === "Casal" || limit.owner === profile),
-    ...categories.map((item) => ({
-      id: `category:${item.category}`,
-      label: item.category,
+    ...categoryLimits.map((item) => ({
+      id: `category:${item.id}`,
+      label: item.label,
       amount: item.budget,
       spent: item.spent,
     })),

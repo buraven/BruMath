@@ -14,6 +14,7 @@ import {
   normalizeTransactionAmount,
   type Transaction,
 } from "../../finance/transactions";
+import { promoteLegacyCategoryBudgets } from "../../finance/categoryCatalog";
 import type { ResponseProvenance } from "../contracts";
 import type {
   FinancialContext,
@@ -62,28 +63,36 @@ function normalizeExpenses(
     .filter(
       (expense) =>
         matchesMonth(expense.date, scope.month) &&
-        isWithinProfileScope(expense.who, scope.profile) &&
-        (!scope.category || expense.cat === scope.category),
+        isWithinProfileScope(expense.who, scope.profile),
     )
-    .map((expense) => ({
-      id: `expense:${expense.id}`,
-      description: expense.title,
-      amount: normalizeTransactionAmount({
-        id: String(expense.id),
+    .map((expense) => {
+      const category = expense.categoryId
+        ? (data.categories?.find((item) => item.id === expense.categoryId)
+            ?.name ?? expense.cat)
+        : expense.cat;
+      return {
+        id: `expense:${expense.id}`,
         description: expense.title,
-        amount: expense.amount,
-        category: expense.cat,
+        amount: normalizeTransactionAmount({
+          id: String(expense.id),
+          description: expense.title,
+          amount: expense.amount,
+          category: expense.cat,
+          owner: expense.who,
+          type: "expense",
+          date: expense.date,
+        }),
+        category,
         owner: expense.who,
-        type: "expense",
         date: expense.date,
-      }),
-      category: expense.cat,
-      owner: expense.who,
-      date: expense.date,
-      ...(expense.personalLimitBucket
-        ? { personalLimitBucket: expense.personalLimitBucket }
-        : {}),
-    }));
+        ...(expense.personalLimitBucket
+          ? { personalLimitBucket: expense.personalLimitBucket }
+          : {}),
+      };
+    })
+    .filter(
+      (expense) => !scope.category || expense.category === scope.category,
+    );
 }
 
 function normalizeIncome(
@@ -114,13 +123,15 @@ function normalizeInstallments(
     .filter(
       (installment) =>
         installment.paidInstallments < installment.totalInstallments &&
-        isWithinProfileScope(installment.who, scope.profile) &&
-        (!scope.category || installment.category === scope.category),
+        isWithinProfileScope(installment.who, scope.profile),
     )
     .map((installment) => ({
       id: `installment:${installment.id}`,
       title: installment.title,
-      category: installment.category,
+      category: installment.categoryId
+        ? (data.categories?.find((item) => item.id === installment.categoryId)
+            ?.name ?? installment.category)
+        : installment.category,
       amount: Math.max(0, installment.amount),
       owner: installment.who,
       remainingInstallments: Math.max(
@@ -129,7 +140,11 @@ function normalizeInstallments(
       ),
       nextDue: installment.nextDue,
       dueInSelectedMonth: matchesMonth(installment.nextDue, scope.month),
-    }));
+    }))
+    .filter(
+      (installment) =>
+        !scope.category || installment.category === scope.category,
+    );
 }
 
 function isVisibleDebt(debt: PersistedDebt, month: string): boolean {
@@ -172,14 +187,23 @@ function normalizeLimits(
   scope: FinancialScope,
   expenses: readonly ExpenseContextItem[],
 ): readonly LimitContextItem[] {
-  const categoryLimits: CategoryLimit[] = Object.entries(data.budgets).map(
-    ([label, amount]) => ({
+  const categoryCatalog = data.categories ?? [];
+  const categoryLimits: CategoryLimit[] = [
+    ...categoryCatalog.map((category) => ({
+      id: `category:${category.id}`,
+      label: category.name,
+      owner: "Casal" as const,
+      amount: data.categoryBudgets?.[category.id] ?? 0,
+    })),
+    // V4 keeps only unresolvable compatibility keys in budgets. They remain
+    // independent limits rather than being guessed into a category identity.
+    ...Object.entries(data.budgets).map(([label, amount]) => ({
       id: `category:${label}`,
       label,
-      owner: "Casal",
+      owner: "Casal" as const,
       amount,
-    }),
-  );
+    })),
+  ];
   if (scope.category) {
     const limit = categoryLimits.find(
       (item) => item.id === `category:${scope.category}`,
@@ -316,6 +340,23 @@ function buildContext(
   };
 }
 
+/** Keeps every assistant consumer on the same V4 budget promotion contract. */
+function hydrateCategoryBudgetSnapshot(data: FinancialDataSnapshot) {
+  // Older read-only sources may not include a catalog. Preserve their legacy
+  // behavior; the writable app bootstrap performs full catalog creation.
+  if (!data.categories?.length) return data;
+  const promotedBudgets = promoteLegacyCategoryBudgets({
+    categories: data.categories,
+    budgets: { ...data.budgets },
+    categoryBudgets: { ...(data.categoryBudgets ?? {}) },
+  });
+  return {
+    ...data,
+    budgets: promotedBudgets.budgets,
+    categoryBudgets: promotedBudgets.categoryBudgets,
+  };
+}
+
 export function createFinancialContextProvider(
   source: FinancialDataSource,
 ): FinancialContextProvider {
@@ -323,7 +364,7 @@ export function createFinancialContextProvider(
     context: FinancialContext;
     availability: FinancialDataAvailability;
   }> {
-    const data = await source.read();
+    const data = hydrateCategoryBudgetSnapshot(await source.read());
     const context = buildContext(data, scope);
     return {
       context,

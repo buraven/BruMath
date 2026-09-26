@@ -3,18 +3,32 @@
 import { ArrowLeft, ChevronRight, Settings2, Tag } from "lucide-react";
 import { useMemo, useState, type ReactNode } from "react";
 import { ExpenseList } from "../../components/finance/ExpenseList";
-import type { Expense, Person } from "../../lib/app/AppTypes";
+import type {
+  Category,
+  Expense,
+  Installment,
+  Person,
+} from "../../lib/app/AppTypes";
 import {
   deriveCategoryDetails,
   type CategoryDetail,
 } from "../app/financialSelectors";
 import styles from "./CategoriesScreen.module.css";
+import { categoryHasHistory } from "./categoryManagement";
 
 type Props = {
   monthLabel: string;
   profile: Person;
   expenses: readonly Expense[];
   budgets: Readonly<Record<string, number>>;
+  categoryBudgets: Readonly<Record<string, number>>;
+  categories: readonly Category[];
+  allExpenses: readonly Expense[];
+  installments: readonly Installment[];
+  onCreateCategory: (name: string) => void;
+  onRenameCategory: (id: string, name: string) => void;
+  onSetCategoryActive: (id: string, active: boolean) => void;
+  onDeleteCategory: (id: string) => void;
   onConfigureLimits: () => void;
   onEditExpense: (expense: Expense) => void;
   onDeleteExpense: (id: number) => void;
@@ -35,6 +49,14 @@ export function CategoriesScreen({
   profile,
   expenses,
   budgets,
+  categoryBudgets,
+  categories: catalog,
+  allExpenses,
+  installments,
+  onCreateCategory,
+  onRenameCategory,
+  onSetCategoryActive,
+  onDeleteCategory,
   onConfigureLimits,
   onEditExpense,
   onDeleteExpense,
@@ -44,8 +66,15 @@ export function CategoriesScreen({
 }: Props) {
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const categories = useMemo(
-    () => deriveCategoryDetails({ expenses, budgets, profile }),
-    [budgets, expenses, profile],
+    () =>
+      deriveCategoryDetails({
+        expenses,
+        budgets,
+        categoryBudgets,
+        categories: catalog,
+        profile,
+      }),
+    [budgets, categoryBudgets, catalog, expenses, profile],
   );
   const detail = categories.find((item) => item.category === selectedCategory);
 
@@ -87,6 +116,18 @@ export function CategoriesScreen({
         </button>
       </header>
 
+      <CategoryManagement
+        categories={catalog}
+        expenses={allExpenses}
+        installments={installments}
+        categoryBudgets={categoryBudgets}
+        budgets={budgets}
+        onCreate={onCreateCategory}
+        onRename={onRenameCategory}
+        onSetActive={onSetCategoryActive}
+        onDelete={onDeleteCategory}
+      />
+
       {categories.length ? (
         <div className={styles.grid}>
           {categories.map((category) => (
@@ -118,6 +159,171 @@ export function CategoriesScreen({
           </button>
         </div>
       )}
+    </section>
+  );
+}
+
+function CategoryManagement({
+  categories,
+  expenses,
+  installments,
+  categoryBudgets,
+  budgets,
+  onCreate,
+  onRename,
+  onSetActive,
+  onDelete,
+}: {
+  categories: readonly Category[];
+  expenses: readonly Expense[];
+  installments: readonly Installment[];
+  categoryBudgets: Readonly<Record<string, number>>;
+  budgets: Readonly<Record<string, number>>;
+  onCreate: (name: string) => void;
+  onRename: (id: string, name: string) => void;
+  onSetActive: (id: string, active: boolean) => void;
+  onDelete: (id: string) => void;
+}) {
+  const [name, setName] = useState("");
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [draft, setDraft] = useState("");
+  const [notice, setNotice] = useState<string | null>(null);
+  const ordered = [...categories].sort(
+    (a, b) => a.sortOrder - b.sortOrder || a.name.localeCompare(b.name),
+  );
+  const act = (operation: () => void) => {
+    try {
+      operation();
+      setNotice(null);
+    } catch (error) {
+      setNotice(
+        error instanceof Error
+          ? error.message
+          : "Não foi possível atualizar a categoria.",
+      );
+    }
+  };
+  return (
+    <section
+      className={styles.management}
+      aria-labelledby="category-management-title"
+    >
+      <div>
+        <h2 id="category-management-title">Gerenciar categorias</h2>
+        <p>
+          Renomear preserva seus gastos e limites. Categorias com histórico
+          podem ser arquivadas.
+        </p>
+      </div>
+      <form
+        className={styles.addForm}
+        onSubmit={(event) => {
+          event.preventDefault();
+          act(() => {
+            onCreate(name);
+            setName("");
+          });
+        }}
+      >
+        <label className="field">
+          <span>Nova categoria</span>
+          <input
+            value={name}
+            onChange={(event) => setName(event.target.value)}
+            required
+          />
+        </label>
+        <button type="submit" className={styles.secondary}>
+          Criar categoria
+        </button>
+      </form>
+      {notice ? (
+        <p className={styles.notice} role="status">
+          {notice}
+        </p>
+      ) : null}
+      <ul className={styles.catalogList}>
+        {ordered.map((category) => {
+          const used = categoryHasHistory(category, {
+            expenses,
+            installments,
+            categoryBudgets,
+            budgets,
+          });
+          const editing = editingId === category.id;
+          return (
+            <li key={category.id}>
+              {editing ? (
+                <>
+                  <label
+                    className="sr-only"
+                    htmlFor={`category-${category.id}`}
+                  >
+                    Nome da categoria
+                  </label>
+                  <input
+                    id={`category-${category.id}`}
+                    value={draft}
+                    onChange={(event) => setDraft(event.target.value)}
+                  />
+                  <button
+                    type="button"
+                    onClick={() =>
+                      act(() => {
+                        onRename(category.id, draft);
+                        setEditingId(null);
+                      })
+                    }
+                  >
+                    Salvar
+                  </button>
+                  <button type="button" onClick={() => setEditingId(null)}>
+                    Cancelar
+                  </button>
+                </>
+              ) : (
+                <>
+                  <strong>{category.name}</strong>
+                  {!category.active ? (
+                    <span className={styles.archived}>(arquivada)</span>
+                  ) : null}
+                  <span className={styles.actions}>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setEditingId(category.id);
+                        setDraft(category.name);
+                      }}
+                    >
+                      Renomear
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() =>
+                        act(() => onSetActive(category.id, !category.active))
+                      }
+                    >
+                      {category.active ? "Arquivar" : "Reativar"}
+                    </button>
+                    <button
+                      type="button"
+                      disabled={used}
+                      title={
+                        used
+                          ? "Esta categoria possui histórico; arquive-a em vez de excluir."
+                          : undefined
+                      }
+                      onClick={() => onDelete(category.id)}
+                    >
+                      Excluir
+                    </button>
+                  </span>
+                </>
+              )}
+            </li>
+          );
+        })}
+      </ul>
     </section>
   );
 }

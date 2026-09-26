@@ -13,7 +13,7 @@ import type {
 } from "../../lib/app/AppTypes";
 import { PERSONAL_LIMIT_BUCKETS } from "../../lib/finance/personalLimits";
 import type { PersonalLimitBucket } from "../../lib/finance/personalLimitBuckets";
-import { CategorySelector } from "../categories/CategorySelector";
+import { CategorySelect } from "../categories/CategorySelect";
 
 const personalLimitLabels: Record<PersonalLimitBucket, string> = {
   bruna_nails: "Bruna — Unha",
@@ -164,7 +164,7 @@ export function ExpenseFormDialog({
           </label>
         </div>
         <div className="form-grid">
-          <CategorySelector
+          <CategorySelect
             categories={categories}
             valueId={form.categoryId || undefined}
             fallbackName={form.cat}
