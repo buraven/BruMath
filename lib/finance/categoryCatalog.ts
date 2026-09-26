@@ -114,6 +114,60 @@ function categoryForLegacyText(
 }
 
 /**
+ * Promotes only unambiguous name-keyed compatibility values. The returned
+ * `budgets` object is expressly the residual, unresolved legacy map.
+ */
+export function promoteLegacyCategoryBudgets({
+  categories,
+  budgets,
+  categoryBudgets = {},
+}: {
+  categories: readonly Category[];
+  budgets: Readonly<Record<string, number>>;
+  categoryBudgets?: Readonly<Record<string, number>>;
+}) {
+  const categoriesByNormalizedName = new Map<string, Category[]>();
+  for (const category of categories) {
+    const normalized = normalizeCategoryName(category.name);
+    if (!normalized) continue;
+    categoriesByNormalizedName.set(normalized, [
+      ...(categoriesByNormalizedName.get(normalized) ?? []),
+      category,
+    ]);
+  }
+  const categoryBudgetsById = { ...categoryBudgets };
+  const unresolvedBudgets: Record<string, number> = {};
+  const legacyBudgetCandidates = new Map<
+    string,
+    Array<readonly [name: string, amount: number]>
+  >();
+  for (const [name, amount] of Object.entries(budgets)) {
+    const categoryId = categoryForLegacyText(
+      categoriesByNormalizedName,
+      name,
+    )?.id;
+    if (categoryId && typeof amount === "number" && Number.isFinite(amount)) {
+      legacyBudgetCandidates.set(categoryId, [
+        ...(legacyBudgetCandidates.get(categoryId) ?? []),
+        [name, amount],
+      ]);
+    } else {
+      unresolvedBudgets[name] = amount;
+    }
+  }
+  for (const [categoryId, candidates] of legacyBudgetCandidates) {
+    if (candidates.length === 1) {
+      if (categoryBudgetsById[categoryId] === undefined) {
+        categoryBudgetsById[categoryId] = candidates[0]![1];
+      }
+      continue;
+    }
+    for (const [name, amount] of candidates) unresolvedBudgets[name] = amount;
+  }
+  return { budgets: unresolvedBudgets, categoryBudgets: categoryBudgetsById };
+}
+
+/**
  * Converts a legacy, name-only snapshot to the additive catalog contract.
  * Materialized records are keyed by ID: archived and active categories with
  * the same display name are distinct historical facts and both are retained.
@@ -121,7 +175,7 @@ function categoryForLegacyText(
 export function hydrateCategoryCatalog<
   T extends Pick<
     AppFinancialData,
-    "categories" | "expenses" | "installments" | "budgets"
+    "categories" | "expenses" | "installments" | "budgets" | "categoryBudgets"
   >,
 >(
   snapshot: T,
@@ -129,6 +183,7 @@ export function hydrateCategoryCatalog<
   categories: Category[];
   expenses: Expense[];
   installments: Installment[];
+  categoryBudgets?: Record<string, number>;
 } {
   const categoriesById = new Map<string, Category>();
   for (const category of snapshot.categories ?? []) {
@@ -154,7 +209,15 @@ export function hydrateCategoryCatalog<
   >();
   for (const candidate of legacyCategoryCandidates(snapshot)) {
     const normalized = normalizeCategoryName(candidate.name);
-    if (!normalized || categoriesByNormalizedName.has(normalized)) continue;
+    // A legacy ID is immutable once materialized. A later rename changes the
+    // display name, never allows defaults or old textual facts to recreate a
+    // second category carrying the original legacy identity.
+    if (
+      !normalized ||
+      categoriesByNormalizedName.has(normalized) ||
+      categoriesById.has(legacyCategoryId(normalized))
+    )
+      continue;
     candidatesByNormalizedName.set(normalized, [
       ...(candidatesByNormalizedName.get(normalized) ?? []),
       { ...candidate, name: canonicalCategoryDisplayName(candidate.name) },
@@ -182,9 +245,18 @@ export function hydrateCategoryCatalog<
   );
   const categoryIdFor = (name: string) =>
     categoryForLegacyText(categoriesByNormalizedName, name)?.id;
+  const promotedBudgets = promoteLegacyCategoryBudgets({
+    categories,
+    budgets: snapshot.budgets,
+    categoryBudgets: snapshot.categoryBudgets,
+  });
   return {
     ...snapshot,
     categories,
+    budgets: promotedBudgets.budgets,
+    ...(Object.keys(promotedBudgets.categoryBudgets).length
+      ? { categoryBudgets: promotedBudgets.categoryBudgets }
+      : {}),
     expenses: snapshot.expenses.map((expense) => ({
       ...expense,
       ...(expense.categoryId || !categoryIdFor(expense.cat)

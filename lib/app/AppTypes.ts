@@ -187,7 +187,13 @@ export type AppFinancialData = {
   debts: Debt[];
   incomeEntries: IncomeEntry[];
   income: number;
+  /**
+   * Compatibility input only: after V4 hydration this contains exclusively
+   * name-keyed values that could not be resolved safely to a category ID.
+   */
   budgets: Record<string, number>;
+  /** Authoritative category-budget map, keyed by stable Category.id. */
+  categoryBudgets?: Record<string, number>;
   limits: Record<"Bruna" | "Matheus", number>;
   personalLimits: PersonalLimitConfiguration;
   creditCards: CreditCard[];

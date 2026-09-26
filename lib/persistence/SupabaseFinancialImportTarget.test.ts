@@ -4,6 +4,10 @@ import test from "node:test";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { AppFinancialData } from "../app/AppTypes";
 import {
+  hydrateCategoryCatalog,
+  legacyCategoryId,
+} from "../finance/categoryCatalog";
+import {
   fromRemoteSnapshot,
   normalizePersistedFinancialSnapshot,
   replaceSupabaseFinancialSnapshot,
@@ -116,6 +120,87 @@ test("round-trips the additive category catalog and stable fact references", () 
   assert.equal(remote.expenses[0]?.category_legacy_id, "category:archive");
   assert.equal(remote.installments[0]?.category_legacy_id, "category:food");
   assert.deepEqual(fromRemoteSnapshot(remote), categorized);
+});
+
+test("round-trips V4 identity budgets without recreating a legacy name bucket", () => {
+  const categorized = {
+    ...snapshot,
+    budgets: {},
+    categoryBudgets: { "category:food": 1400 },
+    categories: [
+      { id: "category:food", name: "Comida", active: true, sortOrder: 0 },
+    ],
+    expenses: [{ ...snapshot.expenses[0]!, categoryId: "category:food" }],
+  };
+  const remote = toRemoteSnapshot(categorized);
+
+  assert.deepEqual(remote.settings.category_budgets, {
+    "category:food": 1400,
+  });
+  assert.deepEqual(remote.settings.budgets, {});
+  assert.deepEqual(fromRemoteSnapshot(remote), categorized);
+});
+
+test("keeps a promoted legacy budget stable through rename, V4 persistence and rehydration", () => {
+  const categoryId = legacyCategoryId("Alimentação");
+  const legacy: AppFinancialData = {
+    ...snapshot,
+    budgets: { Alimentação: 1400 },
+    categories: [
+      {
+        id: categoryId,
+        name: "Alimentação",
+        active: true,
+        sortOrder: 0,
+      },
+    ],
+    expenses: [{ ...snapshot.expenses[0]!, categoryId }],
+    installments: [
+      {
+        id: 12,
+        title: "Plano",
+        category: "Alimentação",
+        categoryId,
+        who: "Casal",
+        amount: 50,
+        totalInstallments: 2,
+        paidInstallments: 0,
+        nextDue: "2026-10-01",
+      },
+    ],
+  };
+  const promoted = hydrateCategoryCatalog(legacy);
+  const renamed = {
+    ...promoted,
+    categories: promoted.categories.map((category) =>
+      category.id === categoryId ? { ...category, name: "Comida" } : category,
+    ),
+  };
+  const rehydrated = hydrateCategoryCatalog(
+    fromRemoteSnapshot(toRemoteSnapshot(renamed)),
+  );
+
+  assert.equal(
+    rehydrated.categories.find((category) => category.id === categoryId)?.name,
+    "Comida",
+  );
+  assert.equal(rehydrated.categoryBudgets?.[categoryId], 1400);
+  assert.equal(rehydrated.budgets.Alimentação, undefined);
+  assert.equal(Object.keys(rehydrated.categoryBudgets ?? {}).length, 1);
+  assert.equal(rehydrated.expenses[0]?.categoryId, categoryId);
+  assert.equal(rehydrated.installments[0]?.categoryId, categoryId);
+  assert.equal(
+    rehydrated.expenses.reduce((total, expense) => total + expense.amount, 0) +
+      rehydrated.installments.reduce(
+        (total, installment) => total + installment.amount,
+        0,
+      ),
+    legacy.expenses.reduce((total, expense) => total + expense.amount, 0) +
+      legacy.installments.reduce(
+        (total, installment) => total + installment.amount,
+        0,
+      ),
+  );
 });
 
 test("round-trips optional historical invoice facts without changing legacy snapshots", () => {
@@ -345,7 +430,7 @@ test("uses the import RPC and returns its persisted snapshot", async () => {
     },
   );
 
-  assert.equal(rpcName, "import_financial_snapshot_v3");
+  assert.equal(rpcName, "import_financial_snapshot_v4");
   assert.equal(rpcArguments?.p_household_id, "household");
   assert.equal(rpcArguments?.p_source_hash, "hash");
   assert.deepEqual(Object.keys(rpcArguments ?? {}).sort(), [
@@ -359,13 +444,48 @@ test("uses the import RPC and returns its persisted snapshot", async () => {
   assert.deepEqual(persisted, snapshot);
 });
 
+test("reads category budgets from an idempotent V4 import response", async () => {
+  const categorized = {
+    ...snapshot,
+    budgets: {},
+    categoryBudgets: { "category:food": 1400 },
+    categories: [
+      { id: "category:food", name: "Comida", active: true, sortOrder: 0 },
+    ],
+  };
+  const client = {
+    rpc: async () => ({
+      data: { imported: false, snapshot: toRemoteSnapshot(categorized) },
+      error: null,
+    }),
+  } as unknown as SupabaseClient;
+  const target = new SupabaseFinancialImportTarget(client);
+
+  const persisted = await target.importAtomically(
+    "household",
+    categorized,
+    "hash",
+    {
+      expenses: 1,
+      installments: 0,
+      receivables: 0,
+      incomeEntries: 0,
+      creditCards: 1,
+      invoicePayments: 0,
+    },
+  );
+
+  assert.equal(persisted.categoryBudgets?.["category:food"], 1400);
+  assert.deepEqual(persisted.budgets, {});
+});
+
 test("preserves sanitized RPC metadata instead of replacing it with a generic error", async () => {
   const client = {
     rpc: async () => ({
       data: null,
       error: {
         code: "42883",
-        message: "function public.import_financial_snapshot_v3 does not exist",
+        message: "function public.import_financial_snapshot_v4 does not exist",
         details: "No function matches the given name and argument types.",
         hint: "Check the function signature.",
       },
@@ -385,12 +505,12 @@ test("preserves sanitized RPC metadata instead of replacing it with a generic er
     (error: unknown) => {
       assert.ok(error instanceof SupabaseImportRpcError);
       assert.deepEqual(error.diagnostic(), {
-        stage: "import_financial_snapshot_v3",
+        stage: "import_financial_snapshot_v4",
         function: "SupabaseFinancialImportTarget.importAtomically",
         rpcStarted: true,
         rpcResponded: true,
         code: "42883",
-        message: "function public.import_financial_snapshot_v3 does not exist",
+        message: "function public.import_financial_snapshot_v4 does not exist",
         details: "No function matches the given name and argument types.",
         hint: "Check the function signature.",
       });
@@ -436,7 +556,7 @@ test("writes a runtime snapshot only through the atomic replacement RPC", async 
     revisionHash: "revision",
   });
 
-  assert.equal(rpcName, "replace_financial_snapshot_v3");
+  assert.equal(rpcName, "replace_financial_snapshot_v4");
   assert.equal(rpcArguments?.p_household_id, "household");
   assert.equal(rpcArguments?.p_revision_hash, "revision");
   assert.deepEqual(persisted, snapshot);
@@ -521,6 +641,52 @@ test("keeps the v3 category migration authorized and aligned with the legacy con
   assert.match(
     migration,
     /import_financial_snapshot_v3\(uuid,text,jsonb,jsonb\)/,
+  );
+});
+
+test("keeps the V4 budget migration aligned with its identity budget contract", () => {
+  const migration = readFileSync(
+    "supabase/migrations/20260925100000_category_budget_identity.sql",
+    "utf8",
+  );
+  assert.match(migration, /jsonb_typeof\(entry\.value\) = 'number'/);
+  assert.doesNotMatch(migration, /max\(amount\)/);
+  assert.match(
+    migration,
+    /mapped\.budgets \|\| coalesce\(settings\.category_budgets, '\{\}'::jsonb\)/,
+  );
+  assert.match(migration, /replace_financial_snapshot_v4\(uuid,jsonb,text\)/);
+  assert.match(
+    migration,
+    /import_financial_snapshot_v4\(uuid,text,jsonb,jsonb\)/,
+  );
+  assert.match(
+    migration,
+    /jsonb_set\(v_snapshot, '\{settings,category_budgets\}'/,
+  );
+  assert.match(
+    migration,
+    /current_setting\('brumath\.v4_snapshot_writer', true\) is distinct from 'enabled'/,
+  );
+  assert.match(
+    migration,
+    /replace_financial_snapshot_v3 is disabled after the V4 category-budget rollout/,
+  );
+  assert.match(
+    migration,
+    /import_financial_snapshot_v3 is disabled after the V4 category-budget rollout/,
+  );
+  assert.match(
+    migration,
+    /perform set_config\('brumath\.v4_snapshot_writer', 'enabled', true\);/,
+  );
+  assert.match(
+    migration,
+    /grant execute on function public\.replace_financial_snapshot_v4\(uuid,jsonb,text\) to authenticated;/,
+  );
+  assert.match(
+    migration,
+    /grant execute on function public\.import_financial_snapshot_v4\(uuid,text,jsonb,jsonb\) to authenticated;/,
   );
 });
 

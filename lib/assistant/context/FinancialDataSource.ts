@@ -84,6 +84,7 @@ export type FinancialDataSnapshot = {
   incomeEntries: readonly PersistedIncomeEntry[];
   income: number;
   budgets: Readonly<Record<string, number>>;
+  categoryBudgets?: Readonly<Record<string, number>>;
   limits: Readonly<Record<"Bruna" | "Matheus", number>>;
   personalLimits?: PersonalLimitConfiguration;
   creditCards?: readonly PersistedCreditCard[];

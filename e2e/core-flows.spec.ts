@@ -76,18 +76,7 @@ test("Gasto criado, editado e excluído atualiza categoria e bucket sem duplicar
   const dialog = page.getByRole("dialog");
   await dialog.getByLabel("O que foi?").fill("Almoço de trabalho");
   await dialog.getByLabel("Valor").fill("5000");
-  const categoryTrigger = dialog.getByLabel("Categoria");
-  await expect(categoryTrigger).toHaveAttribute("aria-haspopup", "listbox");
-  await categoryTrigger.click();
-  const categorySearch = dialog.getByRole("searchbox", {
-    name: "Buscar categoria",
-  });
-  await expect(categorySearch).toBeFocused();
-  await categorySearch.press("Escape");
-  await expect(categorySearch).toHaveCount(0);
-  await categoryTrigger.click();
-  await dialog.getByRole("searchbox", { name: "Buscar categoria" }).fill("ali");
-  await dialog.getByRole("option", { name: "Alimentação" }).click();
+  await dialog.getByLabel("Categoria").selectOption({ label: "Alimentação" });
   await dialog.getByLabel("Quem").selectOption("Bruna");
   await dialog.getByLabel("Usar limite pessoal").selectOption("bruna_personal");
   await dialog.getByRole("button", { name: "Salvar gasto" }).click();

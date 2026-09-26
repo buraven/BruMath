@@ -103,6 +103,52 @@ test("derives the existing month, limit and receivable values without mixing per
   );
 });
 
+test("uses an identity budget after rename without reviving its old text bucket", () => {
+  const result = deriveFinancialSelectors({
+    expenses: [
+      {
+        id: 1,
+        title: "Mercado",
+        cat: "Alimentação",
+        categoryId: "legacy:alimentação",
+        who: "Casal",
+        amount: 100,
+        date: "2026-09-02",
+      },
+    ],
+    installments: [],
+    debts: [],
+    incomeEntries: [],
+    income: 1000,
+    // V4's compatibility map is empty after this value has been promoted.
+    budgets: {},
+    categoryBudgets: { "legacy:alimentação": 1400 },
+    categories: [
+      {
+        id: "legacy:alimentação",
+        name: "Comida",
+        active: true,
+        sortOrder: 0,
+      },
+    ],
+    limits: { Bruna: 350, Matheus: 350 },
+    viewMonth: "2026-09",
+    profile: "Casal",
+  });
+
+  assert.deepEqual(
+    result.limitItems.filter((item) => item.id.startsWith("category:")),
+    [
+      {
+        id: "category:legacy:alimentação",
+        label: "Comida",
+        amount: 1400,
+        spent: 100,
+      },
+    ],
+  );
+});
+
 test("updates base income without treating it as an extra entry", async () => {
   const data: AppFinancialData = {
     expenses: [

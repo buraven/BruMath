@@ -74,6 +74,7 @@ export class LocalStorageFinancialDataSource implements FinancialDataSource {
       incomeEntries: asArray<PersistedIncomeEntry>(data.incomeEntries),
       income: asNumber(data.income),
       budgets: asNumberRecord(data.budgets),
+      categoryBudgets: asNumberRecord(data.categoryBudgets),
       limits: {
         Bruna: asNumber(limits.Bruna),
         Matheus: asNumber(limits.Matheus),

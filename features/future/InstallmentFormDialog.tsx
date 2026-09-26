@@ -11,7 +11,7 @@ import type {
   Installment,
   Person,
 } from "../../lib/app/AppTypes";
-import { CategorySelector } from "../categories/CategorySelector";
+import { CategorySelect } from "../categories/CategorySelect";
 
 type Props = {
   installment: Installment | null;
@@ -180,7 +180,7 @@ export function InstallmentFormDialog({
           </label>
         </div>
         <div className="form-grid">
-          <CategorySelector
+          <CategorySelect
             categories={categories}
             valueId={form.categoryId || undefined}
             fallbackName={form.category}

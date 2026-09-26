@@ -84,6 +84,7 @@ export class SupabaseFinancialDataSource implements FinancialDataSource {
       })),
       income: Number(configuration.income),
       budgets: configuration.budgets,
+      categoryBudgets: configuration.category_budgets ?? {},
       limits: configuration.limits,
       personalLimits: configuration.personal_limits,
       expenses: (expenses.data ?? []).map((row: any) => ({

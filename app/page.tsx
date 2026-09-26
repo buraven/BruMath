@@ -72,6 +72,11 @@ import {
   createReceivableMutations,
 } from "../features/app/financialMutationControllers";
 import { renderCategoryIcon } from "../features/app/renderCategoryIcon";
+import {
+  assertActiveCategoryNameAvailable,
+  assertCategoryCanBeDeleted,
+  createManagedCategory,
+} from "../features/categories/categoryManagement";
 import { HomeFinancialHighlights } from "../features/home/components/HomeFinancialHighlights/HomeFinancialHighlights";
 import {
   DEFAULT_BUDGETS,
@@ -141,6 +146,7 @@ export default function Page() {
     expenses,
     setExpenses,
     categories,
+    setCategories,
     installments,
     setInstallments,
     debts,
@@ -151,6 +157,8 @@ export default function Page() {
     setIncome,
     budgets,
     setBudgets,
+    categoryBudgets,
+    setCategoryBudgets,
     limits,
     setLimits,
     personalLimits,
@@ -258,6 +266,8 @@ export default function Page() {
         incomeEntries,
         income,
         budgets,
+        categoryBudgets,
+        categories,
         personalLimits,
         viewMonth,
         profile: activeProfile,
@@ -269,6 +279,8 @@ export default function Page() {
       incomeEntries,
       income,
       budgets,
+      categoryBudgets,
+      categories,
       personalLimits,
       viewMonth,
       activeProfile,
@@ -303,6 +315,64 @@ export default function Page() {
     setBudgets,
     setPersonalLimits,
   });
+  const createCategory = (name: string) => {
+    const id = globalThis.crypto.randomUUID();
+    setCategories((current) => [
+      ...current,
+      createManagedCategory(current, name, id),
+    ]);
+  };
+  const renameCategory = (id: string, name: string) => {
+    setCategories((current) => {
+      const displayName = assertActiveCategoryNameAvailable(current, name, id);
+      return current.map((category) =>
+        category.id === id ? { ...category, name: displayName } : category,
+      );
+    });
+  };
+  const setCategoryActive = (id: string, active: boolean) => {
+    setCategories((current) => {
+      const category = current.find((item) => item.id === id);
+      if (!category) return current;
+      if (active) assertActiveCategoryNameAvailable(current, category.name, id);
+      return current.map((item) =>
+        item.id === id ? { ...item, active } : item,
+      );
+    });
+  };
+  const deleteCategory = (id: string) => {
+    const category = categories.find((item) => item.id === id);
+    if (!category) return;
+    assertCategoryCanBeDeleted(category, {
+      expenses,
+      installments,
+      categoryBudgets,
+      budgets,
+    });
+    setCategories((current) => current.filter((item) => item.id !== id));
+  };
+  const requestDeleteCategory = (id: string) => {
+    const category = categories.find((item) => item.id === id);
+    if (!category) return;
+    setConfirmation({
+      title: "Excluir categoria",
+      description: `A categoria “${category.name}” será excluída definitivamente. Essa ação não pode ser desfeita.`,
+      confirmLabel: "Excluir categoria",
+      destructive: true,
+      onConfirm: () => {
+        try {
+          deleteCategory(id);
+          setToast("Categoria excluída");
+        } catch (error) {
+          setToast(
+            error instanceof Error
+              ? error.message
+              : "Não foi possível excluir a categoria.",
+          );
+        }
+      },
+    });
+  };
   const invoices = useMemo(
     () =>
       deriveInvoices({
@@ -724,6 +794,16 @@ export default function Page() {
                       ]),
                     ),
                   });
+                  setCategoryBudgets(
+                    Object.fromEntries(
+                      categories.map((category) => [
+                        category.id,
+                        values[`category:${category.id}`] ??
+                          categoryBudgets[category.id] ??
+                          0,
+                      ]),
+                    ),
+                  );
                   setToast("Limites atualizados 💚");
                 }}
                 renderIcon={renderCategoryIcon}
@@ -736,6 +816,14 @@ export default function Page() {
                 profile={activeProfile}
                 expenses={monthExpenses}
                 budgets={budgets}
+                categoryBudgets={categoryBudgets}
+                categories={categories}
+                allExpenses={expenses}
+                installments={installments}
+                onCreateCategory={createCategory}
+                onRenameCategory={renameCategory}
+                onSetCategoryActive={setCategoryActive}
+                onDeleteCategory={requestDeleteCategory}
                 onConfigureLimits={() => switchTab("limits")}
                 onEditExpense={openEditExpense}
                 onDeleteExpense={deleteExpense}

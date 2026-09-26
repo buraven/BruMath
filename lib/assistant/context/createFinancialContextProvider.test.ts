@@ -198,6 +198,60 @@ test("filters context by Bruna and preserves the global base income", async () =
   );
 });
 
+test("keeps an identity category budget after its display name changes", async () => {
+  const renamedProvider = createFinancialContextProvider({
+    read: async () => ({
+      ...snapshot,
+      budgets: {},
+      categoryBudgets: { "legacy:alimentação": 1400 },
+      categories: [
+        {
+          id: "legacy:alimentação",
+          name: "Comida",
+          active: true,
+          sortOrder: 0,
+        },
+      ],
+      expenses: [
+        {
+          ...snapshot.expenses[0]!,
+          categoryId: "legacy:alimentação",
+        },
+      ],
+    }),
+  });
+
+  const limits = await renamedProvider.getLimits({
+    profile: "Casal",
+    month: "2026-09",
+  });
+
+  assert.deepEqual(
+    limits.value.filter((limit) => limit.kind === "category"),
+    [
+      {
+        id: "category:legacy:alimentação",
+        label: "Comida",
+        owner: "Casal",
+        amount: 1400,
+        spent: 100,
+        remaining: 1300,
+        percentage: (100 / 1400) * 100,
+        exceeded: false,
+        kind: "category",
+      },
+    ],
+  );
+
+  const filtered = await renamedProvider.getContext({
+    profile: "Casal",
+    month: "2026-09",
+    category: "Comida",
+  });
+  assert.equal(filtered.value.expenses.length, 1);
+  assert.equal(filtered.value.expenses[0]?.category, "Comida");
+});
+
 test("filters context by Matheus, including only his receivables and income", async () => {
   const context = await provider.getContext({
     profile: "Matheus",

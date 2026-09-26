@@ -72,6 +72,70 @@
 .secondary {
   padding: var(--space-3) var(--space-4);
 }
+.management {
+  display: grid;
+  gap: var(--space-3);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+  padding: var(--space-4);
+  background: var(--surface);
+}
+.management h2 {
+  margin: 0;
+  font-size: 1rem;
+}
+.management p {
+  margin: var(--space-1) 0 0;
+  color: var(--muted);
+  font-size: 0.8rem;
+}
+.addForm {
+  display: flex;
+  align-items: end;
+  gap: var(--space-3);
+}
+.addForm :global(.field) {
+  flex: 1;
+}
+.catalogList {
+  display: grid;
+  gap: var(--space-2);
+  padding: 0;
+  margin: 0;
+  list-style: none;
+}
+.catalogList li {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-2) 0;
+  border-top: 1px solid var(--line);
+}
+.actions {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  margin-left: auto;
+}
+.actions button,
+.catalogList button {
+  border: 0;
+  background: transparent;
+  color: var(--color-accent-strong);
+  font: inherit;
+  font-size: 0.78rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+.actions button:disabled {
+  color: var(--muted);
+  cursor: not-allowed;
+}
+.archived,
+.notice {
+  color: var(--muted);
+  font-size: 0.78rem;
+}
 .secondary:hover,
 .back:hover,
 .detailButton:hover {
@@ -320,6 +384,18 @@
   }
   .secondary {
     width: 100%;
+  }
+  .addForm {
+    align-items: stretch;
+    flex-direction: column;
+  }
+  .catalogList li {
+    align-items: flex-start;
+    flex-wrap: wrap;
+  }
+  .actions {
+    width: 100%;
+    margin-left: 0;
   }
   .expenses,
   .summary {

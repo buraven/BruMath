@@ -16,6 +16,7 @@ export type RemoteSnapshot = {
   settings: {
     income: number;
     budgets: AppFinancialData["budgets"];
+    category_budgets?: Record<string, number>;
     limits: AppFinancialData["limits"];
     personal_limits: AppFinancialData["personalLimits"];
     active_profile: AppFinancialData["activeProfile"];
@@ -159,7 +160,7 @@ export class SupabaseImportRpcError extends Error {
 
   diagnostic() {
     return {
-      stage: "import_financial_snapshot_v3",
+      stage: "import_financial_snapshot_v4",
       function: "SupabaseFinancialImportTarget.importAtomically",
       rpcStarted: this.rpcStarted,
       rpcResponded: this.rpcResponded,
@@ -221,6 +222,7 @@ export function toRemoteSnapshot(snapshot: AppFinancialData): RemoteSnapshot {
     settings: {
       income: snapshot.income,
       budgets: snapshot.budgets,
+      category_budgets: snapshot.categoryBudgets ?? {},
       limits: snapshot.limits,
       personal_limits: snapshot.personalLimits,
       active_profile: snapshot.activeProfile,
@@ -483,6 +485,10 @@ export function fromRemoteSnapshot(snapshot: RemoteSnapshot): AppFinancialData {
     })),
     income: Number(snapshot.settings.income),
     budgets: snapshot.settings.budgets,
+    ...(snapshot.settings.category_budgets &&
+    Object.keys(snapshot.settings.category_budgets).length
+      ? { categoryBudgets: snapshot.settings.category_budgets }
+      : {}),
     limits: snapshot.settings.limits,
     personalLimits: snapshot.settings.personal_limits,
     creditCards: snapshot.credit_cards.map((card) => ({
@@ -580,7 +586,7 @@ export class SupabaseFinancialImportTarget implements FinancialImportTarget {
     let result: Awaited<ReturnType<SupabaseClient["rpc"]>>;
     try {
       result = await this.client.rpc(
-        "import_financial_snapshot_v3",
+        "import_financial_snapshot_v4",
         arguments_,
       );
     } catch (error) {
@@ -619,7 +625,7 @@ export async function replaceSupabaseFinancialSnapshot({
   snapshot: AppFinancialData;
   revisionHash: string;
 }): Promise<AppFinancialData> {
-  const result = await client.rpc("replace_financial_snapshot_v3", {
+  const result = await client.rpc("replace_financial_snapshot_v4", {
     p_household_id: householdId,
     p_snapshot: toRemoteSnapshot(snapshot),
     p_revision_hash: revisionHash,
