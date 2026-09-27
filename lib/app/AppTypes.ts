@@ -99,6 +99,16 @@ export type InstallmentScheduleItem = {
   status: "scheduled";
 };
 
+/** An immutable, full settlement of one scheduled installment. */
+export type InstallmentSettlementEvent = {
+  id: string;
+  installmentId: number;
+  installmentNumber: number;
+  amount: number;
+  settledAt: string;
+  type: "regular" | "anticipated";
+};
+
 export type InstallmentInvoiceEventType =
   | "regular"
   | "anticipated"
@@ -219,6 +229,8 @@ export type AppFinancialData = {
    * schedule; an explicit empty array is the authoritative empty schedule.
    */
   installmentScheduleItems?: InstallmentScheduleItem[];
+  /** Additive V4 extension for immutable settlements outside invoice facts. */
+  installmentSettlementEvents?: InstallmentSettlementEvent[];
   activeProfile: Person;
   viewMonth: string;
 };

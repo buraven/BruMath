@@ -41,6 +41,7 @@ export class SupabaseFinancialDataSource implements FinancialDataSource {
       reimbursementAllocations,
       categories,
       scheduleItems,
+      settlementEvents,
     ] = await Promise.all([
       scope("financial_settings").single(),
       scope("expenses"),
@@ -54,6 +55,7 @@ export class SupabaseFinancialDataSource implements FinancialDataSource {
       scope("installment_reimbursement_allocations"),
       scope("financial_categories"),
       scope("installment_schedule_items"),
+      scope("installment_settlement_events"),
     ]);
     const failed = [
       settings,
@@ -68,6 +70,7 @@ export class SupabaseFinancialDataSource implements FinancialDataSource {
       reimbursementAllocations,
       categories,
       scheduleItems,
+      settlementEvents,
     ].find((result) => result.error && result.error.code !== "PGRST116");
     if (failed?.error)
       throw new Error("Não foi possível carregar os dados financeiros.");
@@ -101,6 +104,23 @@ export class SupabaseFinancialDataSource implements FinancialDataSource {
           ...(row.due_date ? { dueDate: row.due_date } : {}),
           ...(creditCardId !== undefined ? { creditCardId } : {}),
           status: row.status,
+        } as const;
+      },
+    );
+    const installmentSettlementEvents = (settlementEvents.data ?? []).map(
+      (row: any) => {
+        const installmentId = installmentLegacyIds.get(row.installment_id);
+        if (installmentId === undefined)
+          throw new Error(
+            "A liquidação remota referencia um parcelamento ausente.",
+          );
+        return {
+          id: row.legacy_id,
+          installmentId,
+          installmentNumber: row.installment_number,
+          amount: Number(row.amount),
+          settledAt: row.settled_on,
+          type: row.settlement_type,
         } as const;
       },
     );
@@ -232,6 +252,7 @@ export class SupabaseFinancialDataSource implements FinancialDataSource {
         ...(row.debt_legacy_id ? { debtId: row.debt_legacy_id } : {}),
       })),
       installmentScheduleItems,
+      installmentSettlementEvents,
       activeProfile: configuration.active_profile,
       viewMonth: configuration.view_month.slice(0, 7),
       hasStoredData: true,

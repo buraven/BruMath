@@ -3,6 +3,7 @@ import type {
   AppFinancialData,
   Category,
   InstallmentScheduleItem,
+  InstallmentSettlementEvent,
 } from "../app/AppTypes";
 import type {
   FinancialImportTarget,
@@ -135,6 +136,15 @@ export type RemoteSnapshot = {
     due_date: string | null;
     credit_card_legacy_id: number | null;
     status: InstallmentScheduleItem["status"];
+  }>;
+  /** Immutable V4 extension, intentionally absent from older RPC projections. */
+  installment_settlement_events?: Array<{
+    legacy_id: string;
+    installment_legacy_id: number;
+    installment_number: number;
+    amount: number;
+    settled_on: string;
+    settlement_type: InstallmentSettlementEvent["type"];
   }>;
 };
 
@@ -473,6 +483,30 @@ export function toRemoteSnapshot(snapshot: AppFinancialData): RemoteSnapshot {
             })),
         }
       : {}),
+    ...(snapshot.installmentSettlementEvents
+      ? {
+          installment_settlement_events: [
+            ...snapshot.installmentSettlementEvents,
+          ]
+            .sort(
+              (left, right) =>
+                left.installmentId - right.installmentId ||
+                left.installmentNumber - right.installmentNumber ||
+                left.id.localeCompare(right.id),
+            )
+            .map((event) => ({
+              legacy_id: event.id,
+              installment_legacy_id: event.installmentId,
+              installment_number: event.installmentNumber,
+              amount: event.amount,
+              settled_on: civilDate(
+                event.settledAt,
+                `Liquidação ${event.id}.settledAt`,
+              ),
+              settlement_type: event.type,
+            })),
+        }
+      : {}),
   };
 }
 
@@ -499,6 +533,8 @@ export function toLegacyImportSnapshot(
     invoice_adjustments: _invoiceAdjustments,
     installment_invoice_events: _installmentInvoiceEvents,
     installment_reimbursement_allocations: _installmentReimbursementAllocations,
+    installment_schedule_items: _installmentScheduleItems,
+    installment_settlement_events: _installmentSettlementEvents,
     ...legacy
   } = snapshot;
   return {
@@ -689,6 +725,21 @@ export function fromRemoteSnapshot(snapshot: RemoteSnapshot): AppFinancialData {
               status: item.status,
             }),
           ),
+        }
+      : {}),
+    ...(snapshot.installment_settlement_events
+      ? {
+          installmentSettlementEvents:
+            snapshot.installment_settlement_events.map(
+              (event): InstallmentSettlementEvent => ({
+                id: event.legacy_id,
+                installmentId: event.installment_legacy_id,
+                installmentNumber: event.installment_number,
+                amount: Number(event.amount),
+                settledAt: event.settled_on,
+                type: event.settlement_type,
+              }),
+            ),
         }
       : {}),
     activeProfile: snapshot.settings.active_profile,
