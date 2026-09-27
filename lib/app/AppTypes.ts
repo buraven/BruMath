@@ -214,6 +214,11 @@ export type AppFinancialData = {
   invoiceAdjustments?: InvoiceAdjustment[];
   installmentInvoiceEvents?: InstallmentInvoiceEvent[];
   installmentReimbursementAllocations?: InstallmentReimbursementAllocation[];
+  /**
+   * Additive V4 extension. Its absence preserves a legacy plan with no known
+   * schedule; an explicit empty array is the authoritative empty schedule.
+   */
+  installmentScheduleItems?: InstallmentScheduleItem[];
   activeProfile: Person;
   viewMonth: string;
 };
