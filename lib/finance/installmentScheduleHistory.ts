@@ -52,9 +52,9 @@ export function completeInstallmentSchedule(
   for (const item of items) {
     if (
       item.status !== "scheduled" ||
-      item.totalInstallments !== installment.totalInstallments ||
       item.installmentNumber < 1 ||
       item.installmentNumber > installment.totalInstallments ||
+      item.totalInstallments < item.installmentNumber ||
       numbers.has(item.installmentNumber) ||
       !Number.isFinite(item.amount) ||
       item.amount < 0
