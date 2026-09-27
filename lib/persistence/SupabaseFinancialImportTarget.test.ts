@@ -928,6 +928,29 @@ test("guards the public V1 and V2 writers while preserving the V4 internal chain
   );
 });
 
+test("defines an additive household-isolated installment schedule foundation", () => {
+  const migration = readFileSync(
+    "supabase/migrations/20260927110000_installment_schedule_foundation.sql",
+    "utf8",
+  );
+  assert.match(migration, /create table public\.installment_schedule_items/i);
+  assert.match(migration, /foreign key \(household_id, installment_id\)/i);
+  assert.match(migration, /foreign key \(household_id, credit_card_id\)/i);
+  assert.match(
+    migration,
+    /unique \(household_id, installment_id, installment_number\)/i,
+  );
+  assert.match(migration, /enable row level security/i);
+  assert.match(
+    migration,
+    /revoke all on table public\.installment_schedule_items from anon/i,
+  );
+  assert.doesNotMatch(
+    migration,
+    /insert into public\.installment_schedule_items/i,
+  );
+});
+
 test("bootstraps only through the authenticated household RPC", async () => {
   let rpcName = "";
   const client = {
