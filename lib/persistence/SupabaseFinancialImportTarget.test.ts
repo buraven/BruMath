@@ -20,6 +20,7 @@ import {
   toLegacyImportSnapshot,
   toRemoteSnapshot,
 } from "./SupabaseFinancialImportTarget";
+import { applyProspectiveInstallmentEdit } from "../finance/installmentProspectiveEdit";
 import { bootstrapFinancialHousehold } from "./supabaseAuth";
 
 function structuralDiffPaths(
@@ -833,6 +834,30 @@ test("transports immutable settlement events through import V4", async () => {
   assert.deepEqual(
     result.installmentSettlementEvents,
     settled.installmentSettlementEvents,
+  );
+});
+
+test("round-trips an atomically edited installment and its schedule through V4", () => {
+  const source = snapshotWithSettlement();
+  const plan = source.installments[0]!;
+  const result = applyProspectiveInstallmentEdit({
+    installment: plan,
+    scheduleItems: source.installmentScheduleItems!,
+    historyFacts: {
+      installmentSettlementEvents: source.installmentSettlementEvents,
+      installmentInvoiceEvents: source.installmentInvoiceEvents,
+    },
+    edit: { futureTotalAmount: 50, futureCreditCardId: 8 },
+  });
+  const edited: AppFinancialData = {
+    ...source,
+    installments: [result.installment],
+    installmentScheduleItems: result.scheduleItems,
+  };
+  assert.deepEqual(fromRemoteSnapshot(toRemoteSnapshot(edited)), edited);
+  assert.deepEqual(
+    edited.installmentSettlementEvents,
+    source.installmentSettlementEvents,
   );
 });
 

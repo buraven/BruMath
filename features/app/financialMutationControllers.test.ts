@@ -195,6 +195,181 @@ test("scheduled card payments use invoice events and never create a parallel set
   assert.deepEqual(settlementEvents.value, []);
 });
 
+test("prospective schedule edits update plan and schedule together without rewriting historical facts", () => {
+  const installments = setter<Installment[]>([
+    {
+      id: 29,
+      title: "Curso",
+      category: "Educação",
+      who: "Bruna",
+      amount: 100,
+      totalInstallments: 3,
+      paidInstallments: 1,
+      nextDue: "2026-10-10",
+    },
+  ]);
+  const schedule = setter<InstallmentScheduleItem[] | undefined>([
+    ...[1, 2, 3].map((installmentNumber) => ({
+      id: `installment:29:${installmentNumber}`,
+      installmentId: 29,
+      installmentNumber,
+      totalInstallments: 3,
+      amount: 100,
+      dueDate: `2026-${String(8 + installmentNumber).padStart(2, "0")}-10`,
+      status: "scheduled" as const,
+    })),
+  ]);
+  const settlements = setter<InstallmentSettlementEvent[] | undefined>([
+    {
+      id: "settlement:29:1",
+      installmentId: 29,
+      installmentNumber: 1,
+      amount: 100,
+      settledAt: "2026-09-10",
+      type: "regular",
+    },
+  ]);
+  const invoiceEvents = setter<InstallmentInvoiceEvent[]>([]);
+  const confirmation = setter<Confirmation | null>(null);
+  const toast = setter("");
+  const controller = createInstallmentMutations({
+    installments: installments.value,
+    installmentScheduleItems: schedule.value,
+    installmentSettlementEvents: settlements.value,
+    installmentInvoiceEvents: invoiceEvents.value,
+    setInstallments: installments.set,
+    setInstallmentScheduleItems: schedule.set,
+    setInstallmentSettlementEvents: settlements.set,
+    setInstallmentInvoiceEvents: invoiceEvents.set,
+    setConfirmation: confirmation.set,
+    setToast: toast.set,
+  });
+
+  controller.editProspectively(29, {
+    title: "Curso atualizado",
+    futureTotalAmount: 150,
+    firstFutureDueDate: "2026-10-31",
+    futureCreditCardId: 7,
+  });
+
+  assert.equal(installments.value[0]?.title, "Curso atualizado");
+  assert.equal(installments.value[0]?.creditCardId, 7);
+  assert.deepEqual(schedule.value?.[0], {
+    id: "installment:29:1",
+    installmentId: 29,
+    installmentNumber: 1,
+    totalInstallments: 3,
+    amount: 100,
+    dueDate: "2026-09-10",
+    status: "scheduled",
+  });
+  assert.deepEqual(
+    schedule.value
+      ?.slice(1)
+      .map((item) => [item.amount, item.dueDate, item.creditCardId]),
+    [
+      [75, "2026-10-31", 7],
+      [75, "2026-11-30", 7],
+    ],
+  );
+  assert.deepEqual(settlements.value, [
+    {
+      id: "settlement:29:1",
+      installmentId: 29,
+      installmentNumber: 1,
+      amount: 100,
+      settledAt: "2026-09-10",
+      type: "regular",
+    },
+  ]);
+  assert.deepEqual(invoiceEvents.value, []);
+});
+
+test("prospective edit errors leave both state collections untouched", () => {
+  const installments = setter<Installment[]>([
+    {
+      id: 30,
+      title: "Legado",
+      category: "Casa",
+      who: "Bruna",
+      amount: 100,
+      totalInstallments: 2,
+      paidInstallments: 0,
+      nextDue: "2026-09-10",
+    },
+  ]);
+  const schedule = setter<InstallmentScheduleItem[] | undefined>([]);
+  const confirmation = setter<Confirmation | null>(null);
+  const toast = setter("");
+  const controller = createInstallmentMutations({
+    installments: installments.value,
+    installmentScheduleItems: schedule.value,
+    setInstallments: installments.set,
+    setInstallmentScheduleItems: schedule.set,
+    setConfirmation: confirmation.set,
+    setToast: toast.set,
+  });
+  assert.throws(
+    () => controller.editProspectively(30, { futureTotalAmount: 50 }),
+    /legado/,
+  );
+  assert.deepEqual(installments.value, [
+    {
+      id: 30,
+      title: "Legado",
+      category: "Casa",
+      who: "Bruna",
+      amount: 100,
+      totalInstallments: 2,
+      paidInstallments: 0,
+      nextDue: "2026-09-10",
+    },
+  ]);
+  assert.deepEqual(schedule.value, []);
+});
+
+test("an incomplete schedule reports its domain error without changing state", () => {
+  const installments = setter<Installment[]>([
+    {
+      id: 32,
+      title: "Incompleto",
+      category: "Casa",
+      who: "Bruna",
+      amount: 100,
+      totalInstallments: 2,
+      paidInstallments: 0,
+      nextDue: "2026-09-10",
+    },
+  ]);
+  const schedule = setter<InstallmentScheduleItem[] | undefined>([
+    {
+      id: "installment:32:1",
+      installmentId: 32,
+      installmentNumber: 1,
+      totalInstallments: 2,
+      amount: 100,
+      dueDate: "2026-09-10",
+      status: "scheduled",
+    },
+  ]);
+  const confirmation = setter<Confirmation | null>(null);
+  const toast = setter("");
+  const controller = createInstallmentMutations({
+    installments: installments.value,
+    installmentScheduleItems: schedule.value,
+    setInstallments: installments.set,
+    setInstallmentScheduleItems: schedule.set,
+    setConfirmation: confirmation.set,
+    setToast: toast.set,
+  });
+  assert.throws(
+    () => controller.editProspectively(32, { futureTotalAmount: 50 }),
+    /incompleto/,
+  );
+  assert.equal(installments.value[0]?.title, "Incompleto");
+  assert.equal(schedule.value?.length, 1);
+});
+
 test("installment, receivable and limit mutations preserve their existing deterministic rules", () => {
   const installments = setter<Installment[]>([
     {

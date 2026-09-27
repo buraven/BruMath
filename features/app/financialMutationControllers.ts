@@ -15,6 +15,10 @@ import {
   futureInstallmentScheduleItems,
   isInstallmentScheduleItemHistorical,
 } from "../../lib/finance/installmentScheduleHistory";
+import {
+  applyProspectiveInstallmentEdit,
+  type ProspectiveInstallmentEdit,
+} from "../../lib/finance/installmentProspectiveEdit";
 import type { PersonalLimitBucket } from "../../lib/finance/personalLimitBuckets";
 import type { PersonalLimitConfiguration } from "../../lib/finance/personalLimits";
 
@@ -94,6 +98,7 @@ export function createInstallmentMutations({
   installmentSettlementEvents = [],
   installmentInvoiceEvents = [],
   setInstallments,
+  setInstallmentScheduleItems,
   setInstallmentSettlementEvents,
   setInstallmentInvoiceEvents,
   setConfirmation,
@@ -104,6 +109,9 @@ export function createInstallmentMutations({
   installmentSettlementEvents?: readonly InstallmentSettlementEvent[];
   installmentInvoiceEvents?: readonly InstallmentInvoiceEvent[];
   setInstallments: Dispatch<SetStateAction<Installment[]>>;
+  setInstallmentScheduleItems?: Dispatch<
+    SetStateAction<InstallmentScheduleItem[] | undefined>
+  >;
   setInstallmentSettlementEvents?: Dispatch<
     SetStateAction<InstallmentSettlementEvent[] | undefined>
   >;
@@ -230,6 +238,52 @@ export function createInstallmentMutations({
     settledAt = new Date().toISOString().slice(0, 10),
   ) => settleScheduled(id, count, "regular", settledAt) || payLegacy(id, count);
 
+  const editProspectively = (id: number, edit: ProspectiveInstallmentEdit) => {
+    const installment = installments.find((item) => item.id === id);
+    if (!installment) throw new Error("Parcelamento não encontrado.");
+    const planItems = installmentScheduleItems.filter(
+      (item) => item.installmentId === id,
+    );
+    if (!planItems.length)
+      throw new Error(
+        "Este parcelamento é legado e não possui cronograma para edição prospectiva.",
+      );
+    if (!completeInstallmentSchedule(installment, installmentScheduleItems))
+      throw new Error(
+        "O cronograma deste parcelamento está incompleto e não pode ser editado prospectivamente.",
+      );
+    if (!setInstallmentScheduleItems)
+      throw new Error("O cronograma não está disponível para atualização.");
+
+    // Do all domain validation before scheduling either state update.
+    const result = applyProspectiveInstallmentEdit({
+      installment,
+      scheduleItems: installmentScheduleItems,
+      historyFacts: {
+        installmentInvoiceEvents,
+        installmentSettlementEvents,
+      },
+      edit,
+    });
+    const nextSchedule = [
+      ...installmentScheduleItems.filter((item) => item.installmentId !== id),
+      ...result.scheduleItems,
+    ].sort(
+      (left, right) =>
+        left.installmentId - right.installmentId ||
+        left.installmentNumber - right.installmentNumber ||
+        left.id.localeCompare(right.id),
+    );
+
+    // React batches synchronous updates from an action. The persisted snapshot
+    // therefore observes the validated pair, never a partially computed edit.
+    setInstallments((current) =>
+      current.map((item) => (item.id === id ? result.installment : item)),
+    );
+    setInstallmentScheduleItems(nextSchedule);
+    return result;
+  };
+
   return {
     save(item: Installment, editing: boolean) {
       setInstallments((current) =>
@@ -258,6 +312,7 @@ export function createInstallmentMutations({
       });
     },
     pay,
+    editProspectively,
     anticipate(
       id: number,
       count: number,
