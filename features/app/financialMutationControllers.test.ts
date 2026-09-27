@@ -12,6 +12,9 @@ import type {
   Expense,
   IncomeEntry,
   Installment,
+  InstallmentInvoiceEvent,
+  InstallmentScheduleItem,
+  InstallmentSettlementEvent,
 } from "../../lib/app/AppTypes";
 import { DEFAULT_PERSONAL_LIMITS } from "../../lib/finance/personalLimits";
 
@@ -74,6 +77,122 @@ test("manual expense and income mutations update the shared snapshot only after 
   assert.equal(expenses.value.length, 1);
   confirmation.value?.onConfirm();
   assert.equal(expenses.value.length, 0);
+});
+
+test("scheduled cardless payments and advances append exact X/Y settlement facts", () => {
+  const installments = setter<Installment[]>([
+    {
+      id: 8,
+      title: "Curso",
+      category: "Educação",
+      who: "Bruna",
+      amount: 33.34,
+      totalInstallments: 3,
+      paidInstallments: 0,
+      nextDue: "2026-09-10",
+    },
+  ]);
+  const settlementEvents = setter<InstallmentSettlementEvent[] | undefined>([]);
+  const invoiceEvents = setter<InstallmentInvoiceEvent[]>([]);
+  const confirmation = setter<Confirmation | null>(null);
+  const toast = setter("");
+  const schedule: InstallmentScheduleItem[] = [1, 2, 3].map(
+    (installmentNumber) => ({
+      id: `installment:8:${installmentNumber}`,
+      installmentId: 8,
+      installmentNumber,
+      totalInstallments: 3,
+      amount: installmentNumber === 1 ? 33.34 : 33.33,
+      dueDate: `2026-${String(8 + installmentNumber).padStart(2, "0")}-10`,
+      status: "scheduled",
+    }),
+  );
+  const controller = createInstallmentMutations({
+    installments: installments.value,
+    installmentScheduleItems: schedule,
+    installmentSettlementEvents: settlementEvents.value,
+    installmentInvoiceEvents: invoiceEvents.value,
+    setInstallments: installments.set,
+    setInstallmentSettlementEvents: settlementEvents.set,
+    setInstallmentInvoiceEvents: invoiceEvents.set,
+    setConfirmation: confirmation.set,
+    setToast: toast.set,
+  });
+  controller.pay(8, 1, "2026-09-10");
+  createInstallmentMutations({
+    installments: installments.value,
+    installmentScheduleItems: schedule,
+    installmentSettlementEvents: settlementEvents.value,
+    installmentInvoiceEvents: invoiceEvents.value,
+    setInstallments: installments.set,
+    setInstallmentSettlementEvents: settlementEvents.set,
+    setInstallmentInvoiceEvents: invoiceEvents.set,
+    setConfirmation: confirmation.set,
+    setToast: toast.set,
+  }).anticipate(8, 2, "2026-09-11");
+  assert.deepEqual(
+    settlementEvents.value?.map((event) => [
+      event.installmentNumber,
+      event.type,
+      event.amount,
+    ]),
+    [
+      [1, "regular", 33.34],
+      [2, "anticipated", 33.33],
+      [3, "anticipated", 33.33],
+    ],
+  );
+  assert.equal(invoiceEvents.value.length, 0);
+  assert.equal(installments.value[0]?.paidInstallments, 3);
+});
+
+test("scheduled card payments use invoice events and never create a parallel settlement", () => {
+  const installments = setter<Installment[]>([
+    {
+      id: 18,
+      title: "Notebook",
+      category: "Trabalho",
+      who: "Bruna",
+      amount: 100,
+      totalInstallments: 2,
+      paidInstallments: 0,
+      nextDue: "2026-09-27",
+      creditCardId: 3,
+    },
+  ]);
+  const settlementEvents = setter<InstallmentSettlementEvent[] | undefined>([]);
+  const invoiceEvents = setter<InstallmentInvoiceEvent[]>([]);
+  const confirmation = setter<Confirmation | null>(null);
+  const toast = setter("");
+  const schedule: InstallmentScheduleItem[] = [1, 2].map(
+    (installmentNumber) => ({
+      id: `installment:18:${installmentNumber}`,
+      installmentId: 18,
+      installmentNumber,
+      totalInstallments: 2,
+      amount: 100,
+      creditCardId: 3,
+      invoiceReferenceMonth: `2026-${String(8 + installmentNumber).padStart(2, "0")}`,
+      dueDate: `2026-${String(8 + installmentNumber).padStart(2, "0")}-27`,
+      status: "scheduled",
+    }),
+  );
+  createInstallmentMutations({
+    installments: installments.value,
+    installmentScheduleItems: schedule,
+    installmentSettlementEvents: settlementEvents.value,
+    installmentInvoiceEvents: invoiceEvents.value,
+    setInstallments: installments.set,
+    setInstallmentSettlementEvents: settlementEvents.set,
+    setInstallmentInvoiceEvents: invoiceEvents.set,
+    setConfirmation: confirmation.set,
+    setToast: toast.set,
+  }).anticipate(18, 1, "2026-08-20");
+  assert.deepEqual(
+    invoiceEvents.value.map((event) => [event.installmentNumber, event.type]),
+    [[1, "anticipated"]],
+  );
+  assert.deepEqual(settlementEvents.value, []);
 });
 
 test("installment, receivable and limit mutations preserve their existing deterministic rules", () => {

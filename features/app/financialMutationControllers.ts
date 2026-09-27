@@ -5,8 +5,16 @@ import type {
   Expense,
   IncomeEntry,
   Installment,
+  InstallmentInvoiceEvent,
+  InstallmentScheduleItem,
+  InstallmentSettlementEvent,
   Person,
 } from "../../lib/app/AppTypes";
+import {
+  completeInstallmentSchedule,
+  futureInstallmentScheduleItems,
+  isInstallmentScheduleItemHistorical,
+} from "../../lib/finance/installmentScheduleHistory";
 import type { PersonalLimitBucket } from "../../lib/finance/personalLimitBuckets";
 import type { PersonalLimitConfiguration } from "../../lib/finance/personalLimits";
 
@@ -82,14 +90,28 @@ export function createExpenseIncomeMutations({
 
 export function createInstallmentMutations({
   installments,
+  installmentScheduleItems = [],
+  installmentSettlementEvents = [],
+  installmentInvoiceEvents = [],
   setInstallments,
+  setInstallmentSettlementEvents,
+  setInstallmentInvoiceEvents,
   setConfirmation,
   setToast,
 }: CommonDependencies & {
   installments: readonly Installment[];
+  installmentScheduleItems?: readonly InstallmentScheduleItem[];
+  installmentSettlementEvents?: readonly InstallmentSettlementEvent[];
+  installmentInvoiceEvents?: readonly InstallmentInvoiceEvent[];
   setInstallments: Dispatch<SetStateAction<Installment[]>>;
+  setInstallmentSettlementEvents?: Dispatch<
+    SetStateAction<InstallmentSettlementEvent[] | undefined>
+  >;
+  setInstallmentInvoiceEvents?: Dispatch<
+    SetStateAction<InstallmentInvoiceEvent[]>
+  >;
 }) {
-  const pay = (id: number, count: number) => {
+  const payLegacy = (id: number, count: number) => {
     setInstallments((current) =>
       current.map((item) => {
         if (item.id !== id) return item;
@@ -116,6 +138,97 @@ export function createInstallmentMutations({
           : "Parcela quitada 💚",
     );
   };
+
+  const settleScheduled = (
+    id: number,
+    count: number,
+    type: InstallmentSettlementEvent["type"],
+    settledAt: string,
+  ) => {
+    const installment = installments.find((item) => item.id === id);
+    if (!installment) return false;
+    // A complete schedule is an explicit new-plan contract even when all of
+    // its items are already historical. Never fall back to paidInstallments.
+    if (!completeInstallmentSchedule(installment, installmentScheduleItems))
+      return false;
+    const candidates = futureInstallmentScheduleItems(
+      installment,
+      installmentScheduleItems,
+      { installmentInvoiceEvents, installmentSettlementEvents },
+    ).slice(0, Math.max(0, count));
+    if (!candidates.length) return true;
+
+    if (candidates.some((item) => item.creditCardId !== undefined)) {
+      // A card schedule uses the existing invoice-event model. A malformed
+      // card item without an explicit competence is intentionally left to the
+      // legacy flow instead of guessing a financial fact.
+      if (
+        candidates.some(
+          (item) =>
+            item.creditCardId === undefined || !item.invoiceReferenceMonth,
+        ) ||
+        !setInstallmentInvoiceEvents
+      )
+        return false;
+      setInstallmentInvoiceEvents((current) => {
+        let nextId = Math.max(0, ...current.map((event) => event.id)) + 1;
+        const additions = candidates.flatMap((item) =>
+          isInstallmentScheduleItemHistorical(item, {
+            installmentInvoiceEvents: current,
+            installmentSettlementEvents,
+          })
+            ? []
+            : [
+                {
+                  id: nextId++,
+                  installmentId: item.installmentId,
+                  cardId: item.creditCardId!,
+                  referenceMonth: item.invoiceReferenceMonth!,
+                  installmentNumber: item.installmentNumber,
+                  amount: item.amount,
+                  type,
+                  date: settledAt,
+                } satisfies InstallmentInvoiceEvent,
+              ],
+        );
+        return additions.length ? [...current, ...additions] : current;
+      });
+    } else {
+      if (!setInstallmentSettlementEvents) return false;
+      setInstallmentSettlementEvents((current) => {
+        const existing = current ?? [];
+        const additions = candidates.flatMap((item) =>
+          isInstallmentScheduleItemHistorical(item, {
+            installmentInvoiceEvents,
+            installmentSettlementEvents: existing,
+          })
+            ? []
+            : [
+                {
+                  id: `settlement:${item.installmentId}:${item.installmentNumber}`,
+                  installmentId: item.installmentId,
+                  installmentNumber: item.installmentNumber,
+                  amount: item.amount,
+                  settledAt,
+                  type,
+                } satisfies InstallmentSettlementEvent,
+              ],
+        );
+        return additions.length ? [...existing, ...additions] : existing;
+      });
+    }
+
+    // paidInstallments remains a legacy-compatible display field. Selection
+    // above has already used only explicit X/Y facts.
+    payLegacy(id, candidates.length);
+    return true;
+  };
+
+  const pay = (
+    id: number,
+    count: number,
+    settledAt = new Date().toISOString().slice(0, 10),
+  ) => settleScheduled(id, count, "regular", settledAt) || payLegacy(id, count);
 
   return {
     save(item: Installment, editing: boolean) {
@@ -145,14 +258,42 @@ export function createInstallmentMutations({
       });
     },
     pay,
+    anticipate(
+      id: number,
+      count: number,
+      settledAt = new Date().toISOString().slice(0, 10),
+    ) {
+      if (!settleScheduled(id, count, "anticipated", settledAt))
+        payLegacy(id, count);
+    },
     confirmQuit(item: Installment) {
-      const remaining = item.totalInstallments - item.paidInstallments;
+      const scheduledRemaining = futureInstallmentScheduleItems(
+        item,
+        installmentScheduleItems,
+        { installmentInvoiceEvents, installmentSettlementEvents },
+      ).length;
+      const remaining = completeInstallmentSchedule(
+        item,
+        installmentScheduleItems,
+      )
+        ? scheduledRemaining
+        : item.totalInstallments - item.paidInstallments;
       if (!remaining) return;
       setConfirmation({
         title: "Quitar parcelamento",
         description: `“${item.title}” tem ${remaining} parcela${remaining === 1 ? "" : "s"} restante${remaining === 1 ? "" : "s"}. Todas serão quitadas.`,
         confirmLabel: "Confirmar quitação",
-        onConfirm: () => pay(item.id, remaining),
+        onConfirm: () => {
+          if (
+            !settleScheduled(
+              item.id,
+              remaining,
+              "anticipated",
+              new Date().toISOString().slice(0, 10),
+            )
+          )
+            payLegacy(item.id, remaining);
+        },
       });
     },
   };

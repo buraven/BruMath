@@ -8,6 +8,7 @@ import type {
   InstallmentScheduleItem,
   Person,
 } from "../app/AppTypes";
+import { completeInstallmentSchedule } from "./installmentScheduleHistory";
 import { isWithinProfileScope } from "./profileScope";
 
 /**
@@ -44,6 +45,9 @@ export type InvoiceInstallmentItem = {
   date: string;
   currentInstallment: number;
   totalInstallments: number;
+  /** Present only for a schedule-backed line with a stable X/Y identity. */
+  scheduleItemId?: string;
+  installmentId?: number;
   eventType?: InstallmentInvoiceEvent["type"];
 };
 
@@ -97,6 +101,40 @@ export function registerInvoicePayment(
       ];
 }
 
+/** Records explicit settlement facts for the schedule items paid with an invoice. */
+export function registerInvoicePaymentInstallmentEvents(
+  events: readonly InstallmentInvoiceEvent[],
+  invoice: Pick<DerivedInvoice, "card" | "referenceMonth" | "installments">,
+  paidAt: string,
+): InstallmentInvoiceEvent[] {
+  let nextId = Math.max(0, ...events.map((event) => event.id)) + 1;
+  const additions = invoice.installments.flatMap((item) => {
+    if (
+      !item.scheduleItemId ||
+      item.installmentId === undefined ||
+      events.some(
+        (event) =>
+          event.installmentId === item.installmentId &&
+          event.installmentNumber === item.currentInstallment,
+      )
+    )
+      return [];
+    return [
+      {
+        id: nextId++,
+        installmentId: item.installmentId,
+        cardId: invoice.card.id,
+        referenceMonth: invoice.referenceMonth,
+        installmentNumber: item.currentInstallment,
+        amount: item.amount,
+        type: "regular" as const,
+        date: paidAt,
+      },
+    ];
+  });
+  return additions.length ? [...events, ...additions] : [...events];
+}
+
 const pad = (value: number) => String(value).padStart(2, "0");
 
 function toDate(value: string) {
@@ -143,33 +181,6 @@ export function resolveInvoiceClosingDate(
   return dateInMonth(referenceMonth, card.closingDay);
 }
 
-function scheduleForInstallment(
-  installment: Installment,
-  scheduleItems: readonly InstallmentScheduleItem[],
-) {
-  const items = scheduleItems.filter(
-    (item) => item.installmentId === installment.id,
-  );
-  if (items.length !== installment.totalInstallments) return undefined;
-
-  const numbers = new Set<number>();
-  for (const item of items) {
-    if (
-      item.status !== "scheduled" ||
-      item.totalInstallments !== installment.totalInstallments ||
-      item.installmentNumber < 1 ||
-      item.installmentNumber > installment.totalInstallments ||
-      numbers.has(item.installmentNumber) ||
-      !Number.isFinite(item.amount) ||
-      item.amount < 0
-    ) {
-      return undefined;
-    }
-    numbers.add(item.installmentNumber);
-  }
-  return items;
-}
-
 export function deriveInvoices({
   cards,
   expenses,
@@ -210,7 +221,7 @@ export function deriveInvoices({
       );
       const schedulesByInstallment = new Map(
         installments.flatMap((installment) => {
-          const schedule = scheduleForInstallment(
+          const schedule = completeInstallmentSchedule(
             installment,
             installmentScheduleItems,
           );
@@ -248,7 +259,7 @@ export function deriveInvoices({
               (item) =>
                 item.creditCardId === card.id &&
                 item.invoiceReferenceMonth === referenceMonth &&
-                !cardEvents.some(
+                !installmentEvents.some(
                   (event) =>
                     event.installmentId === item.installmentId &&
                     event.installmentNumber === item.installmentNumber,
@@ -264,6 +275,8 @@ export function deriveInvoices({
                 date: item.dueDate ?? installment.nextDue,
                 currentInstallment: item.installmentNumber,
                 totalInstallments: item.totalInstallments,
+                scheduleItemId: item.id,
+                installmentId: item.installmentId,
               }),
             );
         });

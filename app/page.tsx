@@ -100,6 +100,7 @@ import type {
 import {
   deriveInvoices,
   registerInvoicePayment,
+  registerInvoicePaymentInstallmentEvents,
   type DerivedInvoice,
 } from "../lib/finance/invoices";
 import { deriveCalendarProjection } from "../lib/finance/calendar";
@@ -169,7 +170,10 @@ export default function Page() {
     invoiceAdjustments,
     installmentInvoiceEvents,
     installmentScheduleItems = [],
+    installmentSettlementEvents = [],
     setInvoicePayments,
+    setInstallmentInvoiceEvents,
+    setInstallmentSettlementEvents,
     activeProfile,
     setActiveProfile,
     viewMonth,
@@ -297,7 +301,12 @@ export default function Page() {
   });
   const installmentMutations = createInstallmentMutations({
     installments,
+    installmentScheduleItems,
+    installmentSettlementEvents,
+    installmentInvoiceEvents,
     setInstallments,
+    setInstallmentSettlementEvents,
+    setInstallmentInvoiceEvents,
     setConfirmation,
     setToast,
   });
@@ -412,6 +421,7 @@ export default function Page() {
         adjustments: invoiceAdjustments,
         installmentEvents: installmentInvoiceEvents,
         installmentScheduleItems,
+        installmentSettlementEvents,
         baseBalance: available,
         referenceDate: `${viewMonth}-01`,
       }),
@@ -426,6 +436,7 @@ export default function Page() {
       invoiceAdjustments,
       installmentInvoiceEvents,
       installmentScheduleItems,
+      installmentSettlementEvents,
       viewMonth,
     ],
   );
@@ -445,13 +456,12 @@ export default function Page() {
       description: `A fatura ${invoice.card.name} será marcada como paga. As compras originais não serão alteradas.`,
       confirmLabel: "Confirmar pagamento",
       onConfirm: () => {
+        const paidAt = new Date().toISOString().slice(0, 10);
         setInvoicePayments((current) =>
-          registerInvoicePayment(
-            current,
-            invoice,
-            new Date().toISOString().slice(0, 10),
-            Date.now(),
-          ),
+          registerInvoicePayment(current, invoice, paidAt, Date.now()),
+        );
+        setInstallmentInvoiceEvents((current) =>
+          registerInvoicePaymentInstallmentEvents(current, invoice, paidAt),
         );
         setToast("Fatura marcada como paga 💚");
       },
@@ -499,6 +509,7 @@ export default function Page() {
   const deleteDebt = receivableMutations.delete;
   const deleteIncome = expenseIncomeMutations.deleteIncome;
   const payInstallment = installmentMutations.pay;
+  const anticipateInstallment = installmentMutations.anticipate;
 
   const chooseAdvanceInstallments = (item: Installment) => {
     const left = item.totalInstallments - item.paidInstallments;
@@ -511,7 +522,7 @@ export default function Page() {
 
   const saveAdvanceInstallments = (count: number) => {
     if (!advancingInstallment) return;
-    payInstallment(advancingInstallment.id, count);
+    anticipateInstallment(advancingInstallment.id, count);
     setAdvancingInstallment(null);
     setModal("none");
   };

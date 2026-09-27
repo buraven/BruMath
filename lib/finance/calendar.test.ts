@@ -426,3 +426,52 @@ test("keeps a scheduled card installment represented only by its invoice commitm
   );
   assert.equal(projection.forecast.knownFutureCommitments, 40);
 });
+test("a settled cardless schedule item no longer appears as a future calendar commitment", () => {
+  const standalone: Installment = {
+    id: 44,
+    title: "Curso",
+    category: "Educação",
+    who: "Bruna",
+    amount: 50,
+    totalInstallments: 2,
+    paidInstallments: 0,
+    nextDue: "2026-09-10",
+  };
+  const schedule: InstallmentScheduleItem[] = [1, 2].map(
+    (installmentNumber) => ({
+      id: `installment:44:${installmentNumber}`,
+      installmentId: 44,
+      installmentNumber,
+      totalInstallments: 2,
+      amount: 50,
+      dueDate: `2026-${String(8 + installmentNumber).padStart(2, "0")}-10`,
+      status: "scheduled",
+    }),
+  );
+  const projection = deriveCalendarProjection({
+    month: "2026-09",
+    profile: "Bruna",
+    expenses: [],
+    incomeEntries: [],
+    installments: [standalone],
+    installmentScheduleItems: schedule,
+    installmentSettlementEvents: [
+      {
+        id: "settlement:44:1",
+        installmentId: 44,
+        installmentNumber: 1,
+        amount: 50,
+        settledAt: "2026-09-10",
+        type: "regular",
+      },
+    ],
+    cards: [],
+    payments: [],
+    baseBalance: 1_000,
+  });
+  assert.equal(
+    projection.items.filter((item) => item.type === "installment_due").length,
+    0,
+  );
+  assert.equal(projection.forecast.knownFutureCommitments, 0);
+});

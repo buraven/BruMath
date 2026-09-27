@@ -10,6 +10,7 @@ import {
   deriveInvoices,
   filterInvoices,
   registerInvoicePayment,
+  registerInvoicePaymentInstallmentEvents,
   resolveInvoiceDueDate,
   resolveInvoiceReferenceMonth,
   summarizeInvoices,
@@ -584,6 +585,62 @@ test("filters derived statuses and records a full payment once", () => {
   assert.equal(payments.length, 1);
   assert.equal(
     registerInvoicePayment(payments, invoice, "2026-08-27", 8).length,
+    1,
+  );
+});
+
+test("paying a scheduled card invoice records one explicit event per X/Y", () => {
+  const [invoice] = deriveInvoices({
+    cards: [card],
+    expenses: [],
+    payments: [],
+    installments: [installment()],
+    installmentScheduleItems: schedule(9, [
+      {
+        installmentNumber: 1,
+        totalInstallments: 3,
+        amount: 200,
+        invoiceReferenceMonth: "2026-08",
+        dueDate: "2026-08-27",
+        creditCardId: card.id,
+      },
+      {
+        installmentNumber: 2,
+        totalInstallments: 3,
+        amount: 200,
+        invoiceReferenceMonth: "2026-09",
+        dueDate: "2026-09-27",
+        creditCardId: card.id,
+      },
+      {
+        installmentNumber: 3,
+        totalInstallments: 3,
+        amount: 200,
+        invoiceReferenceMonth: "2026-10",
+        dueDate: "2026-10-27",
+        creditCardId: card.id,
+      },
+    ]),
+    profile: "Bruna",
+    referenceMonth: "2026-08",
+  });
+  assert.ok(invoice);
+  const events = registerInvoicePaymentInstallmentEvents(
+    [],
+    invoice,
+    "2026-08-27",
+  );
+  assert.deepEqual(
+    events.map((event) => [
+      event.installmentId,
+      event.installmentNumber,
+      event.type,
+    ]),
+    [[9, 1, "regular"]],
+  );
+  assert.equal(
+    registerInvoicePaymentInstallmentEvents(events, invoice, "2026-08-27")
+      .length,
     1,
   );
 });
