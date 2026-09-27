@@ -3,6 +3,7 @@ import type { PersonalLimitBucket } from "../../finance/personalLimitBuckets";
 import type { PersonalLimitConfiguration } from "../../finance/personalLimits";
 import type {
   Category,
+  InstallmentScheduleItem,
   InstallmentInvoiceEvent,
   InstallmentReimbursementAllocation,
   InvoiceAdjustment,
@@ -92,6 +93,7 @@ export type FinancialDataSnapshot = {
   invoiceAdjustments?: readonly InvoiceAdjustment[];
   installmentInvoiceEvents?: readonly InstallmentInvoiceEvent[];
   installmentReimbursementAllocations?: readonly InstallmentReimbursementAllocation[];
+  installmentScheduleItems?: readonly InstallmentScheduleItem[];
   activeProfile?: Person;
   viewMonth?: string;
   /** Whether the persistence source actually contained a BruMath dataset. */

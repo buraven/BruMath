@@ -1,6 +1,11 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import type { CreditCard, Expense, Installment } from "../app/AppTypes";
+import type {
+  CreditCard,
+  Expense,
+  Installment,
+  InstallmentScheduleItem,
+} from "../app/AppTypes";
 import {
   deriveInvoices,
   filterInvoices,
@@ -30,6 +35,49 @@ const expense = (overrides: Partial<Expense> = {}): Expense => ({
   creditCardId: 1,
   ...overrides,
 });
+
+const installment = (overrides: Partial<Installment> = {}): Installment => ({
+  id: 9,
+  title: "Notebook",
+  category: "Trabalho",
+  who: "Bruna",
+  amount: 200,
+  totalInstallments: 3,
+  paidInstallments: 0,
+  nextDue: "2026-08-19",
+  creditCardId: card.id,
+  ...overrides,
+});
+
+const schedule = (
+  installmentId: number,
+  items: ReadonlyArray<
+    Pick<
+      InstallmentScheduleItem,
+      | "installmentNumber"
+      | "totalInstallments"
+      | "amount"
+      | "invoiceReferenceMonth"
+      | "dueDate"
+      | "creditCardId"
+    >
+  >,
+): InstallmentScheduleItem[] =>
+  items.map((item) => ({
+    id: `installment:${installmentId}:${item.installmentNumber}`,
+    installmentId,
+    installmentNumber: item.installmentNumber,
+    totalInstallments: item.totalInstallments,
+    amount: item.amount,
+    ...(item.invoiceReferenceMonth
+      ? { invoiceReferenceMonth: item.invoiceReferenceMonth }
+      : {}),
+    ...(item.dueDate ? { dueDate: item.dueDate } : {}),
+    ...(item.creditCardId !== undefined
+      ? { creditCardId: item.creditCardId }
+      : {}),
+    status: "scheduled",
+  }));
 
 test("assigns purchases to the invoice cycle instead of the purchase month", () => {
   assert.equal(resolveInvoiceReferenceMonth("2026-08-20", 20), "2026-08");
@@ -153,6 +201,351 @@ test("adds a card installment to its cycle without manufacturing an expense", ()
   assert.equal(invoice?.expenses.length, 0);
   assert.equal(invoice?.installments[0]?.currentInstallment, 3);
   assert.equal(invoice?.total, 200);
+});
+
+test("keeps a legacy installment unchanged when no schedule exists", () => {
+  const plan = installment({ paidInstallments: 1, nextDue: "2026-08-19" });
+  const base = {
+    cards: [card],
+    expenses: [],
+    installments: [plan],
+    payments: [],
+    profile: "Bruna" as const,
+    referenceMonth: "2026-08",
+  };
+  assert.deepEqual(
+    deriveInvoices(base),
+    deriveInvoices({ ...base, installmentScheduleItems: [] }),
+  );
+});
+
+test("uses an explicit schedule competence instead of recalculating the cycle", () => {
+  const plan = installment({ nextDue: "2026-08-21" });
+  const items = schedule(plan.id, [
+    {
+      installmentNumber: 1,
+      totalInstallments: 3,
+      amount: 33.34,
+      invoiceReferenceMonth: "2026-08",
+      dueDate: "2026-08-27",
+      creditCardId: card.id,
+    },
+    {
+      installmentNumber: 2,
+      totalInstallments: 3,
+      amount: 33.33,
+      invoiceReferenceMonth: "2026-09",
+      dueDate: "2026-09-27",
+      creditCardId: card.id,
+    },
+    {
+      installmentNumber: 3,
+      totalInstallments: 3,
+      amount: 33.33,
+      invoiceReferenceMonth: "2026-10",
+      dueDate: "2026-10-27",
+      creditCardId: card.id,
+    },
+  ]);
+
+  const august = deriveInvoices({
+    cards: [card],
+    expenses: [],
+    installments: [plan],
+    installmentScheduleItems: items,
+    payments: [],
+    profile: "Bruna",
+    referenceMonth: "2026-08",
+  });
+  const september = deriveInvoices({
+    cards: [card],
+    expenses: [],
+    installments: [plan],
+    installmentScheduleItems: items,
+    payments: [],
+    profile: "Bruna",
+    referenceMonth: "2026-09",
+  });
+
+  assert.equal(august[0]?.installments.length, 1);
+  assert.equal(august[0]?.installments[0]?.title, "Notebook");
+  assert.equal(august[0]?.installments[0]?.category, "Trabalho");
+  assert.equal(august[0]?.installments[0]?.owner, "Bruna");
+  assert.equal(august[0]?.installments[0]?.currentInstallment, 1);
+  assert.equal(august[0]?.total, 33.34);
+  assert.equal(september[0]?.installments[0]?.currentInstallment, 2);
+  assert.equal(september[0]?.total, 33.33);
+});
+
+test("uses a valid one-installment schedule exactly once", () => {
+  const plan = installment({ amount: 19.99, totalInstallments: 1 });
+  const [invoice] = deriveInvoices({
+    cards: [card],
+    expenses: [],
+    installments: [plan],
+    installmentScheduleItems: schedule(plan.id, [
+      {
+        installmentNumber: 1,
+        totalInstallments: 1,
+        amount: 19.99,
+        invoiceReferenceMonth: "2026-08",
+        creditCardId: card.id,
+      },
+    ]),
+    payments: [],
+    profile: "Bruna",
+    referenceMonth: "2026-08",
+  });
+
+  assert.equal(invoice?.installments.length, 1);
+  assert.equal(invoice?.installments[0]?.amount, 19.99);
+  assert.equal(invoice?.total, 19.99);
+});
+
+test("falls back to the legacy projection when a schedule is incomplete", () => {
+  const plan = installment({ amount: 200, nextDue: "2026-08-19" });
+  const [invoice] = deriveInvoices({
+    cards: [card],
+    expenses: [],
+    installments: [plan],
+    installmentScheduleItems: schedule(plan.id, [
+      {
+        installmentNumber: 1,
+        totalInstallments: 3,
+        amount: 33.34,
+        invoiceReferenceMonth: "2026-08",
+        creditCardId: card.id,
+      },
+    ]),
+    payments: [],
+    profile: "Bruna",
+    referenceMonth: "2026-08",
+  });
+
+  assert.equal(invoice?.installments.length, 1);
+  assert.equal(invoice?.installments[0]?.amount, 200);
+  assert.equal(invoice?.installments[0]?.currentInstallment, 1);
+});
+
+test("never adds a legacy projection for a plan represented by a valid schedule", () => {
+  const plan = installment({ amount: 200, nextDue: "2026-08-19" });
+  const items = schedule(plan.id, [
+    {
+      installmentNumber: 1,
+      totalInstallments: 3,
+      amount: 33.34,
+      invoiceReferenceMonth: "2026-08",
+      creditCardId: card.id,
+    },
+    {
+      installmentNumber: 2,
+      totalInstallments: 3,
+      amount: 33.33,
+      invoiceReferenceMonth: "2026-09",
+      creditCardId: card.id,
+    },
+    {
+      installmentNumber: 3,
+      totalInstallments: 3,
+      amount: 33.33,
+      invoiceReferenceMonth: "2026-10",
+      creditCardId: card.id,
+    },
+  ]);
+  const [invoice] = deriveInvoices({
+    cards: [card],
+    expenses: [expense({ amount: 25 })],
+    installments: [plan],
+    installmentScheduleItems: items,
+    payments: [],
+    profile: "Bruna",
+    referenceMonth: "2026-08",
+  });
+
+  assert.equal(invoice?.installments.length, 1);
+  assert.equal(invoice?.installments[0]?.amount, 33.34);
+  assert.equal(invoice?.expenses.length, 1);
+  assert.equal(invoice?.total, 58.34);
+});
+
+test("derives scheduled and legacy plans exactly once across cards and competences", () => {
+  const secondCard: CreditCard = { ...card, id: 2, name: "Reserva" };
+  const scheduledPlan = installment({
+    id: 9,
+    amount: 80,
+    creditCardId: card.id,
+  });
+  const legacyPlan = installment({
+    id: 10,
+    amount: 50,
+    creditCardId: secondCard.id,
+    nextDue: "2026-08-19",
+  });
+  const scheduledItems = schedule(scheduledPlan.id, [
+    {
+      installmentNumber: 1,
+      totalInstallments: 3,
+      amount: 33.34,
+      invoiceReferenceMonth: "2026-08",
+      creditCardId: card.id,
+    },
+    {
+      installmentNumber: 2,
+      totalInstallments: 3,
+      amount: 33.33,
+      invoiceReferenceMonth: "2026-09",
+      creditCardId: card.id,
+    },
+    {
+      installmentNumber: 3,
+      totalInstallments: 3,
+      amount: 33.33,
+      invoiceReferenceMonth: "2027-01",
+      creditCardId: card.id,
+    },
+  ]);
+  const invoices = deriveInvoices({
+    cards: [card, secondCard],
+    expenses: [],
+    installments: [scheduledPlan, legacyPlan],
+    installmentScheduleItems: scheduledItems,
+    payments: [],
+    profile: "Bruna",
+    referenceMonth: "2026-08",
+  });
+
+  assert.equal(invoices.find((item) => item.card.id === card.id)?.total, 33.34);
+  assert.equal(
+    invoices.find((item) => item.card.id === secondCard.id)?.total,
+    50,
+  );
+  assert.equal(invoices.flatMap((item) => item.installments).length, 2);
+
+  const january = deriveInvoices({
+    cards: [card, secondCard],
+    expenses: [],
+    installments: [scheduledPlan, legacyPlan],
+    installmentScheduleItems: scheduledItems,
+    payments: [],
+    profile: "Bruna",
+    referenceMonth: "2027-01",
+  });
+  assert.equal(january.find((item) => item.card.id === card.id)?.total, 33.33);
+  assert.equal(
+    january.find((item) => item.card.id === card.id)?.installments[0]
+      ?.currentInstallment,
+    3,
+  );
+});
+
+test("keeps historical installment events and adjustments authoritative over matching schedule items", () => {
+  const plan = installment();
+  const items = schedule(plan.id, [
+    {
+      installmentNumber: 1,
+      totalInstallments: 3,
+      amount: 33.34,
+      invoiceReferenceMonth: "2026-08",
+      creditCardId: card.id,
+    },
+    {
+      installmentNumber: 2,
+      totalInstallments: 3,
+      amount: 33.33,
+      invoiceReferenceMonth: "2026-09",
+      creditCardId: card.id,
+    },
+    {
+      installmentNumber: 3,
+      totalInstallments: 3,
+      amount: 33.33,
+      invoiceReferenceMonth: "2026-10",
+      creditCardId: card.id,
+    },
+  ]);
+  const [invoice] = deriveInvoices({
+    cards: [card],
+    expenses: [],
+    installments: [plan],
+    installmentScheduleItems: items,
+    payments: [],
+    installmentEvents: [
+      {
+        id: 1,
+        installmentId: plan.id,
+        cardId: card.id,
+        referenceMonth: "2026-08",
+        installmentNumber: 1,
+        amount: 30,
+        type: "historical",
+      },
+    ],
+    adjustments: [
+      {
+        id: 2,
+        cardId: card.id,
+        referenceMonth: "2026-08",
+        type: "discount",
+        amount: -2,
+        description: "Desconto histórico",
+      },
+    ],
+    profile: "Bruna",
+    referenceMonth: "2026-08",
+  });
+
+  assert.equal(invoice?.installments.length, 1);
+  assert.equal(invoice?.installments[0]?.eventType, "historical");
+  assert.equal(invoice?.installments[0]?.amount, 30);
+  assert.equal(invoice?.adjustments.length, 1);
+  assert.equal(invoice?.total, 28);
+});
+
+test("retains a paid schedule-derived invoice without adding an expense", () => {
+  const plan = installment();
+  const [invoice] = deriveInvoices({
+    cards: [card],
+    expenses: [],
+    installments: [plan],
+    installmentScheduleItems: schedule(plan.id, [
+      {
+        installmentNumber: 1,
+        totalInstallments: 3,
+        amount: 33.34,
+        invoiceReferenceMonth: "2026-08",
+        creditCardId: card.id,
+      },
+      {
+        installmentNumber: 2,
+        totalInstallments: 3,
+        amount: 33.33,
+        invoiceReferenceMonth: "2026-09",
+        creditCardId: card.id,
+      },
+      {
+        installmentNumber: 3,
+        totalInstallments: 3,
+        amount: 33.33,
+        invoiceReferenceMonth: "2026-10",
+        creditCardId: card.id,
+      },
+    ]),
+    payments: [
+      {
+        id: 1,
+        cardId: card.id,
+        referenceMonth: "2026-08",
+        paidAt: "2026-08-27",
+        amount: 33.34,
+      },
+    ],
+    profile: "Bruna",
+    referenceMonth: "2026-08",
+  });
+
+  assert.equal(invoice?.status, "paid");
+  assert.equal(invoice?.expenses.length, 0);
+  assert.equal(invoice?.total, 33.34);
 });
 
 test("payment is derived state and does not add another purchase", () => {

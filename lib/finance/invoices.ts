@@ -5,6 +5,7 @@ import type {
   InvoicePayment,
   Installment,
   InstallmentInvoiceEvent,
+  InstallmentScheduleItem,
   Person,
 } from "../app/AppTypes";
 import { isWithinProfileScope } from "./profileScope";
@@ -142,6 +143,33 @@ export function resolveInvoiceClosingDate(
   return dateInMonth(referenceMonth, card.closingDay);
 }
 
+function scheduleForInstallment(
+  installment: Installment,
+  scheduleItems: readonly InstallmentScheduleItem[],
+) {
+  const items = scheduleItems.filter(
+    (item) => item.installmentId === installment.id,
+  );
+  if (items.length !== installment.totalInstallments) return undefined;
+
+  const numbers = new Set<number>();
+  for (const item of items) {
+    if (
+      item.status !== "scheduled" ||
+      item.totalInstallments !== installment.totalInstallments ||
+      item.installmentNumber < 1 ||
+      item.installmentNumber > installment.totalInstallments ||
+      numbers.has(item.installmentNumber) ||
+      !Number.isFinite(item.amount) ||
+      item.amount < 0
+    ) {
+      return undefined;
+    }
+    numbers.add(item.installmentNumber);
+  }
+  return items;
+}
+
 export function deriveInvoices({
   cards,
   expenses,
@@ -149,6 +177,7 @@ export function deriveInvoices({
   installments = [],
   adjustments = [],
   installmentEvents = [],
+  installmentScheduleItems = [],
   profile,
   referenceMonth,
 }: {
@@ -158,6 +187,7 @@ export function deriveInvoices({
   installments?: readonly Installment[];
   adjustments?: readonly InvoiceAdjustment[];
   installmentEvents?: readonly InstallmentInvoiceEvent[];
+  installmentScheduleItems?: readonly InstallmentScheduleItem[];
   profile: Person;
   referenceMonth: string;
 }): readonly DerivedInvoice[] {
@@ -178,9 +208,19 @@ export function deriveInvoices({
       const eventInstallmentIds = new Set(
         cardEvents.map((event) => event.installmentId),
       );
-      const invoiceInstallments: InvoiceInstallmentItem[] = installments
+      const schedulesByInstallment = new Map(
+        installments.flatMap((installment) => {
+          const schedule = scheduleForInstallment(
+            installment,
+            installmentScheduleItems,
+          );
+          return schedule ? [[installment.id, schedule] as const] : [];
+        }),
+      );
+      const legacyInstallments: InvoiceInstallmentItem[] = installments
         .filter(
           (installment) =>
+            !schedulesByInstallment.has(installment.id) &&
             installment.creditCardId === card.id &&
             installment.paidInstallments < installment.totalInstallments &&
             !eventInstallmentIds.has(installment.id) &&
@@ -199,6 +239,34 @@ export function deriveInvoices({
           currentInstallment: installment.paidInstallments + 1,
           totalInstallments: installment.totalInstallments,
         }));
+      const scheduledInstallments: InvoiceInstallmentItem[] =
+        installments.flatMap((installment) => {
+          const schedule = schedulesByInstallment.get(installment.id);
+          if (!schedule) return [];
+          return schedule
+            .filter(
+              (item) =>
+                item.creditCardId === card.id &&
+                item.invoiceReferenceMonth === referenceMonth &&
+                !cardEvents.some(
+                  (event) =>
+                    event.installmentId === item.installmentId &&
+                    event.installmentNumber === item.installmentNumber,
+                ),
+            )
+            .map(
+              (item): InvoiceInstallmentItem => ({
+                id: `installment-schedule:${item.id}`,
+                title: installment.title,
+                category: installment.category,
+                owner: installment.who,
+                amount: item.amount,
+                date: item.dueDate ?? installment.nextDue,
+                currentInstallment: item.installmentNumber,
+                totalInstallments: item.totalInstallments,
+              }),
+            );
+        });
       const eventInstallments: InvoiceInstallmentItem[] = cardEvents.flatMap(
         (event) => {
           const installment = installments.find(
@@ -230,7 +298,8 @@ export function deriveInvoices({
         0,
       );
       const installmentTotal = [
-        ...invoiceInstallments,
+        ...legacyInstallments,
+        ...scheduledInstallments,
         ...eventInstallments,
       ].reduce((sum, installment) => sum + installment.amount, 0);
       const adjustmentTotal = invoiceAdjustments.reduce(
@@ -253,7 +322,8 @@ export function deriveInvoices({
         );
       }
       for (const installment of [
-        ...invoiceInstallments,
+        ...legacyInstallments,
+        ...scheduledInstallments,
         ...eventInstallments,
       ]) {
         categoryMap.set(
@@ -268,7 +338,11 @@ export function deriveInvoices({
         closingDate: resolveInvoiceClosingDate(card, referenceMonth),
         dueDate: resolveInvoiceDueDate(card, referenceMonth),
         expenses: invoiceExpenses,
-        installments: [...invoiceInstallments, ...eventInstallments],
+        installments: [
+          ...legacyInstallments,
+          ...scheduledInstallments,
+          ...eventInstallments,
+        ],
         adjustments: invoiceAdjustments,
         total,
         paidAmount,

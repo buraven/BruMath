@@ -40,6 +40,7 @@ export class SupabaseFinancialDataSource implements FinancialDataSource {
       installmentEvents,
       reimbursementAllocations,
       categories,
+      scheduleItems,
     ] = await Promise.all([
       scope("financial_settings").single(),
       scope("expenses"),
@@ -52,6 +53,7 @@ export class SupabaseFinancialDataSource implements FinancialDataSource {
       scope("installment_invoice_events"),
       scope("installment_reimbursement_allocations"),
       scope("financial_categories"),
+      scope("installment_schedule_items"),
     ]);
     const failed = [
       settings,
@@ -65,9 +67,43 @@ export class SupabaseFinancialDataSource implements FinancialDataSource {
       installmentEvents,
       reimbursementAllocations,
       categories,
+      scheduleItems,
     ].find((result) => result.error && result.error.code !== "PGRST116");
     if (failed?.error)
       throw new Error("Não foi possível carregar os dados financeiros.");
+    const installmentLegacyIds = new Map(
+      (installments.data ?? []).map((row: any) => [row.id, row.legacy_id]),
+    );
+    const cardLegacyIds = new Map(
+      (cards.data ?? []).map((row: any) => [row.id, row.legacy_id]),
+    );
+    const installmentScheduleItems = (scheduleItems.data ?? []).map(
+      (row: any) => {
+        const installmentId = installmentLegacyIds.get(row.installment_id);
+        if (installmentId === undefined)
+          throw new Error(
+            "O cronograma remoto referencia um parcelamento ausente.",
+          );
+        const creditCardId = row.credit_card_id
+          ? cardLegacyIds.get(row.credit_card_id)
+          : undefined;
+        if (row.credit_card_id && creditCardId === undefined)
+          throw new Error("O cronograma remoto referencia um cartão ausente.");
+        return {
+          id: row.legacy_id,
+          installmentId,
+          installmentNumber: row.installment_number,
+          totalInstallments: row.total_installments,
+          amount: Number(row.amount),
+          ...(row.invoice_reference_month
+            ? { invoiceReferenceMonth: row.invoice_reference_month.slice(0, 7) }
+            : {}),
+          ...(row.due_date ? { dueDate: row.due_date } : {}),
+          ...(creditCardId !== undefined ? { creditCardId } : {}),
+          status: row.status,
+        } as const;
+      },
+    );
     const configuration = settings.data ?? {
       income: 0,
       budgets: {},
@@ -195,6 +231,7 @@ export class SupabaseFinancialDataSource implements FinancialDataSource {
         status: row.status,
         ...(row.debt_legacy_id ? { debtId: row.debt_legacy_id } : {}),
       })),
+      installmentScheduleItems,
       activeProfile: configuration.active_profile,
       viewMonth: configuration.view_month.slice(0, 7),
       hasStoredData: true,

@@ -5,6 +5,7 @@ import type {
   Installment,
   InvoiceAdjustment,
   InstallmentInvoiceEvent,
+  InstallmentScheduleItem,
   InvoicePayment,
   Person,
 } from "../app/AppTypes";
@@ -93,6 +94,7 @@ export function deriveCalendarProjection({
   payments,
   adjustments = [],
   installmentEvents = [],
+  installmentScheduleItems = [],
   baseBalance,
   referenceDate = `${month}-01`,
 }: {
@@ -105,6 +107,7 @@ export function deriveCalendarProjection({
   payments: readonly InvoicePayment[];
   adjustments?: readonly InvoiceAdjustment[];
   installmentEvents?: readonly InstallmentInvoiceEvent[];
+  installmentScheduleItems?: readonly InstallmentScheduleItem[];
   baseBalance: number;
   referenceDate?: string;
 }): CalendarProjection {
@@ -181,6 +184,7 @@ export function deriveCalendarProjection({
       payments,
       adjustments,
       installmentEvents,
+      installmentScheduleItems,
       profile,
       referenceMonth,
     }),

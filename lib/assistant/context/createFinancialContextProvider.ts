@@ -307,6 +307,7 @@ function buildContext(
     payments: data.invoicePayments ?? [],
     adjustments: data.invoiceAdjustments ?? [],
     installmentEvents: data.installmentInvoiceEvents ?? [],
+    installmentScheduleItems: data.installmentScheduleItems ?? [],
     profile: scope.profile,
     referenceMonth: scope.month,
   }).map((invoice) => ({

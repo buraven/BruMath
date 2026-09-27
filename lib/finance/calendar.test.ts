@@ -1,7 +1,12 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { INITIAL_INSTALLMENTS } from "../../features/app/defaultFinancialData";
-import type { CreditCard, Expense, Installment } from "../app/AppTypes";
+import type {
+  CreditCard,
+  Expense,
+  Installment,
+  InstallmentScheduleItem,
+} from "../app/AppTypes";
 import { deriveCalendarProjection, getCalendarItemsForDate } from "./calendar";
 
 const card: CreditCard = {
@@ -361,4 +366,63 @@ test("a paid invoice changes status without creating another financial item", ()
     projection.items.filter((item) => item.type === "invoice_due").length,
     1,
   );
+});
+
+test("keeps a scheduled card installment represented only by its invoice commitment", () => {
+  const installment: Installment = {
+    id: 20,
+    title: "Curso",
+    category: "Educação",
+    who: "Bruna",
+    amount: 80,
+    totalInstallments: 2,
+    paidInstallments: 0,
+    nextDue: "2026-09-15",
+    creditCardId: card.id,
+  };
+  const schedule: InstallmentScheduleItem[] = [
+    {
+      id: "installment:20:1",
+      installmentId: 20,
+      installmentNumber: 1,
+      totalInstallments: 2,
+      amount: 40,
+      invoiceReferenceMonth: "2026-08",
+      dueDate: "2026-09-10",
+      creditCardId: card.id,
+      status: "scheduled",
+    },
+    {
+      id: "installment:20:2",
+      installmentId: 20,
+      installmentNumber: 2,
+      totalInstallments: 2,
+      amount: 40,
+      invoiceReferenceMonth: "2026-09",
+      dueDate: "2026-10-10",
+      creditCardId: card.id,
+      status: "scheduled",
+    },
+  ];
+  const projection = deriveCalendarProjection({
+    month: "2026-09",
+    profile: "Bruna",
+    expenses: [],
+    incomeEntries: [],
+    installments: [installment],
+    installmentScheduleItems: schedule,
+    cards: [card],
+    payments: [],
+    baseBalance: 1_000,
+  });
+
+  assert.equal(
+    projection.items.filter((item) => item.type === "installment_due").length,
+    0,
+  );
+  assert.equal(
+    projection.items.filter((item) => item.type === "invoice_due").length,
+    1,
+  );
+  assert.equal(projection.forecast.knownFutureCommitments, 40);
 });

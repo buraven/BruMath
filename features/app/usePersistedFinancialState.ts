@@ -68,6 +68,9 @@ function toAppData(
     installmentReimbursementAllocations: [
       ...(snapshot.installmentReimbursementAllocations ?? []),
     ],
+    ...(snapshot.installmentScheduleItems
+      ? { installmentScheduleItems: [...snapshot.installmentScheduleItems] }
+      : {}),
     activeProfile: snapshot.activeProfile ?? fallback.activeProfile,
     viewMonth: snapshot.viewMonth ?? fallback.viewMonth,
   };
@@ -107,6 +110,9 @@ export function usePersistedFinancialState(defaults: AppFinancialData) {
     installmentReimbursementAllocations,
     setInstallmentReimbursementAllocations,
   ] = useState(initial.installmentReimbursementAllocations ?? []);
+  const [installmentScheduleItems, setInstallmentScheduleItems] = useState(
+    initial.installmentScheduleItems,
+  );
   const [activeProfile, setActiveProfile] = useState(initial.activeProfile);
   const [viewMonth, setViewMonth] = useState(initial.viewMonth);
   const [status, setStatus] = useState<PersistenceStatus>("loading");
@@ -151,6 +157,7 @@ export function usePersistedFinancialState(defaults: AppFinancialData) {
       invoiceAdjustments,
       installmentInvoiceEvents,
       installmentReimbursementAllocations,
+      ...(installmentScheduleItems ? { installmentScheduleItems } : {}),
       activeProfile,
       viewMonth,
     }),
@@ -170,6 +177,7 @@ export function usePersistedFinancialState(defaults: AppFinancialData) {
       invoiceAdjustments,
       installmentInvoiceEvents,
       installmentReimbursementAllocations,
+      installmentScheduleItems,
       activeProfile,
       viewMonth,
     ],
@@ -194,6 +202,7 @@ export function usePersistedFinancialState(defaults: AppFinancialData) {
     setInstallmentReimbursementAllocations(
       hydrated.installmentReimbursementAllocations ?? [],
     );
+    setInstallmentScheduleItems(hydrated.installmentScheduleItems);
     setActiveProfile(hydrated.activeProfile);
     setViewMonth(hydrated.viewMonth);
   };
@@ -476,6 +485,8 @@ export function usePersistedFinancialState(defaults: AppFinancialData) {
     setInstallmentInvoiceEvents,
     installmentReimbursementAllocations,
     setInstallmentReimbursementAllocations,
+    installmentScheduleItems,
+    setInstallmentScheduleItems,
     activeProfile,
     setActiveProfile,
     viewMonth,
