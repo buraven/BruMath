@@ -86,6 +86,19 @@ export type Installment = {
   creditCardId?: number;
 };
 
+/** A persistible, individually identified installment generated for a new plan. */
+export type InstallmentScheduleItem = {
+  id: string;
+  installmentId: number;
+  installmentNumber: number;
+  totalInstallments: number;
+  amount: number;
+  invoiceReferenceMonth?: string;
+  dueDate?: string;
+  creditCardId?: number;
+  status: "scheduled";
+};
+
 export type InstallmentInvoiceEventType =
   | "regular"
   | "anticipated"
