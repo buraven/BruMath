@@ -1456,6 +1456,53 @@ test("defines immutable household-isolated settlement facts as a V4 extension", 
   );
 });
 
+test("hardens schedule and immutable settlement table grants explicitly", () => {
+  const migration = readFileSync(
+    "supabase/migrations/20260928190000_installment_schedule_settlement_grants_hardening.sql",
+    "utf8",
+  );
+
+  for (const table of [
+    "installment_schedule_items",
+    "installment_settlement_events",
+  ]) {
+    assert.match(
+      migration,
+      new RegExp(
+        `revoke all privileges on table public\\.${table} from public;`,
+        "i",
+      ),
+    );
+    assert.match(
+      migration,
+      new RegExp(
+        `revoke all privileges on table public\\.${table} from anon;`,
+        "i",
+      ),
+    );
+    assert.match(
+      migration,
+      new RegExp(
+        `revoke all privileges on table public\\.${table} from authenticated;`,
+        "i",
+      ),
+    );
+  }
+
+  assert.match(
+    migration,
+    /grant select, insert, update, delete on table public\.installment_schedule_items to authenticated;/i,
+  );
+  assert.match(
+    migration,
+    /grant select, insert on table public\.installment_settlement_events to authenticated;/i,
+  );
+  assert.doesNotMatch(
+    migration,
+    /grant .*\b(?:update|delete|truncate|references|trigger)\b.*installment_settlement_events.*authenticated/i,
+  );
+});
+
 test("bootstraps only through the authenticated household RPC", async () => {
   let rpcName = "";
   const client = {
