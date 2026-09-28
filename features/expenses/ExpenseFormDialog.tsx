@@ -28,6 +28,8 @@ type Props = {
   viewMonth: string;
   creditCards: readonly CreditCard[];
   initialCreditCardId?: number;
+  initialInvoiceReferenceMonth?: string;
+  lockedCreditCardId?: number;
   onSave: (expense: Expense, isEditing: boolean) => void;
   onClose: () => void;
   onInvalid: (message: string) => void;
@@ -40,6 +42,8 @@ export function ExpenseFormDialog({
   viewMonth,
   creditCards,
   initialCreditCardId,
+  initialInvoiceReferenceMonth,
+  lockedCreditCardId,
   onSave,
   onClose,
   onInvalid,
@@ -105,6 +109,14 @@ export function ExpenseFormDialog({
               ...(form.creditCardId
                 ? { creditCardId: Number(form.creditCardId) }
                 : {}),
+              ...((expense?.invoiceReferenceMonth ??
+              initialInvoiceReferenceMonth)
+                ? {
+                    invoiceReferenceMonth:
+                      expense?.invoiceReferenceMonth ??
+                      initialInvoiceReferenceMonth,
+                  }
+                : {}),
             },
             Boolean(expense),
           );
@@ -125,6 +137,7 @@ export function ExpenseFormDialog({
           <span>Cartão</span>
           <select
             value={form.creditCardId}
+            disabled={lockedCreditCardId !== undefined}
             onChange={(event) =>
               setForm({ ...form, creditCardId: event.target.value })
             }

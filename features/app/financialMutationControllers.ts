@@ -5,8 +5,21 @@ import type {
   Expense,
   IncomeEntry,
   Installment,
+  InstallmentInvoiceEvent,
+  InstallmentScheduleItem,
+  InstallmentSettlementEvent,
   Person,
 } from "../../lib/app/AppTypes";
+import {
+  completeInstallmentSchedule,
+  futureInstallmentScheduleItems,
+  isInstallmentScheduleItemHistorical,
+} from "../../lib/finance/installmentScheduleHistory";
+import { generateInstallmentSchedule } from "../../lib/finance/installmentSchedule";
+import {
+  applyProspectiveInstallmentEdit,
+  type ProspectiveInstallmentEdit,
+} from "../../lib/finance/installmentProspectiveEdit";
 import type { PersonalLimitBucket } from "../../lib/finance/personalLimitBuckets";
 import type { PersonalLimitConfiguration } from "../../lib/finance/personalLimits";
 
@@ -82,14 +95,32 @@ export function createExpenseIncomeMutations({
 
 export function createInstallmentMutations({
   installments,
+  installmentScheduleItems = [],
+  installmentSettlementEvents = [],
+  installmentInvoiceEvents = [],
   setInstallments,
+  setInstallmentScheduleItems,
+  setInstallmentSettlementEvents,
+  setInstallmentInvoiceEvents,
   setConfirmation,
   setToast,
 }: CommonDependencies & {
   installments: readonly Installment[];
+  installmentScheduleItems?: readonly InstallmentScheduleItem[];
+  installmentSettlementEvents?: readonly InstallmentSettlementEvent[];
+  installmentInvoiceEvents?: readonly InstallmentInvoiceEvent[];
   setInstallments: Dispatch<SetStateAction<Installment[]>>;
+  setInstallmentScheduleItems?: Dispatch<
+    SetStateAction<InstallmentScheduleItem[] | undefined>
+  >;
+  setInstallmentSettlementEvents?: Dispatch<
+    SetStateAction<InstallmentSettlementEvent[] | undefined>
+  >;
+  setInstallmentInvoiceEvents?: Dispatch<
+    SetStateAction<InstallmentInvoiceEvent[]>
+  >;
 }) {
-  const pay = (id: number, count: number) => {
+  const payLegacy = (id: number, count: number) => {
     setInstallments((current) =>
       current.map((item) => {
         if (item.id !== id) return item;
@@ -117,7 +148,181 @@ export function createInstallmentMutations({
     );
   };
 
+  const settleScheduled = (
+    id: number,
+    count: number,
+    type: InstallmentSettlementEvent["type"],
+    settledAt: string,
+  ) => {
+    const installment = installments.find((item) => item.id === id);
+    if (!installment) return false;
+    // A complete schedule is an explicit new-plan contract even when all of
+    // its items are already historical. Never fall back to paidInstallments.
+    if (!completeInstallmentSchedule(installment, installmentScheduleItems))
+      return false;
+    const candidates = futureInstallmentScheduleItems(
+      installment,
+      installmentScheduleItems,
+      { installmentInvoiceEvents, installmentSettlementEvents },
+    ).slice(0, Math.max(0, count));
+    if (!candidates.length) return true;
+
+    if (candidates.some((item) => item.creditCardId !== undefined)) {
+      // A card schedule uses the existing invoice-event model. A malformed
+      // card item without an explicit competence is intentionally left to the
+      // legacy flow instead of guessing a financial fact.
+      if (
+        candidates.some(
+          (item) =>
+            item.creditCardId === undefined || !item.invoiceReferenceMonth,
+        ) ||
+        !setInstallmentInvoiceEvents
+      )
+        return false;
+      setInstallmentInvoiceEvents((current) => {
+        let nextId = Math.max(0, ...current.map((event) => event.id)) + 1;
+        const additions = candidates.flatMap((item) =>
+          isInstallmentScheduleItemHistorical(item, {
+            installmentInvoiceEvents: current,
+            installmentSettlementEvents,
+          })
+            ? []
+            : [
+                {
+                  id: nextId++,
+                  installmentId: item.installmentId,
+                  cardId: item.creditCardId!,
+                  referenceMonth: item.invoiceReferenceMonth!,
+                  installmentNumber: item.installmentNumber,
+                  amount: item.amount,
+                  type,
+                  date: settledAt,
+                } satisfies InstallmentInvoiceEvent,
+              ],
+        );
+        return additions.length ? [...current, ...additions] : current;
+      });
+    } else {
+      if (!setInstallmentSettlementEvents) return false;
+      setInstallmentSettlementEvents((current) => {
+        const existing = current ?? [];
+        const additions = candidates.flatMap((item) =>
+          isInstallmentScheduleItemHistorical(item, {
+            installmentInvoiceEvents,
+            installmentSettlementEvents: existing,
+          })
+            ? []
+            : [
+                {
+                  id: `settlement:${item.installmentId}:${item.installmentNumber}`,
+                  installmentId: item.installmentId,
+                  installmentNumber: item.installmentNumber,
+                  amount: item.amount,
+                  settledAt,
+                  type,
+                } satisfies InstallmentSettlementEvent,
+              ],
+        );
+        return additions.length ? [...existing, ...additions] : existing;
+      });
+    }
+
+    // paidInstallments remains a legacy-compatible display field. Selection
+    // above has already used only explicit X/Y facts.
+    payLegacy(id, candidates.length);
+    return true;
+  };
+
+  const pay = (
+    id: number,
+    count: number,
+    settledAt = new Date().toISOString().slice(0, 10),
+  ) => settleScheduled(id, count, "regular", settledAt) || payLegacy(id, count);
+
+  const editProspectively = (id: number, edit: ProspectiveInstallmentEdit) => {
+    const installment = installments.find((item) => item.id === id);
+    if (!installment) throw new Error("Parcelamento não encontrado.");
+    const planItems = installmentScheduleItems.filter(
+      (item) => item.installmentId === id,
+    );
+    if (!planItems.length)
+      throw new Error(
+        "Este parcelamento é legado e não possui cronograma para edição prospectiva.",
+      );
+    if (!completeInstallmentSchedule(installment, installmentScheduleItems))
+      throw new Error(
+        "O cronograma deste parcelamento está incompleto e não pode ser editado prospectivamente.",
+      );
+    if (!setInstallmentScheduleItems)
+      throw new Error("O cronograma não está disponível para atualização.");
+
+    // Do all domain validation before scheduling either state update.
+    const result = applyProspectiveInstallmentEdit({
+      installment,
+      scheduleItems: installmentScheduleItems,
+      historyFacts: {
+        installmentInvoiceEvents,
+        installmentSettlementEvents,
+      },
+      edit,
+    });
+    const nextSchedule = [
+      ...installmentScheduleItems.filter((item) => item.installmentId !== id),
+      ...result.scheduleItems,
+    ].sort(
+      (left, right) =>
+        left.installmentId - right.installmentId ||
+        left.installmentNumber - right.installmentNumber ||
+        left.id.localeCompare(right.id),
+    );
+
+    // React batches synchronous updates from an action. The persisted snapshot
+    // therefore observes the validated pair, never a partially computed edit.
+    setInstallments((current) =>
+      current.map((item) => (item.id === id ? result.installment : item)),
+    );
+    setInstallmentScheduleItems(nextSchedule);
+    return result;
+  };
+
   return {
+    createWithSchedule(input: {
+      installment: Installment;
+      totalAmount: number;
+      firstInvoiceReferenceMonth?: string;
+      firstDueDate?: string;
+    }) {
+      if (!setInstallmentScheduleItems)
+        throw new Error("O cronograma não está disponível para criação.");
+      if (installments.some((item) => item.id === input.installment.id))
+        throw new Error("Já existe um parcelamento com esta identidade.");
+
+      // Generate and validate the complete plan before either state update.
+      const schedule = generateInstallmentSchedule({
+        installmentId: input.installment.id,
+        totalAmount: input.totalAmount,
+        totalInstallments: input.installment.totalInstallments,
+        firstInvoiceReferenceMonth: input.firstInvoiceReferenceMonth,
+        firstDueDate: input.firstDueDate,
+        creditCardId: input.installment.creditCardId,
+      });
+      const nextInstallment: Installment = {
+        ...input.installment,
+        amount: schedule[0]!.amount,
+        paidInstallments: 0,
+        nextDue: schedule[0]!.dueDate ?? input.installment.nextDue,
+      };
+
+      // These synchronous updates are batched by React, so V4 observes the
+      // validated plan and its full schedule together.
+      setInstallments((current) => [nextInstallment, ...current]);
+      setInstallmentScheduleItems((current) => [
+        ...(current ?? []),
+        ...schedule,
+      ]);
+      setToast("Compra parcelada adicionada 💚");
+      return { installment: nextInstallment, schedule };
+    },
     save(item: Installment, editing: boolean) {
       setInstallments((current) =>
         editing
@@ -145,14 +350,43 @@ export function createInstallmentMutations({
       });
     },
     pay,
+    editProspectively,
+    anticipate(
+      id: number,
+      count: number,
+      settledAt = new Date().toISOString().slice(0, 10),
+    ) {
+      if (!settleScheduled(id, count, "anticipated", settledAt))
+        payLegacy(id, count);
+    },
     confirmQuit(item: Installment) {
-      const remaining = item.totalInstallments - item.paidInstallments;
+      const scheduledRemaining = futureInstallmentScheduleItems(
+        item,
+        installmentScheduleItems,
+        { installmentInvoiceEvents, installmentSettlementEvents },
+      ).length;
+      const remaining = completeInstallmentSchedule(
+        item,
+        installmentScheduleItems,
+      )
+        ? scheduledRemaining
+        : item.totalInstallments - item.paidInstallments;
       if (!remaining) return;
       setConfirmation({
         title: "Quitar parcelamento",
         description: `“${item.title}” tem ${remaining} parcela${remaining === 1 ? "" : "s"} restante${remaining === 1 ? "" : "s"}. Todas serão quitadas.`,
         confirmLabel: "Confirmar quitação",
-        onConfirm: () => pay(item.id, remaining),
+        onConfirm: () => {
+          if (
+            !settleScheduled(
+              item.id,
+              remaining,
+              "anticipated",
+              new Date().toISOString().slice(0, 10),
+            )
+          )
+            payLegacy(item.id, remaining);
+        },
       });
     },
   };

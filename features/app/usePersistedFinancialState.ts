@@ -68,6 +68,16 @@ function toAppData(
     installmentReimbursementAllocations: [
       ...(snapshot.installmentReimbursementAllocations ?? []),
     ],
+    ...(snapshot.installmentScheduleItems
+      ? { installmentScheduleItems: [...snapshot.installmentScheduleItems] }
+      : {}),
+    ...(snapshot.installmentSettlementEvents
+      ? {
+          installmentSettlementEvents: [
+            ...snapshot.installmentSettlementEvents,
+          ],
+        }
+      : {}),
     activeProfile: snapshot.activeProfile ?? fallback.activeProfile,
     viewMonth: snapshot.viewMonth ?? fallback.viewMonth,
   };
@@ -107,6 +117,11 @@ export function usePersistedFinancialState(defaults: AppFinancialData) {
     installmentReimbursementAllocations,
     setInstallmentReimbursementAllocations,
   ] = useState(initial.installmentReimbursementAllocations ?? []);
+  const [installmentScheduleItems, setInstallmentScheduleItems] = useState(
+    initial.installmentScheduleItems,
+  );
+  const [installmentSettlementEvents, setInstallmentSettlementEvents] =
+    useState(initial.installmentSettlementEvents);
   const [activeProfile, setActiveProfile] = useState(initial.activeProfile);
   const [viewMonth, setViewMonth] = useState(initial.viewMonth);
   const [status, setStatus] = useState<PersistenceStatus>("loading");
@@ -151,6 +166,8 @@ export function usePersistedFinancialState(defaults: AppFinancialData) {
       invoiceAdjustments,
       installmentInvoiceEvents,
       installmentReimbursementAllocations,
+      ...(installmentScheduleItems ? { installmentScheduleItems } : {}),
+      ...(installmentSettlementEvents ? { installmentSettlementEvents } : {}),
       activeProfile,
       viewMonth,
     }),
@@ -170,6 +187,8 @@ export function usePersistedFinancialState(defaults: AppFinancialData) {
       invoiceAdjustments,
       installmentInvoiceEvents,
       installmentReimbursementAllocations,
+      installmentScheduleItems,
+      installmentSettlementEvents,
       activeProfile,
       viewMonth,
     ],
@@ -194,6 +213,8 @@ export function usePersistedFinancialState(defaults: AppFinancialData) {
     setInstallmentReimbursementAllocations(
       hydrated.installmentReimbursementAllocations ?? [],
     );
+    setInstallmentScheduleItems(hydrated.installmentScheduleItems);
+    setInstallmentSettlementEvents(hydrated.installmentSettlementEvents);
     setActiveProfile(hydrated.activeProfile);
     setViewMonth(hydrated.viewMonth);
   };
@@ -476,6 +497,10 @@ export function usePersistedFinancialState(defaults: AppFinancialData) {
     setInstallmentInvoiceEvents,
     installmentReimbursementAllocations,
     setInstallmentReimbursementAllocations,
+    installmentScheduleItems,
+    setInstallmentScheduleItems,
+    installmentSettlementEvents,
+    setInstallmentSettlementEvents,
     activeProfile,
     setActiveProfile,
     viewMonth,

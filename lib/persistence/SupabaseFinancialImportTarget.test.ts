@@ -11,6 +11,7 @@ import {
   fromRemoteSnapshot,
   normalizePersistedFinancialSnapshot,
   remotePersistenceDiagnostic,
+  type RemoteSnapshot,
   replaceSupabaseFinancialSnapshot,
   simulateImportV2RoundTrip,
   SupabaseImportRpcError,
@@ -19,6 +20,7 @@ import {
   toLegacyImportSnapshot,
   toRemoteSnapshot,
 } from "./SupabaseFinancialImportTarget";
+import { applyProspectiveInstallmentEdit } from "../finance/installmentProspectiveEdit";
 import { bootstrapFinancialHousehold } from "./supabaseAuth";
 
 function structuralDiffPaths(
@@ -93,6 +95,76 @@ const snapshot: AppFinancialData = {
   activeProfile: "Bruna",
   viewMonth: "2026-09",
 };
+
+function snapshotWithSchedule(): AppFinancialData {
+  return {
+    ...snapshot,
+    installments: [
+      {
+        id: 12,
+        title: "Plano sintético",
+        category: "Casa",
+        who: "Bruna",
+        amount: 100,
+        totalInstallments: 3,
+        paidInstallments: 0,
+        nextDue: "2026-09-27",
+        creditCardId: 4,
+      },
+    ],
+    installmentScheduleItems: [
+      {
+        id: "installment:12:1",
+        installmentId: 12,
+        installmentNumber: 1,
+        totalInstallments: 3,
+        amount: 33.34,
+        invoiceReferenceMonth: "2026-09",
+        dueDate: "2026-09-27",
+        creditCardId: 4,
+        status: "scheduled",
+      },
+      {
+        id: "installment:12:2",
+        installmentId: 12,
+        installmentNumber: 2,
+        totalInstallments: 3,
+        amount: 33.33,
+        invoiceReferenceMonth: "2026-10",
+        dueDate: "2026-10-27",
+        creditCardId: 4,
+        status: "scheduled",
+      },
+      {
+        id: "installment:12:3",
+        installmentId: 12,
+        installmentNumber: 3,
+        totalInstallments: 3,
+        amount: 33.33,
+        invoiceReferenceMonth: "2026-11",
+        dueDate: "2026-11-27",
+        creditCardId: 4,
+        status: "scheduled",
+      },
+    ],
+  };
+}
+
+function snapshotWithSettlement(): AppFinancialData {
+  return {
+    ...snapshotWithSchedule(),
+    installmentSettlementEvents: [
+      {
+        id: "settlement:12:1",
+        installmentId: 12,
+        installmentNumber: 1,
+        amount: 33.34,
+        settledAt: "2026-09-27",
+        type: "regular",
+      },
+    ],
+  };
+}
 
 test("maps a local snapshot to the deterministic RPC representation", () => {
   const remote = toRemoteSnapshot(snapshot);
@@ -171,6 +243,159 @@ test("round-trips V4 identity budgets without recreating a legacy name bucket", 
   });
   assert.deepEqual(remote.settings.budgets, {});
   assert.deepEqual(fromRemoteSnapshot(remote), categorized);
+});
+
+test("round-trips the additive V4 installment schedule in canonical order", () => {
+  const scheduled = snapshotWithSchedule();
+  const remote = toRemoteSnapshot(scheduled);
+
+  assert.deepEqual(remote.installment_schedule_items?.[0], {
+    legacy_id: "installment:12:1",
+    installment_legacy_id: 12,
+    installment_number: 1,
+    total_installments: 3,
+    amount: 33.34,
+    invoice_reference_month: "2026-09-01",
+    due_date: "2026-09-27",
+    credit_card_legacy_id: 4,
+    status: "scheduled",
+  });
+  assert.deepEqual(fromRemoteSnapshot(remote), scheduled);
+  assert.equal(
+    normalizePersistedFinancialSnapshot(scheduled),
+    normalizePersistedFinancialSnapshot({
+      ...scheduled,
+      installmentScheduleItems: [
+        ...scheduled.installmentScheduleItems!,
+      ].reverse(),
+    }),
+  );
+});
+
+test("keeps snapshots without a schedule field backward compatible", () => {
+  const remote = toRemoteSnapshot(snapshot);
+  assert.equal(remote.installment_schedule_items, undefined);
+  assert.equal(
+    Object.hasOwn(fromRemoteSnapshot(remote), "installmentScheduleItems"),
+    false,
+  );
+
+  const explicitEmpty = {
+    ...remote,
+    installment_schedule_items: [],
+  };
+  assert.deepEqual(
+    fromRemoteSnapshot(explicitEmpty).installmentScheduleItems,
+    [],
+  );
+});
+
+test("round-trips an immutable V4 settlement without card or invoice fields", () => {
+  const settled = snapshotWithSettlement();
+  const remote = toRemoteSnapshot(settled);
+
+  assert.deepEqual(remote.installment_settlement_events, [
+    {
+      legacy_id: "settlement:12:1",
+      installment_legacy_id: 12,
+      installment_number: 1,
+      amount: 33.34,
+      settled_on: "2026-09-27",
+      settlement_type: "regular",
+    },
+  ]);
+  assert.deepEqual(fromRemoteSnapshot(remote), settled);
+  assert.doesNotMatch(
+    JSON.stringify(remote.installment_settlement_events),
+    /card|reference_month/i,
+  );
+});
+
+test("keeps settlement events optional for legacy snapshots and reconciles every fact when present", () => {
+  const legacy = toRemoteSnapshot(snapshotWithSchedule());
+  assert.equal(legacy.installment_settlement_events, undefined);
+  assert.equal(
+    Object.hasOwn(fromRemoteSnapshot(legacy), "installmentSettlementEvents"),
+    false,
+  );
+
+  const settled = toRemoteSnapshot(snapshotWithSettlement());
+  const original = settled.installment_settlement_events?.[0]!;
+  for (const [field, value] of Object.entries({
+    installment_number: 2,
+    amount: 33.33,
+    settled_on: "2026-09-28",
+    settlement_type: "anticipated",
+  })) {
+    assert.deepEqual(
+      structuralDiffPaths(settled, {
+        ...settled,
+        installment_settlement_events: [{ ...original, [field]: value }],
+      }),
+      [`installment_settlement_events.0.${field}`],
+    );
+  }
+  assert.deepEqual(
+    structuralDiffPaths(settled, {
+      ...settled,
+      installment_settlement_events: [],
+    }),
+    ["installment_settlement_events.0"],
+  );
+});
+
+test("keeps every schedule field inside the V4 reconciliation contract", () => {
+  const scheduled: AppFinancialData = {
+    ...snapshot,
+    installmentScheduleItems: [
+      {
+        id: "installment:12:1",
+        installmentId: 12,
+        installmentNumber: 1,
+        totalInstallments: 2,
+        amount: 50,
+        invoiceReferenceMonth: "2026-09",
+        dueDate: "2026-09-27",
+        creditCardId: 4,
+        status: "scheduled",
+      },
+    ],
+  };
+  const source = toRemoteSnapshot(scheduled);
+  const original = source.installment_schedule_items?.[0]!;
+  for (const [field, value] of Object.entries({
+    amount: 49,
+    installment_number: 2,
+    invoice_reference_month: "2026-10-01",
+    due_date: "2026-10-28",
+    credit_card_legacy_id: null,
+    status: "other",
+  })) {
+    const persisted = {
+      ...source,
+      installment_schedule_items: [{ ...original, [field]: value }],
+    };
+    assert.deepEqual(structuralDiffPaths(source, persisted), [
+      `installment_schedule_items.0.${field}`,
+    ]);
+  }
+  assert.deepEqual(
+    structuralDiffPaths(source, {
+      ...source,
+      installment_schedule_items: [],
+    }),
+    ["installment_schedule_items.0"],
+  );
+  assert.deepEqual(
+    structuralDiffPaths(source, {
+      ...source,
+      installment_schedule_items: [
+        ...source.installment_schedule_items!,
+        original,
+      ],
+    }),
+    ["installment_schedule_items.1"],
+  );
 });
 
 test("projects V4 category budgets before the V1 reconciliation boundary", () => {
@@ -544,6 +769,98 @@ test("uses the import RPC and returns its persisted snapshot", async () => {
   assert.deepEqual(persisted, snapshot);
 });
 
+test("transports an explicit schedule through import V4", async () => {
+  const scheduled = snapshotWithSchedule();
+  let rpcSnapshot: unknown;
+  const client = {
+    rpc: async (_name: string, arguments_: Record<string, unknown>) => {
+      rpcSnapshot = arguments_.p_snapshot;
+      return {
+        data: { imported: true, snapshot: arguments_.p_snapshot },
+        error: null,
+      };
+    },
+  } as unknown as SupabaseClient;
+
+  const result = await new SupabaseFinancialImportTarget(
+    client,
+  ).importAtomically("household", scheduled, "hash", {
+    expenses: 1,
+    installments: 1,
+    receivables: 0,
+    incomeEntries: 0,
+    creditCards: 1,
+    invoicePayments: 0,
+  });
+
+  assert.equal(
+    (rpcSnapshot as RemoteSnapshot).installment_schedule_items?.length,
+    3,
+  );
+  assert.deepEqual(
+    result.installmentScheduleItems,
+    scheduled.installmentScheduleItems,
+  );
+});
+
+test("transports immutable settlement events through import V4", async () => {
+  const settled = snapshotWithSettlement();
+  let rpcSnapshot: unknown;
+  const client = {
+    rpc: async (_name: string, arguments_: Record<string, unknown>) => {
+      rpcSnapshot = arguments_.p_snapshot;
+      return {
+        data: { imported: true, snapshot: arguments_.p_snapshot },
+        error: null,
+      };
+    },
+  } as unknown as SupabaseClient;
+
+  const result = await new SupabaseFinancialImportTarget(
+    client,
+  ).importAtomically("household", settled, "hash", {
+    expenses: 1,
+    installments: 1,
+    receivables: 0,
+    incomeEntries: 0,
+    creditCards: 1,
+    invoicePayments: 0,
+  });
+
+  assert.equal(
+    (rpcSnapshot as RemoteSnapshot).installment_settlement_events?.length,
+    1,
+  );
+  assert.deepEqual(
+    result.installmentSettlementEvents,
+    settled.installmentSettlementEvents,
+  );
+});
+
+test("round-trips an atomically edited installment and its schedule through V4", () => {
+  const source = snapshotWithSettlement();
+  const plan = source.installments[0]!;
+  const result = applyProspectiveInstallmentEdit({
+    installment: plan,
+    scheduleItems: source.installmentScheduleItems!,
+    historyFacts: {
+      installmentSettlementEvents: source.installmentSettlementEvents,
+      installmentInvoiceEvents: source.installmentInvoiceEvents,
+    },
+    edit: { futureTotalAmount: 50, futureCreditCardId: 8 },
+  });
+  const edited: AppFinancialData = {
+    ...source,
+    installments: [result.installment],
+    installmentScheduleItems: result.scheduleItems,
+  };
+  assert.deepEqual(fromRemoteSnapshot(toRemoteSnapshot(edited)), edited);
+  assert.deepEqual(
+    edited.installmentSettlementEvents,
+    source.installmentSettlementEvents,
+  );
+});
+
 test("reads category budgets from an idempotent V4 import response", async () => {
   const categorized = {
     ...snapshot,
@@ -660,6 +977,60 @@ test("writes a runtime snapshot only through the atomic replacement RPC", async 
   assert.equal(rpcArguments?.p_household_id, "household");
   assert.equal(rpcArguments?.p_revision_hash, "revision");
   assert.deepEqual(persisted, snapshot);
+});
+
+test("transports an explicit schedule through replace V4", async () => {
+  const scheduled = snapshotWithSchedule();
+  let rpcSnapshot: unknown;
+  const client = {
+    rpc: async (_name: string, arguments_: Record<string, unknown>) => {
+      rpcSnapshot = arguments_.p_snapshot;
+      return { data: arguments_.p_snapshot, error: null };
+    },
+  } as unknown as SupabaseClient;
+
+  const result = await replaceSupabaseFinancialSnapshot({
+    client,
+    householdId: "household",
+    snapshot: scheduled,
+    revisionHash: "schedule-revision",
+  });
+
+  assert.equal(
+    (rpcSnapshot as RemoteSnapshot).installment_schedule_items?.length,
+    3,
+  );
+  assert.deepEqual(
+    result.installmentScheduleItems,
+    scheduled.installmentScheduleItems,
+  );
+});
+
+test("transports immutable settlement events through replace V4", async () => {
+  const settled = snapshotWithSettlement();
+  let rpcSnapshot: unknown;
+  const client = {
+    rpc: async (_name: string, arguments_: Record<string, unknown>) => {
+      rpcSnapshot = arguments_.p_snapshot;
+      return { data: arguments_.p_snapshot, error: null };
+    },
+  } as unknown as SupabaseClient;
+
+  const result = await replaceSupabaseFinancialSnapshot({
+    client,
+    householdId: "household",
+    snapshot: settled,
+    revisionHash: "settlement-revision",
+  });
+
+  assert.equal(
+    (rpcSnapshot as RemoteSnapshot).installment_settlement_events?.length,
+    1,
+  );
+  assert.deepEqual(
+    result.installmentSettlementEvents,
+    settled.installmentSettlementEvents,
+  );
 });
 
 test("preserves a sanitized V4 RPC error without exposing the snapshot or credentials", async () => {
@@ -925,6 +1296,210 @@ test("guards the public V1 and V2 writers while preserving the V4 internal chain
   assert.doesNotMatch(
     migration,
     /grant execute on function public\.replace_financial_snapshot\(uuid, jsonb, text\) to anon;/,
+  );
+});
+
+test("defines an additive household-isolated installment schedule foundation", () => {
+  const migration = readFileSync(
+    "supabase/migrations/20260927110000_installment_schedule_foundation.sql",
+    "utf8",
+  );
+  assert.match(migration, /create table public\.installment_schedule_items/i);
+  assert.match(migration, /foreign key \(household_id, installment_id\)/i);
+  assert.match(migration, /foreign key \(household_id, credit_card_id\)/i);
+  assert.match(
+    migration,
+    /unique \(household_id, installment_id, installment_number\)/i,
+  );
+  assert.match(migration, /enable row level security/i);
+  assert.match(
+    migration,
+    /revoke all on table public\.installment_schedule_items from anon/i,
+  );
+  assert.doesNotMatch(
+    migration,
+    /insert into public\.installment_schedule_items/i,
+  );
+});
+
+test("keeps the V4 installment schedule outside the legacy projection and inside reconciliation", () => {
+  const migration = readFileSync(
+    "supabase/migrations/20260927120000_v4_installment_schedule_snapshot.sql",
+    "utf8",
+  );
+
+  assert.match(
+    migration,
+    /v_schedule_provided boolean := p_snapshot \? 'installment_schedule_items'/,
+  );
+  assert.match(
+    migration,
+    /if v_schedule_provided then[\s\S]*delete from public\.installment_schedule_items current/,
+  );
+  assert.match(migration, /p_snapshot - 'installment_schedule_items'/);
+  assert.match(migration, /insert into public\.installment_schedule_items\(/);
+  assert.match(
+    migration,
+    /order by installment\.legacy_id, item\.installment_number, item\.legacy_id/,
+  );
+  assert.match(
+    migration,
+    /v_schedule_source is distinct from v_schedule_readback/,
+  );
+  assert.match(
+    migration,
+    /raise exception 'persisted snapshot does not reconcile with source snapshot'/,
+  );
+  assert.match(
+    migration,
+    /create or replace function public\.replace_financial_snapshot_v4\(\s*p_household_id uuid, p_snapshot jsonb, p_revision_hash text/,
+  );
+  assert.match(
+    migration,
+    /create or replace function public\.import_financial_snapshot_v4\(\s*p_household_id uuid, p_source_hash text, p_snapshot jsonb, p_summary jsonb/,
+  );
+  assert.match(
+    migration,
+    /public\.replace_financial_snapshot_v3\(\s*p_household_id,\s*v_snapshot_v3/,
+  );
+  assert.match(
+    migration,
+    /public\.import_financial_snapshot_v3\(\s*p_household_id,\s*p_source_hash,\s*v_snapshot_v3/,
+  );
+  assert.match(
+    migration,
+    /perform set_config\('brumath\.v4_snapshot_writer', 'enabled', true\);/,
+  );
+  assert.match(
+    migration,
+    /grant execute on function public\.replace_financial_snapshot_v4\(uuid,jsonb,text\) to authenticated;/,
+  );
+  assert.match(
+    migration,
+    /grant execute on function public\.import_financial_snapshot_v4\(uuid,text,jsonb,jsonb\) to authenticated;/,
+  );
+  assert.doesNotMatch(migration, /grant .* to anon/i);
+});
+
+test("defines immutable household-isolated settlement facts as a V4 extension", () => {
+  const migration = readFileSync(
+    "supabase/migrations/20260927130000_installment_settlement_events.sql",
+    "utf8",
+  );
+
+  assert.match(
+    migration,
+    /create table public\.installment_settlement_events/i,
+  );
+  assert.match(
+    migration,
+    /foreign key \([\s\S]*household_id,[\s\S]*installment_schedule_item_id,[\s\S]*installment_id,[\s\S]*installment_number[\s\S]*\)[\s\S]*references public\.installment_schedule_items/i,
+  );
+  assert.match(
+    migration,
+    /unique \(household_id, installment_schedule_item_id\)/i,
+  );
+  assert.match(migration, /on delete restrict/i);
+  assert.match(migration, /enable row level security/i);
+  assert.match(
+    migration,
+    /for insert to authenticated[\s\S]*with check \([\s\S]*public\.is_household_member\(household_id\)/i,
+  );
+  assert.match(
+    migration,
+    /schedule\.amount = installment_settlement_events\.amount/i,
+  );
+  assert.match(
+    migration,
+    /grant select, insert on table public\.installment_settlement_events to authenticated/i,
+  );
+  assert.doesNotMatch(
+    migration,
+    /grant .*installment_settlement_events.* to anon/i,
+  );
+  assert.doesNotMatch(
+    migration,
+    /grant (?:update|delete).*installment_settlement_events.*authenticated/i,
+  );
+  assert.match(
+    migration,
+    /p_snapshot - 'installment_schedule_items' - 'installment_settlement_events'/,
+  );
+  assert.match(
+    migration,
+    /snapshot cannot remove an immutable settlement event/,
+  );
+  assert.match(
+    migration,
+    /snapshot cannot rewrite an immutable settlement event/,
+  );
+  assert.match(migration, /snapshot cannot rewrite a settled schedule item/);
+  assert.match(
+    migration,
+    /v_settlements_source is distinct from v_settlements_readback/,
+  );
+  assert.match(
+    migration,
+    /v_settlements_provided boolean := p_snapshot \? 'installment_settlement_events'/,
+  );
+  assert.doesNotMatch(
+    migration,
+    /delete from public\.installment_settlement_events/i,
+  );
+  assert.match(
+    migration,
+    /replace_financial_snapshot_v4\(uuid,jsonb,text\) to authenticated/,
+  );
+  assert.match(
+    migration,
+    /import_financial_snapshot_v4\(uuid,text,jsonb,jsonb\) to authenticated/,
+  );
+});
+
+test("hardens schedule and immutable settlement table grants explicitly", () => {
+  const migration = readFileSync(
+    "supabase/migrations/20260928190000_installment_schedule_settlement_grants_hardening.sql",
+    "utf8",
+  );
+
+  for (const table of [
+    "installment_schedule_items",
+    "installment_settlement_events",
+  ]) {
+    assert.match(
+      migration,
+      new RegExp(
+        `revoke all privileges on table public\\.${table} from public;`,
+        "i",
+      ),
+    );
+    assert.match(
+      migration,
+      new RegExp(
+        `revoke all privileges on table public\\.${table} from anon;`,
+        "i",
+      ),
+    );
+    assert.match(
+      migration,
+      new RegExp(
+        `revoke all privileges on table public\\.${table} from authenticated;`,
+        "i",
+      ),
+    );
+  }
+
+  assert.match(
+    migration,
+    /grant select, insert, update, delete on table public\.installment_schedule_items to authenticated;/i,
+  );
+  assert.match(
+    migration,
+    /grant select, insert on table public\.installment_settlement_events to authenticated;/i,
+  );
+  assert.doesNotMatch(
+    migration,
+    /grant .*\b(?:update|delete|truncate|references|trigger)\b.*installment_settlement_events.*authenticated/i,
   );
 });
 

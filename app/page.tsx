@@ -49,6 +49,9 @@ import { useAssistantController } from "../features/assistant/useAssistantContro
 import { CalendarScreen } from "../features/calendar/CalendarScreen";
 import { AdvanceInstallmentsDialog } from "../features/future/AdvanceInstallmentsDialog";
 import { InstallmentFormDialog } from "../features/future/InstallmentFormDialog";
+import { ProspectiveInstallmentEditDialog } from "../features/invoices/ProspectiveInstallmentEditDialog";
+import { InvoicePurchaseTypeDialog } from "../features/invoices/InvoicePurchaseTypeDialog";
+import { InvoiceInstallmentPurchaseDialog } from "../features/invoices/InvoiceInstallmentPurchaseDialog";
 import { FinancialSettingsDialog } from "../features/limits/FinancialSettingsDialog";
 import { PreferencesScreen } from "../features/preferences/PreferencesScreen";
 import { InvoicesScreen } from "../features/invoices/InvoicesScreen";
@@ -100,9 +103,11 @@ import type {
 import {
   deriveInvoices,
   registerInvoicePayment,
+  registerInvoicePaymentInstallmentEvents,
   type DerivedInvoice,
 } from "../lib/finance/invoices";
 import { deriveCalendarProjection } from "../lib/finance/calendar";
+import { completeInstallmentSchedule } from "../lib/finance/installmentScheduleHistory";
 
 const money = (value: number) =>
   value.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
@@ -168,7 +173,12 @@ export default function Page() {
     invoicePayments,
     invoiceAdjustments,
     installmentInvoiceEvents,
+    installmentScheduleItems = [],
+    installmentSettlementEvents = [],
     setInvoicePayments,
+    setInstallmentInvoiceEvents,
+    setInstallmentScheduleItems,
+    setInstallmentSettlementEvents,
     activeProfile,
     setActiveProfile,
     viewMonth,
@@ -219,8 +229,22 @@ export default function Page() {
   const [receivingDebt, setReceivingDebt] = useState<Debt | null>(null);
   const [editingExpense, setEditingExpense] = useState<Expense | null>(null);
   const [expenseCardPreset, setExpenseCardPreset] = useState<number>();
+  const [invoicePurchaseContext, setInvoicePurchaseContext] = useState<{
+    card: CreditCardModel;
+    referenceMonth: string;
+    dueDate: string;
+  } | null>(null);
   const [editingInstallment, setEditingInstallment] =
     useState<Installment | null>(null);
+  const [editingInvoiceInstallment, setEditingInvoiceInstallment] = useState<{
+    installmentId: number;
+    installmentNumber: number;
+  } | null>(null);
+  const invoiceInstallmentForEdit = editingInvoiceInstallment
+    ? installments.find(
+        (item) => item.id === editingInvoiceInstallment.installmentId,
+      )
+    : undefined;
   const [editingDebt, setEditingDebt] = useState<Debt | null>(null);
   const [editingIncome, setEditingIncome] = useState<IncomeEntry | null>(null);
   const [editingCard, setEditingCard] = useState<CreditCardModel | null>(null);
@@ -296,7 +320,13 @@ export default function Page() {
   });
   const installmentMutations = createInstallmentMutations({
     installments,
+    installmentScheduleItems,
+    installmentSettlementEvents,
+    installmentInvoiceEvents,
     setInstallments,
+    setInstallmentScheduleItems,
+    setInstallmentSettlementEvents,
+    setInstallmentInvoiceEvents,
     setConfirmation,
     setToast,
   });
@@ -382,6 +412,7 @@ export default function Page() {
         payments: invoicePayments,
         adjustments: invoiceAdjustments,
         installmentEvents: installmentInvoiceEvents,
+        installmentScheduleItems,
         profile: activeProfile,
         referenceMonth: viewMonth,
       }),
@@ -392,9 +423,21 @@ export default function Page() {
       invoicePayments,
       invoiceAdjustments,
       installmentInvoiceEvents,
+      installmentScheduleItems,
       activeProfile,
       viewMonth,
     ],
+  );
+  const editableInvoiceInstallmentIds = useMemo(
+    () =>
+      new Set(
+        installments
+          .filter((installment) =>
+            completeInstallmentSchedule(installment, installmentScheduleItems),
+          )
+          .map((installment) => installment.id),
+      ),
+    [installments, installmentScheduleItems],
   );
   const calendarProjection = useMemo(
     () =>
@@ -408,6 +451,8 @@ export default function Page() {
         payments: invoicePayments,
         adjustments: invoiceAdjustments,
         installmentEvents: installmentInvoiceEvents,
+        installmentScheduleItems,
+        installmentSettlementEvents,
         baseBalance: available,
         referenceDate: `${viewMonth}-01`,
       }),
@@ -421,6 +466,8 @@ export default function Page() {
       invoicePayments,
       invoiceAdjustments,
       installmentInvoiceEvents,
+      installmentScheduleItems,
+      installmentSettlementEvents,
       viewMonth,
     ],
   );
@@ -440,13 +487,12 @@ export default function Page() {
       description: `A fatura ${invoice.card.name} será marcada como paga. As compras originais não serão alteradas.`,
       confirmLabel: "Confirmar pagamento",
       onConfirm: () => {
+        const paidAt = new Date().toISOString().slice(0, 10);
         setInvoicePayments((current) =>
-          registerInvoicePayment(
-            current,
-            invoice,
-            new Date().toISOString().slice(0, 10),
-            Date.now(),
-          ),
+          registerInvoicePayment(current, invoice, paidAt, Date.now()),
+        );
+        setInstallmentInvoiceEvents((current) =>
+          registerInvoicePaymentInstallmentEvents(current, invoice, paidAt),
         );
         setToast("Fatura marcada como paga 💚");
       },
@@ -482,6 +528,22 @@ export default function Page() {
     setEditingInstallment(item);
     setModal("installment");
   };
+  const openEditInvoiceInstallment = (
+    installmentId: number,
+    installmentNumber: number,
+  ) => {
+    if (
+      !editableInvoiceInstallmentIds.has(installmentId) ||
+      !installmentScheduleItems.some(
+        (item) =>
+          item.installmentId === installmentId &&
+          item.installmentNumber === installmentNumber,
+      )
+    )
+      return;
+    setEditingInvoiceInstallment({ installmentId, installmentNumber });
+    setModal("invoice-installment");
+  };
   const openEditIncome = (item: IncomeEntry) => {
     setEditingIncome(item);
     setModal("income");
@@ -494,6 +556,7 @@ export default function Page() {
   const deleteDebt = receivableMutations.delete;
   const deleteIncome = expenseIncomeMutations.deleteIncome;
   const payInstallment = installmentMutations.pay;
+  const anticipateInstallment = installmentMutations.anticipate;
 
   const chooseAdvanceInstallments = (item: Installment) => {
     const left = item.totalInstallments - item.paidInstallments;
@@ -506,7 +569,7 @@ export default function Page() {
 
   const saveAdvanceInstallments = (count: number) => {
     if (!advancingInstallment) return;
-    payInstallment(advancingInstallment.id, count);
+    anticipateInstallment(advancingInstallment.id, count);
     setAdvancingInstallment(null);
     setModal("none");
   };
@@ -850,13 +913,20 @@ export default function Page() {
                   setModal("card");
                 }}
                 onPay={payInvoice}
-                onAddPurchase={(card) => {
+                onAddPurchase={(invoice) => {
                   setEditingExpense(null);
-                  setExpenseCardPreset(card.id);
-                  setModal("expense");
+                  setExpenseCardPreset(invoice.card.id);
+                  setInvoicePurchaseContext({
+                    card: invoice.card,
+                    referenceMonth: invoice.referenceMonth,
+                    dueDate: invoice.dueDate,
+                  });
+                  setModal("invoice-purchase-type");
                 }}
                 onEditExpense={openEditExpense}
                 onDeleteExpense={deleteExpense}
+                editableInstallmentIds={editableInvoiceInstallmentIds}
+                onEditInstallment={openEditInvoiceInstallment}
               />
             )}
 
@@ -1012,16 +1082,78 @@ export default function Page() {
           categories={categories}
           creditCards={creditCards}
           initialCreditCardId={expenseCardPreset}
+          initialInvoiceReferenceMonth={invoicePurchaseContext?.referenceMonth}
+          lockedCreditCardId={invoicePurchaseContext?.card.id}
           activeProfile={activeProfile}
           viewMonth={viewMonth}
           onSave={(expense, isEditing) => {
             expenseIncomeMutations.saveExpense(expense, isEditing);
             setEditingExpense(null);
             setExpenseCardPreset(undefined);
+            setInvoicePurchaseContext(null);
             setModal("none");
           }}
           onClose={() => {
             setExpenseCardPreset(undefined);
+            setInvoicePurchaseContext(null);
+            setModal("none");
+          }}
+          onInvalid={setToast}
+        />
+      )}
+      {modal === "invoice-purchase-type" && invoicePurchaseContext && (
+        <InvoicePurchaseTypeDialog
+          onChooseCash={() => setModal("expense")}
+          onChooseInstallment={() => setModal("invoice-purchase-installment")}
+          onClose={() => {
+            setExpenseCardPreset(undefined);
+            setInvoicePurchaseContext(null);
+            setModal("none");
+          }}
+        />
+      )}
+      {modal === "invoice-purchase-installment" && invoicePurchaseContext && (
+        <InvoiceInstallmentPurchaseDialog
+          card={invoicePurchaseContext.card}
+          referenceMonth={invoicePurchaseContext.referenceMonth}
+          initialDueDate={invoicePurchaseContext.dueDate}
+          categories={categories}
+          activeProfile={activeProfile}
+          onSave={(input) => {
+            try {
+              const id = Date.now();
+              installmentMutations.createWithSchedule({
+                installment: {
+                  id,
+                  title: input.title,
+                  category: input.category,
+                  categoryId: input.categoryId,
+                  who: input.who,
+                  amount: 0,
+                  totalInstallments: input.totalInstallments,
+                  paidInstallments: 0,
+                  nextDue: input.firstDueDate,
+                  creditCardId: invoicePurchaseContext.card.id,
+                },
+                totalAmount: input.totalAmount,
+                firstInvoiceReferenceMonth:
+                  invoicePurchaseContext.referenceMonth,
+                firstDueDate: input.firstDueDate,
+              });
+              setExpenseCardPreset(undefined);
+              setInvoicePurchaseContext(null);
+              setModal("none");
+            } catch (error) {
+              setToast(
+                error instanceof Error
+                  ? error.message
+                  : "Não foi possível criar a compra parcelada.",
+              );
+            }
+          }}
+          onClose={() => {
+            setExpenseCardPreset(undefined);
+            setInvoicePurchaseContext(null);
             setModal("none");
           }}
           onInvalid={setToast}
@@ -1043,6 +1175,31 @@ export default function Page() {
           onInvalid={setToast}
         />
       )}
+      {modal === "invoice-installment" &&
+        editingInvoiceInstallment &&
+        invoiceInstallmentForEdit && (
+          <ProspectiveInstallmentEditDialog
+            installment={invoiceInstallmentForEdit}
+            scheduleItems={installmentScheduleItems}
+            installmentInvoiceEvents={installmentInvoiceEvents}
+            installmentSettlementEvents={installmentSettlementEvents}
+            categories={categories}
+            creditCards={creditCards}
+            onSave={(edit) => {
+              installmentMutations.editProspectively(
+                editingInvoiceInstallment.installmentId,
+                edit,
+              );
+              setEditingInvoiceInstallment(null);
+              setModal("none");
+              setToast("Parcelamento atualizado 💚");
+            }}
+            onClose={() => {
+              setEditingInvoiceInstallment(null);
+              setModal("none");
+            }}
+          />
+        )}
       {modal === "debt" && (
         <ReceivableFormDialog
           debt={editingDebt}

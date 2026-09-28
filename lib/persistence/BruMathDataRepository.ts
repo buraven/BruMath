@@ -25,6 +25,8 @@ export type AppFinancialDataDefaults = Pick<
   | "invoiceAdjustments"
   | "installmentInvoiceEvents"
   | "installmentReimbursementAllocations"
+  | "installmentScheduleItems"
+  | "installmentSettlementEvents"
   | "activeProfile"
   | "viewMonth"
 >;
@@ -110,6 +112,12 @@ export class BruMathDataRepository {
       )
         ? data.installmentReimbursementAllocations
         : (defaults.installmentReimbursementAllocations ?? []),
+      ...(Array.isArray(data.installmentScheduleItems)
+        ? { installmentScheduleItems: data.installmentScheduleItems }
+        : {}),
+      ...(Array.isArray(data.installmentSettlementEvents)
+        ? { installmentSettlementEvents: data.installmentSettlementEvents }
+        : {}),
       activeProfile: data.activeProfile ?? defaults.activeProfile,
       viewMonth: data.viewMonth ?? defaults.viewMonth,
     });

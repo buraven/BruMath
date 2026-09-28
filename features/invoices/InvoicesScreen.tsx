@@ -34,9 +34,11 @@ type Props = {
   onCreateCard: () => void;
   onEditCard: (card: CreditCardModel) => void;
   onPay: (invoice: DerivedInvoice) => void;
-  onAddPurchase: (card: CreditCardModel) => void;
+  onAddPurchase: (invoice: DerivedInvoice) => void;
   onEditExpense: (expense: Expense) => void;
   onDeleteExpense: (id: number) => void;
+  editableInstallmentIds: ReadonlySet<number>;
+  onEditInstallment: (installmentId: number, installmentNumber: number) => void;
 };
 
 export function InvoicesScreen(props: Props) {
@@ -286,6 +288,8 @@ function InvoiceDetail({
   onAddPurchase,
   onEditExpense,
   onDeleteExpense,
+  editableInstallmentIds,
+  onEditInstallment,
 }: Props & { invoice: DerivedInvoice; onBack: () => void }) {
   return (
     <section className={styles.screen} aria-labelledby="invoice-detail-title">
@@ -345,7 +349,7 @@ function InvoiceDetail({
             <button
               type="button"
               className="secondary-button compact"
-              onClick={() => onAddPurchase(invoice.card)}
+              onClick={() => onAddPurchase(invoice)}
             >
               <Plus size={16} /> Adicionar compra
             </button>
@@ -365,7 +369,7 @@ function InvoiceDetail({
             <ul className={styles.installments} aria-label="Parcelas da fatura">
               {invoice.installments.map((installment) => (
                 <li key={installment.id}>
-                  <span>
+                  <span className={styles.installmentMeta}>
                     <strong>{installment.title}</strong>
                     <small>
                       {installment.category} · parcela{" "}
@@ -373,7 +377,25 @@ function InvoiceDetail({
                       {installment.totalInstallments}
                     </small>
                   </span>
-                  <strong>{formatMoney(installment.amount)}</strong>
+                  <span className={styles.installmentActions}>
+                    <strong>{formatMoney(installment.amount)}</strong>
+                    {installment.installmentId !== undefined &&
+                    editableInstallmentIds.has(installment.installmentId) ? (
+                      <button
+                        type="button"
+                        className={styles.editInstallment}
+                        onClick={() =>
+                          onEditInstallment(
+                            installment.installmentId!,
+                            installment.currentInstallment,
+                          )
+                        }
+                        aria-label={`Editar parcelamento ${installment.title}, parcela ${installment.currentInstallment} de ${installment.totalInstallments}`}
+                      >
+                        Editar
+                      </button>
+                    ) : null}
+                  </span>
                 </li>
               ))}
             </ul>

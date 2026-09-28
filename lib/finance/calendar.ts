@@ -5,10 +5,16 @@ import type {
   Installment,
   InvoiceAdjustment,
   InstallmentInvoiceEvent,
+  InstallmentScheduleItem,
+  InstallmentSettlementEvent,
   InvoicePayment,
   Person,
 } from "../app/AppTypes";
 import { deriveInvoices, type InvoiceStatus } from "./invoices";
+import {
+  completeInstallmentSchedule,
+  isInstallmentScheduleItemHistorical,
+} from "./installmentScheduleHistory";
 import { isWithinProfileScope } from "./profileScope";
 
 export type CalendarItemType =
@@ -93,6 +99,8 @@ export function deriveCalendarProjection({
   payments,
   adjustments = [],
   installmentEvents = [],
+  installmentScheduleItems = [],
+  installmentSettlementEvents = [],
   baseBalance,
   referenceDate = `${month}-01`,
 }: {
@@ -105,6 +113,8 @@ export function deriveCalendarProjection({
   payments: readonly InvoicePayment[];
   adjustments?: readonly InvoiceAdjustment[];
   installmentEvents?: readonly InstallmentInvoiceEvent[];
+  installmentScheduleItems?: readonly InstallmentScheduleItem[];
+  installmentSettlementEvents?: readonly InstallmentSettlementEvent[];
   baseBalance: number;
   referenceDate?: string;
 }): CalendarProjection {
@@ -155,7 +165,44 @@ export function deriveCalendarProjection({
   const standaloneInstallments = activeInstallments.filter(
     (installment) => !installment.creditCardId,
   );
-  for (const installment of standaloneInstallments) {
+  const completeStandaloneSchedules = standaloneInstallments.flatMap(
+    (installment) => {
+      const schedule = completeInstallmentSchedule(
+        installment,
+        installmentScheduleItems,
+      );
+      if (!schedule) return [];
+      return schedule.map((item) => ({ installment, item }));
+    },
+  );
+  const scheduledInstallmentIds = new Set(
+    completeStandaloneSchedules.map(({ installment }) => installment.id),
+  );
+  const scheduledStandaloneItems = completeStandaloneSchedules.filter(
+    ({ item }) =>
+      !isInstallmentScheduleItemHistorical(item, {
+        installmentInvoiceEvents: installmentEvents,
+        installmentSettlementEvents,
+      }),
+  );
+  for (const { installment, item } of scheduledStandaloneItems) {
+    const dueDate = item.dueDate ?? installment.nextDue;
+    if (!belongsToMonth(dueDate, month)) continue;
+    items.push({
+      id: `installment-schedule:${item.id}`,
+      date: dueDate,
+      type: "installment_due",
+      sourceId: installment.id,
+      title: installment.title,
+      amount: item.amount,
+      owner: installment.who,
+      category: installment.category,
+      installmentId: installment.id,
+    });
+  }
+  for (const installment of standaloneInstallments.filter(
+    (item) => !scheduledInstallmentIds.has(item.id),
+  )) {
     if (belongsToMonth(installment.nextDue, month)) {
       items.push({
         id: `installment:${installment.id}:${installment.nextDue}`,
@@ -181,6 +228,7 @@ export function deriveCalendarProjection({
       payments,
       adjustments,
       installmentEvents,
+      installmentScheduleItems,
       profile,
       referenceMonth,
     }),
@@ -221,7 +269,15 @@ export function deriveCalendarProjection({
     grouped.set(item.date, dayItems);
   }
 
+  const scheduledStandaloneCommitments = scheduledStandaloneItems
+    .filter(
+      ({ installment, item }) =>
+        isOnOrAfter(item.dueDate ?? installment.nextDue, referenceDate) &&
+        belongsToMonth(item.dueDate ?? installment.nextDue, month),
+    )
+    .reduce((total, { item }) => total + item.amount, 0);
   const standaloneCommitments = standaloneInstallments
+    .filter((installment) => !scheduledInstallmentIds.has(installment.id))
     .filter(
       (installment) =>
         belongsToMonth(installment.nextDue, month) &&
@@ -247,7 +303,8 @@ export function deriveCalendarProjection({
       return total + Math.max(0, invoice.total - expensesAlreadyInBase);
     }, 0);
 
-  const knownFutureCommitments = standaloneCommitments + invoiceCommitments;
+  const knownFutureCommitments =
+    scheduledStandaloneCommitments + standaloneCommitments + invoiceCommitments;
 
   return {
     month,

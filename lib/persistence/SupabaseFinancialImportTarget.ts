@@ -1,5 +1,10 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
-import type { AppFinancialData, Category } from "../app/AppTypes";
+import type {
+  AppFinancialData,
+  Category,
+  InstallmentScheduleItem,
+  InstallmentSettlementEvent,
+} from "../app/AppTypes";
 import type {
   FinancialImportTarget,
   LocalMigrationPreview,
@@ -119,6 +124,27 @@ export type RemoteSnapshot = {
       AppFinancialData["installmentReimbursementAllocations"]
     >[number]["status"];
     debt_legacy_id: number | null;
+  }>;
+  /** V4-only additive extension; it is deliberately absent from V3/V2/V1. */
+  installment_schedule_items?: Array<{
+    legacy_id: string;
+    installment_legacy_id: number;
+    installment_number: number;
+    total_installments: number;
+    amount: number;
+    invoice_reference_month: string | null;
+    due_date: string | null;
+    credit_card_legacy_id: number | null;
+    status: InstallmentScheduleItem["status"];
+  }>;
+  /** Immutable V4 extension, intentionally absent from older RPC projections. */
+  installment_settlement_events?: Array<{
+    legacy_id: string;
+    installment_legacy_id: number;
+    installment_number: number;
+    amount: number;
+    settled_on: string;
+    settlement_type: InstallmentSettlementEvent["type"];
   }>;
 };
 
@@ -431,6 +457,56 @@ export function toRemoteSnapshot(snapshot: AppFinancialData): RemoteSnapshot {
         status: allocation.status,
         debt_legacy_id: allocation.debtId ?? null,
       })),
+    ...(snapshot.installmentScheduleItems
+      ? {
+          installment_schedule_items: [...snapshot.installmentScheduleItems]
+            .sort(
+              (left, right) =>
+                left.installmentId - right.installmentId ||
+                left.installmentNumber - right.installmentNumber ||
+                left.id.localeCompare(right.id),
+            )
+            .map((item) => ({
+              legacy_id: item.id,
+              installment_legacy_id: item.installmentId,
+              installment_number: item.installmentNumber,
+              total_installments: item.totalInstallments,
+              amount: item.amount,
+              invoice_reference_month: item.invoiceReferenceMonth
+                ? monthDate(item.invoiceReferenceMonth)
+                : null,
+              due_date: item.dueDate
+                ? civilDate(item.dueDate, `Cronograma ${item.id}.dueDate`)
+                : null,
+              credit_card_legacy_id: item.creditCardId ?? null,
+              status: item.status,
+            })),
+        }
+      : {}),
+    ...(snapshot.installmentSettlementEvents
+      ? {
+          installment_settlement_events: [
+            ...snapshot.installmentSettlementEvents,
+          ]
+            .sort(
+              (left, right) =>
+                left.installmentId - right.installmentId ||
+                left.installmentNumber - right.installmentNumber ||
+                left.id.localeCompare(right.id),
+            )
+            .map((event) => ({
+              legacy_id: event.id,
+              installment_legacy_id: event.installmentId,
+              installment_number: event.installmentNumber,
+              amount: event.amount,
+              settled_on: civilDate(
+                event.settledAt,
+                `Liquidação ${event.id}.settledAt`,
+              ),
+              settlement_type: event.type,
+            })),
+        }
+      : {}),
   };
 }
 
@@ -457,6 +533,8 @@ export function toLegacyImportSnapshot(
     invoice_adjustments: _invoiceAdjustments,
     installment_invoice_events: _installmentInvoiceEvents,
     installment_reimbursement_allocations: _installmentReimbursementAllocations,
+    installment_schedule_items: _installmentScheduleItems,
+    installment_settlement_events: _installmentSettlementEvents,
     ...legacy
   } = snapshot;
   return {
@@ -624,6 +702,46 @@ export function fromRemoteSnapshot(snapshot: RemoteSnapshot): AppFinancialData {
         ? { debtId: allocation.debt_legacy_id }
         : {}),
     })),
+    ...(snapshot.installment_schedule_items
+      ? {
+          installmentScheduleItems: snapshot.installment_schedule_items.map(
+            (item): InstallmentScheduleItem => ({
+              id: item.legacy_id,
+              installmentId: item.installment_legacy_id,
+              installmentNumber: item.installment_number,
+              totalInstallments: item.total_installments,
+              amount: Number(item.amount),
+              ...(item.invoice_reference_month
+                ? {
+                    invoiceReferenceMonth: monthValue(
+                      item.invoice_reference_month,
+                    ),
+                  }
+                : {}),
+              ...(item.due_date ? { dueDate: item.due_date } : {}),
+              ...(item.credit_card_legacy_id !== null
+                ? { creditCardId: item.credit_card_legacy_id }
+                : {}),
+              status: item.status,
+            }),
+          ),
+        }
+      : {}),
+    ...(snapshot.installment_settlement_events
+      ? {
+          installmentSettlementEvents:
+            snapshot.installment_settlement_events.map(
+              (event): InstallmentSettlementEvent => ({
+                id: event.legacy_id,
+                installmentId: event.installment_legacy_id,
+                installmentNumber: event.installment_number,
+                amount: Number(event.amount),
+                settledAt: event.settled_on,
+                type: event.settlement_type,
+              }),
+            ),
+        }
+      : {}),
     activeProfile: snapshot.settings.active_profile,
     viewMonth: monthValue(snapshot.settings.view_month),
   };

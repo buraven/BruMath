@@ -425,9 +425,30 @@
   padding: 10px 0;
   border-top: 1px solid var(--line);
 }
-.installments li span {
+.installmentMeta {
   display: grid;
   gap: 3px;
+}
+.installmentActions {
+  display: grid;
+  justify-items: end;
+  align-content: center;
+  gap: 5px;
+  text-align: right;
+}
+.editInstallment {
+  border: 0;
+  padding: 0;
+  background: none;
+  color: var(--soft-text);
+  cursor: pointer;
+  font-size: 0.7rem;
+  font-weight: 800;
+}
+.editInstallment:hover,
+.editInstallment:focus-visible {
+  color: var(--accent-strong);
+  text-decoration: underline;
 }
 .installments small {
   color: var(--muted);

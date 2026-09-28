@@ -90,6 +90,8 @@ export class LocalStorageFinancialDataSource implements FinancialDataSource {
       installmentReimbursementAllocations: asArray(
         data.installmentReimbursementAllocations,
       ),
+      installmentScheduleItems: asArray(data.installmentScheduleItems),
+      installmentSettlementEvents: asArray(data.installmentSettlementEvents),
       hasStoredData,
     };
   }

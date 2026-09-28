@@ -33,6 +33,22 @@ export function normalizeSnapshot(snapshot: AppFinancialData) {
     personalLimits: snapshot.personalLimits,
     creditCards: [...snapshot.creditCards].sort((a, b) => a.id - b.id),
     invoicePayments: [...snapshot.invoicePayments].sort((a, b) => a.id - b.id),
+    installmentScheduleItems: [
+      ...(snapshot.installmentScheduleItems ?? []),
+    ].sort(
+      (left, right) =>
+        left.installmentId - right.installmentId ||
+        left.installmentNumber - right.installmentNumber ||
+        left.id.localeCompare(right.id),
+    ),
+    installmentSettlementEvents: [
+      ...(snapshot.installmentSettlementEvents ?? []),
+    ].sort(
+      (left, right) =>
+        left.installmentId - right.installmentId ||
+        left.installmentNumber - right.installmentNumber ||
+        left.id.localeCompare(right.id),
+    ),
     activeProfile: snapshot.activeProfile,
     viewMonth: snapshot.viewMonth,
   });

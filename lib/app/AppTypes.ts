@@ -86,6 +86,29 @@ export type Installment = {
   creditCardId?: number;
 };
 
+/** A persistible, individually identified installment generated for a new plan. */
+export type InstallmentScheduleItem = {
+  id: string;
+  installmentId: number;
+  installmentNumber: number;
+  totalInstallments: number;
+  amount: number;
+  invoiceReferenceMonth?: string;
+  dueDate?: string;
+  creditCardId?: number;
+  status: "scheduled";
+};
+
+/** An immutable, full settlement of one scheduled installment. */
+export type InstallmentSettlementEvent = {
+  id: string;
+  installmentId: number;
+  installmentNumber: number;
+  amount: number;
+  settledAt: string;
+  type: "regular" | "anticipated";
+};
+
 export type InstallmentInvoiceEventType =
   | "regular"
   | "anticipated"
@@ -172,6 +195,9 @@ export type AppModal =
   | "none"
   | "expense"
   | "installment"
+  | "invoice-installment"
+  | "invoice-purchase-type"
+  | "invoice-purchase-installment"
   | "debt"
   | "income"
   | "income-base"
@@ -201,6 +227,13 @@ export type AppFinancialData = {
   invoiceAdjustments?: InvoiceAdjustment[];
   installmentInvoiceEvents?: InstallmentInvoiceEvent[];
   installmentReimbursementAllocations?: InstallmentReimbursementAllocation[];
+  /**
+   * Additive V4 extension. Its absence preserves a legacy plan with no known
+   * schedule; an explicit empty array is the authoritative empty schedule.
+   */
+  installmentScheduleItems?: InstallmentScheduleItem[];
+  /** Additive V4 extension for immutable settlements outside invoice facts. */
+  installmentSettlementEvents?: InstallmentSettlementEvent[];
   activeProfile: Person;
   viewMonth: string;
 };
