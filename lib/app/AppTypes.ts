@@ -195,6 +195,7 @@ export type AppModal =
   | "none"
   | "expense"
   | "installment"
+  | "invoice-installment"
   | "debt"
   | "income"
   | "income-base"

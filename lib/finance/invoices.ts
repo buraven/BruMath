@@ -249,6 +249,7 @@ export function deriveInvoices({
           date: installment.nextDue,
           currentInstallment: installment.paidInstallments + 1,
           totalInstallments: installment.totalInstallments,
+          installmentId: installment.id,
         }));
       const scheduledInstallments: InvoiceInstallmentItem[] =
         installments.flatMap((installment) => {
@@ -296,6 +297,7 @@ export function deriveInvoices({
               date: event.date ?? installment.nextDue,
               currentInstallment: event.installmentNumber,
               totalInstallments: installment.totalInstallments,
+              installmentId: event.installmentId,
               eventType: event.type,
             } satisfies InvoiceInstallmentItem,
           ];

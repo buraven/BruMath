@@ -49,6 +49,7 @@ import { useAssistantController } from "../features/assistant/useAssistantContro
 import { CalendarScreen } from "../features/calendar/CalendarScreen";
 import { AdvanceInstallmentsDialog } from "../features/future/AdvanceInstallmentsDialog";
 import { InstallmentFormDialog } from "../features/future/InstallmentFormDialog";
+import { ProspectiveInstallmentEditDialog } from "../features/invoices/ProspectiveInstallmentEditDialog";
 import { FinancialSettingsDialog } from "../features/limits/FinancialSettingsDialog";
 import { PreferencesScreen } from "../features/preferences/PreferencesScreen";
 import { InvoicesScreen } from "../features/invoices/InvoicesScreen";
@@ -104,6 +105,7 @@ import {
   type DerivedInvoice,
 } from "../lib/finance/invoices";
 import { deriveCalendarProjection } from "../lib/finance/calendar";
+import { completeInstallmentSchedule } from "../lib/finance/installmentScheduleHistory";
 
 const money = (value: number) =>
   value.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
@@ -227,6 +229,15 @@ export default function Page() {
   const [expenseCardPreset, setExpenseCardPreset] = useState<number>();
   const [editingInstallment, setEditingInstallment] =
     useState<Installment | null>(null);
+  const [editingInvoiceInstallment, setEditingInvoiceInstallment] = useState<{
+    installmentId: number;
+    installmentNumber: number;
+  } | null>(null);
+  const invoiceInstallmentForEdit = editingInvoiceInstallment
+    ? installments.find(
+        (item) => item.id === editingInvoiceInstallment.installmentId,
+      )
+    : undefined;
   const [editingDebt, setEditingDebt] = useState<Debt | null>(null);
   const [editingIncome, setEditingIncome] = useState<IncomeEntry | null>(null);
   const [editingCard, setEditingCard] = useState<CreditCardModel | null>(null);
@@ -410,6 +421,17 @@ export default function Page() {
       viewMonth,
     ],
   );
+  const editableInvoiceInstallmentIds = useMemo(
+    () =>
+      new Set(
+        installments
+          .filter((installment) =>
+            completeInstallmentSchedule(installment, installmentScheduleItems),
+          )
+          .map((installment) => installment.id),
+      ),
+    [installments, installmentScheduleItems],
+  );
   const calendarProjection = useMemo(
     () =>
       deriveCalendarProjection({
@@ -498,6 +520,22 @@ export default function Page() {
   const openEditInstallment = (item: Installment) => {
     setEditingInstallment(item);
     setModal("installment");
+  };
+  const openEditInvoiceInstallment = (
+    installmentId: number,
+    installmentNumber: number,
+  ) => {
+    if (
+      !editableInvoiceInstallmentIds.has(installmentId) ||
+      !installmentScheduleItems.some(
+        (item) =>
+          item.installmentId === installmentId &&
+          item.installmentNumber === installmentNumber,
+      )
+    )
+      return;
+    setEditingInvoiceInstallment({ installmentId, installmentNumber });
+    setModal("invoice-installment");
   };
   const openEditIncome = (item: IncomeEntry) => {
     setEditingIncome(item);
@@ -875,6 +913,8 @@ export default function Page() {
                 }}
                 onEditExpense={openEditExpense}
                 onDeleteExpense={deleteExpense}
+                editableInstallmentIds={editableInvoiceInstallmentIds}
+                onEditInstallment={openEditInvoiceInstallment}
               />
             )}
 
@@ -1061,6 +1101,31 @@ export default function Page() {
           onInvalid={setToast}
         />
       )}
+      {modal === "invoice-installment" &&
+        editingInvoiceInstallment &&
+        invoiceInstallmentForEdit && (
+          <ProspectiveInstallmentEditDialog
+            installment={invoiceInstallmentForEdit}
+            scheduleItems={installmentScheduleItems}
+            installmentInvoiceEvents={installmentInvoiceEvents}
+            installmentSettlementEvents={installmentSettlementEvents}
+            categories={categories}
+            creditCards={creditCards}
+            onSave={(edit) => {
+              installmentMutations.editProspectively(
+                editingInvoiceInstallment.installmentId,
+                edit,
+              );
+              setEditingInvoiceInstallment(null);
+              setModal("none");
+              setToast("Parcelamento atualizado 💚");
+            }}
+            onClose={() => {
+              setEditingInvoiceInstallment(null);
+              setModal("none");
+            }}
+          />
+        )}
       {modal === "debt" && (
         <ReceivableFormDialog
           debt={editingDebt}
