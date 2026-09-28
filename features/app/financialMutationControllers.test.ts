@@ -79,6 +79,87 @@ test("manual expense and income mutations update the shared snapshot only after 
   assert.equal(expenses.value.length, 0);
 });
 
+test("scheduled invoice purchase creates the plan and exact schedule atomically", () => {
+  const installments = setter<Installment[]>([]);
+  const schedule = setter<InstallmentScheduleItem[] | undefined>([]);
+  const confirmation = setter<Confirmation | null>(null);
+  const toast = setter("");
+  const controller = createInstallmentMutations({
+    installments: installments.value,
+    installmentScheduleItems: schedule.value,
+    setInstallments: installments.set,
+    setInstallmentScheduleItems: schedule.set,
+    setConfirmation: confirmation.set,
+    setToast: toast.set,
+  });
+
+  controller.createWithSchedule({
+    installment: {
+      id: 91,
+      title: "Notebook",
+      category: "Trabalho",
+      categoryId: "work",
+      who: "Bruna",
+      amount: 0,
+      totalInstallments: 3,
+      paidInstallments: 0,
+      nextDue: "2026-09-27",
+      creditCardId: 4,
+    },
+    totalAmount: 100,
+    firstInvoiceReferenceMonth: "2026-09",
+    firstDueDate: "2026-09-27",
+  });
+
+  assert.equal(installments.value.length, 1);
+  assert.equal(schedule.value?.length, 3);
+  assert.deepEqual(
+    schedule.value?.map((item) => item.invoiceReferenceMonth),
+    ["2026-09", "2026-10", "2026-11"],
+  );
+  assert.deepEqual(
+    schedule.value?.map((item) => item.amount),
+    [33.34, 33.33, 33.33],
+  );
+  assert.equal(
+    schedule.value?.reduce((total, item) => total + item.amount, 0),
+    100,
+  );
+  assert.equal(installments.value[0]?.amount, 33.34);
+  assert.equal(toast.value, "Compra parcelada adicionada 💚");
+});
+
+test("invalid scheduled purchase does not create a partial plan", () => {
+  const installments = setter<Installment[]>([]);
+  const schedule = setter<InstallmentScheduleItem[] | undefined>([]);
+  const controller = createInstallmentMutations({
+    installments: installments.value,
+    installmentScheduleItems: schedule.value,
+    setInstallments: installments.set,
+    setInstallmentScheduleItems: schedule.set,
+    setConfirmation: setter<Confirmation | null>(null).set,
+    setToast: setter("").set,
+  });
+  assert.throws(() =>
+    controller.createWithSchedule({
+      installment: {
+        id: 92,
+        title: "Inválido",
+        category: "Outros",
+        who: "Bruna",
+        amount: 0,
+        totalInstallments: 0,
+        paidInstallments: 0,
+        nextDue: "2026-09-27",
+      },
+      totalAmount: 50,
+      firstInvoiceReferenceMonth: "2026-09",
+    }),
+  );
+  assert.deepEqual(installments.value, []);
+  assert.deepEqual(schedule.value, []);
+});
+
 test("scheduled cardless payments and advances append exact X/Y settlement facts", () => {
   const installments = setter<Installment[]>([
     {

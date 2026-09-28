@@ -15,6 +15,7 @@ import {
   futureInstallmentScheduleItems,
   isInstallmentScheduleItemHistorical,
 } from "../../lib/finance/installmentScheduleHistory";
+import { generateInstallmentSchedule } from "../../lib/finance/installmentSchedule";
 import {
   applyProspectiveInstallmentEdit,
   type ProspectiveInstallmentEdit,
@@ -285,6 +286,43 @@ export function createInstallmentMutations({
   };
 
   return {
+    createWithSchedule(input: {
+      installment: Installment;
+      totalAmount: number;
+      firstInvoiceReferenceMonth?: string;
+      firstDueDate?: string;
+    }) {
+      if (!setInstallmentScheduleItems)
+        throw new Error("O cronograma não está disponível para criação.");
+      if (installments.some((item) => item.id === input.installment.id))
+        throw new Error("Já existe um parcelamento com esta identidade.");
+
+      // Generate and validate the complete plan before either state update.
+      const schedule = generateInstallmentSchedule({
+        installmentId: input.installment.id,
+        totalAmount: input.totalAmount,
+        totalInstallments: input.installment.totalInstallments,
+        firstInvoiceReferenceMonth: input.firstInvoiceReferenceMonth,
+        firstDueDate: input.firstDueDate,
+        creditCardId: input.installment.creditCardId,
+      });
+      const nextInstallment: Installment = {
+        ...input.installment,
+        amount: schedule[0]!.amount,
+        paidInstallments: 0,
+        nextDue: schedule[0]!.dueDate ?? input.installment.nextDue,
+      };
+
+      // These synchronous updates are batched by React, so V4 observes the
+      // validated plan and its full schedule together.
+      setInstallments((current) => [nextInstallment, ...current]);
+      setInstallmentScheduleItems((current) => [
+        ...(current ?? []),
+        ...schedule,
+      ]);
+      setToast("Compra parcelada adicionada 💚");
+      return { installment: nextInstallment, schedule };
+    },
     save(item: Installment, editing: boolean) {
       setInstallments((current) =>
         editing

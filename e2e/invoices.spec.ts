@@ -22,7 +22,7 @@ async function createNubankCard(page: Parameters<typeof openInvoices>[0]) {
   await expect(dialog).toBeHidden();
 }
 
-test("cria cartão, adiciona compra e mantém a fatura após reload @desktop", async ({
+test("cria cartão, adiciona compra e mantém a fatura após reload @desktop @responsive", async ({
   page,
 }) => {
   await openWithFinancialState(page);
@@ -41,9 +41,13 @@ test("cria cartão, adiciona compra e mantém a fatura após reload @desktop", a
   );
   await page.getByRole("button", { name: "Adicionar compra" }).click();
 
+  const typeDialog = page.getByRole("dialog");
+  await typeDialog.getByRole("button", { name: /À vista/ }).click();
+
   const dialog = page.getByRole("dialog");
   await dialog.getByLabel("O que foi?").fill("Café");
   await dialog.getByLabel("Valor").fill("10000");
+  await dialog.getByPlaceholder("DD/MM/AAAA").fill("25/08/2026");
   await dialog.getByLabel("Categoria").selectOption({ label: "Alimentação" });
   await dialog.getByLabel("Quem").selectOption("Bruna");
   await expect(dialog.getByLabel("Cartão")).toHaveValue(/\d+/);
@@ -73,7 +77,9 @@ test("cria cartão, adiciona compra e mantém a fatura após reload @desktop", a
             (expense) =>
               expense.title === "Café" &&
               expense.amount === 100 &&
+              expense.date === "2026-08-25" &&
               expense.creditCardId === card.id &&
+              expense.invoiceReferenceMonth === "2026-08" &&
               expense.cat === "Alimentação" &&
               Boolean(expense.categoryId) &&
               state.categories?.some(
@@ -90,6 +96,63 @@ test("cria cartão, adiciona compra e mantém a fatura após reload @desktop", a
   await openInvoices(page);
   await expect(page.getByText("Nubank", { exact: true }).first()).toBeVisible();
   await expect(page.getByText("R$ 100,00").first()).toBeVisible();
+});
+
+test("adiciona uma compra parcelada na competência explícita da fatura sem criar gasto @desktop @responsive", async ({
+  page,
+}) => {
+  await openWithFinancialState(
+    page,
+    createFinancialState({ creditCards: [nubankCard] }),
+  );
+  await openInvoices(page);
+  await page.getByRole("button", { name: /Ver fatura e lançamentos/ }).click();
+  await page.getByRole("button", { name: "Adicionar compra" }).click();
+  await page
+    .getByRole("dialog")
+    .getByRole("button", { name: /Parcelado/ })
+    .click();
+
+  const dialog = page.getByRole("dialog");
+  await dialog.getByLabel("O que foi?").fill("Notebook");
+  await dialog.getByLabel("Valor total da compra").fill("10000");
+  await dialog.getByLabel("Quantidade de parcelas").fill("3");
+  await dialog.getByLabel("Categoria").selectOption({ label: "Trabalho" });
+  await dialog.getByLabel("Quem").selectOption("Bruna");
+  await expect(dialog.getByLabel("Cartão")).toBeDisabled();
+  await dialog.getByRole("button", { name: "Salvar compra parcelada" }).click();
+
+  await expect(dialog).toBeHidden();
+  await expect(page.getByText("Notebook", { exact: true })).toBeVisible();
+  await expect(page.getByText(/parcela 1\/3/)).toBeVisible();
+  await waitForPersistedFinancialState(
+    page,
+    (state) => {
+      const plan = state.installments.find((item) => item.title === "Notebook");
+      const schedule = state.installmentScheduleItems?.filter(
+        (item) => item.installmentId === plan?.id,
+      );
+      return Boolean(
+        plan &&
+          plan.creditCardId === nubankCard.id &&
+          schedule?.length === 3 &&
+          schedule.every((item) => item.creditCardId === nubankCard.id) &&
+          schedule.map((item) => item.invoiceReferenceMonth).join(",") ===
+            "2026-08,2026-09,2026-10" &&
+          schedule.reduce((total, item) => total + item.amount, 0) === 100 &&
+          !state.expenses.some((expense) => expense.title === "Notebook"),
+      );
+    },
+    "parcelamento Notebook com cronograma e sem gasto duplicado",
+  );
+  await page.getByRole("button", { name: "Voltar para faturas" }).click();
+  await page.getByRole("button", { name: "Próximo mês" }).click();
+  await page
+    .getByRole("article")
+    .filter({ hasText: "Nubank" })
+    .getByRole("button", { name: /Ver fatura e lançamentos/ })
+    .click();
+  await expect(page.getByText(/parcela 2\/3/)).toBeVisible();
 });
 
 test("ciclo vazio permanece visível sem inflar dívida ou filtros @desktop", async ({

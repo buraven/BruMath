@@ -34,7 +34,7 @@ type Props = {
   onCreateCard: () => void;
   onEditCard: (card: CreditCardModel) => void;
   onPay: (invoice: DerivedInvoice) => void;
-  onAddPurchase: (card: CreditCardModel) => void;
+  onAddPurchase: (invoice: DerivedInvoice) => void;
   onEditExpense: (expense: Expense) => void;
   onDeleteExpense: (id: number) => void;
   editableInstallmentIds: ReadonlySet<number>;
@@ -349,7 +349,7 @@ function InvoiceDetail({
             <button
               type="button"
               className="secondary-button compact"
-              onClick={() => onAddPurchase(invoice.card)}
+              onClick={() => onAddPurchase(invoice)}
             >
               <Plus size={16} /> Adicionar compra
             </button>

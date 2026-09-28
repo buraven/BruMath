@@ -50,6 +50,8 @@ import { CalendarScreen } from "../features/calendar/CalendarScreen";
 import { AdvanceInstallmentsDialog } from "../features/future/AdvanceInstallmentsDialog";
 import { InstallmentFormDialog } from "../features/future/InstallmentFormDialog";
 import { ProspectiveInstallmentEditDialog } from "../features/invoices/ProspectiveInstallmentEditDialog";
+import { InvoicePurchaseTypeDialog } from "../features/invoices/InvoicePurchaseTypeDialog";
+import { InvoiceInstallmentPurchaseDialog } from "../features/invoices/InvoiceInstallmentPurchaseDialog";
 import { FinancialSettingsDialog } from "../features/limits/FinancialSettingsDialog";
 import { PreferencesScreen } from "../features/preferences/PreferencesScreen";
 import { InvoicesScreen } from "../features/invoices/InvoicesScreen";
@@ -227,6 +229,11 @@ export default function Page() {
   const [receivingDebt, setReceivingDebt] = useState<Debt | null>(null);
   const [editingExpense, setEditingExpense] = useState<Expense | null>(null);
   const [expenseCardPreset, setExpenseCardPreset] = useState<number>();
+  const [invoicePurchaseContext, setInvoicePurchaseContext] = useState<{
+    card: CreditCardModel;
+    referenceMonth: string;
+    dueDate: string;
+  } | null>(null);
   const [editingInstallment, setEditingInstallment] =
     useState<Installment | null>(null);
   const [editingInvoiceInstallment, setEditingInvoiceInstallment] = useState<{
@@ -906,10 +913,15 @@ export default function Page() {
                   setModal("card");
                 }}
                 onPay={payInvoice}
-                onAddPurchase={(card) => {
+                onAddPurchase={(invoice) => {
                   setEditingExpense(null);
-                  setExpenseCardPreset(card.id);
-                  setModal("expense");
+                  setExpenseCardPreset(invoice.card.id);
+                  setInvoicePurchaseContext({
+                    card: invoice.card,
+                    referenceMonth: invoice.referenceMonth,
+                    dueDate: invoice.dueDate,
+                  });
+                  setModal("invoice-purchase-type");
                 }}
                 onEditExpense={openEditExpense}
                 onDeleteExpense={deleteExpense}
@@ -1070,16 +1082,78 @@ export default function Page() {
           categories={categories}
           creditCards={creditCards}
           initialCreditCardId={expenseCardPreset}
+          initialInvoiceReferenceMonth={invoicePurchaseContext?.referenceMonth}
+          lockedCreditCardId={invoicePurchaseContext?.card.id}
           activeProfile={activeProfile}
           viewMonth={viewMonth}
           onSave={(expense, isEditing) => {
             expenseIncomeMutations.saveExpense(expense, isEditing);
             setEditingExpense(null);
             setExpenseCardPreset(undefined);
+            setInvoicePurchaseContext(null);
             setModal("none");
           }}
           onClose={() => {
             setExpenseCardPreset(undefined);
+            setInvoicePurchaseContext(null);
+            setModal("none");
+          }}
+          onInvalid={setToast}
+        />
+      )}
+      {modal === "invoice-purchase-type" && invoicePurchaseContext && (
+        <InvoicePurchaseTypeDialog
+          onChooseCash={() => setModal("expense")}
+          onChooseInstallment={() => setModal("invoice-purchase-installment")}
+          onClose={() => {
+            setExpenseCardPreset(undefined);
+            setInvoicePurchaseContext(null);
+            setModal("none");
+          }}
+        />
+      )}
+      {modal === "invoice-purchase-installment" && invoicePurchaseContext && (
+        <InvoiceInstallmentPurchaseDialog
+          card={invoicePurchaseContext.card}
+          referenceMonth={invoicePurchaseContext.referenceMonth}
+          initialDueDate={invoicePurchaseContext.dueDate}
+          categories={categories}
+          activeProfile={activeProfile}
+          onSave={(input) => {
+            try {
+              const id = Date.now();
+              installmentMutations.createWithSchedule({
+                installment: {
+                  id,
+                  title: input.title,
+                  category: input.category,
+                  categoryId: input.categoryId,
+                  who: input.who,
+                  amount: 0,
+                  totalInstallments: input.totalInstallments,
+                  paidInstallments: 0,
+                  nextDue: input.firstDueDate,
+                  creditCardId: invoicePurchaseContext.card.id,
+                },
+                totalAmount: input.totalAmount,
+                firstInvoiceReferenceMonth:
+                  invoicePurchaseContext.referenceMonth,
+                firstDueDate: input.firstDueDate,
+              });
+              setExpenseCardPreset(undefined);
+              setInvoicePurchaseContext(null);
+              setModal("none");
+            } catch (error) {
+              setToast(
+                error instanceof Error
+                  ? error.message
+                  : "Não foi possível criar a compra parcelada.",
+              );
+            }
+          }}
+          onClose={() => {
+            setExpenseCardPreset(undefined);
+            setInvoicePurchaseContext(null);
             setModal("none");
           }}
           onInvalid={setToast}
