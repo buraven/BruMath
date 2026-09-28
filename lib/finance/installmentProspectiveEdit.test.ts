@@ -201,21 +201,164 @@ test("allows plan metadata corrections but rejects financial edits after all ite
   );
 });
 
-test("rejects legacy, incomplete, and non-prefix historical schedules instead of guessing", () => {
+test("edits non-contiguous future X/Y items without changing protected items or facts", () => {
+  const original = schedule();
+  const settlementEvents = [settled(1), settled(4)];
+  const invoiceEvents: InstallmentInvoiceEvent[] = [
+    {
+      id: 2,
+      installmentId: 70,
+      installmentNumber: 2,
+      cardId: 4,
+      referenceMonth: "2026-10",
+      amount: 100,
+      type: "regular",
+      date: "2026-10-10",
+    },
+  ];
+  const result = applyProspectiveInstallmentEdit({
+    installment: plan(),
+    scheduleItems: original,
+    historyFacts: {
+      installmentSettlementEvents: settlementEvents,
+      installmentInvoiceEvents: invoiceEvents,
+    },
+    edit: {
+      futureTotalAmount: 270,
+      futureCreditCardId: 9,
+      firstFutureInvoiceReferenceMonth: "2027-01",
+      firstFutureDueDate: "2027-01-31",
+    },
+  });
+
+  for (const number of [1, 2, 4]) {
+    assert.deepEqual(
+      result.scheduleItems.find((item) => item.installmentNumber === number),
+      original.find((item) => item.installmentNumber === number),
+    );
+  }
+  assert.deepEqual(
+    result.scheduleItems
+      .filter((item) => [3, 5, 6].includes(item.installmentNumber))
+      .map((item) => ({
+        number: item.installmentNumber,
+        amount: item.amount,
+        month: item.invoiceReferenceMonth,
+        dueDate: item.dueDate,
+        cardId: item.creditCardId,
+      })),
+    [
+      {
+        number: 3,
+        amount: 90,
+        month: "2027-01",
+        dueDate: "2027-01-31",
+        cardId: 9,
+      },
+      {
+        number: 5,
+        amount: 90,
+        month: "2027-02",
+        dueDate: "2027-02-28",
+        cardId: 9,
+      },
+      {
+        number: 6,
+        amount: 90,
+        month: "2027-03",
+        dueDate: "2027-03-31",
+        cardId: 9,
+      },
+    ],
+  );
+  assert.deepEqual(settlementEvents, [settled(1), settled(4)]);
+  assert.deepEqual(invoiceEvents, [
+    {
+      id: 2,
+      installmentId: 70,
+      installmentNumber: 2,
+      cardId: 4,
+      referenceMonth: "2026-10",
+      amount: 100,
+      type: "regular",
+      date: "2026-10-10",
+    },
+  ]);
+});
+
+test("can resize non-contiguous future items without renumbering or reusing historical X/Y", () => {
+  const facts = {
+    installmentSettlementEvents: [settled(1), settled(2), settled(4)],
+  };
+  const reduced = applyProspectiveInstallmentEdit({
+    installment: plan(),
+    scheduleItems: schedule(),
+    historyFacts: facts,
+    edit: { futureInstallmentCount: 2, futureTotalAmount: 199.99 },
+  });
+  assert.deepEqual(
+    reduced.scheduleItems.map((item) => item.installmentNumber),
+    [1, 2, 3, 4, 5],
+  );
+  assert.deepEqual(
+    reduced.scheduleItems.filter((item) =>
+      [1, 2, 4].includes(item.installmentNumber),
+    ),
+    schedule().filter((item) => [1, 2, 4].includes(item.installmentNumber)),
+  );
+
+  const expanded = applyProspectiveInstallmentEdit({
+    installment: plan(),
+    scheduleItems: schedule(),
+    historyFacts: facts,
+    edit: { futureInstallmentCount: 4, futureTotalAmount: 400 },
+  });
+  assert.deepEqual(
+    expanded.scheduleItems.map((item) => item.installmentNumber),
+    [1, 2, 3, 4, 5, 6, 7],
+  );
+  assert.equal(
+    expanded.scheduleItems.find((item) => item.installmentNumber === 7)?.id,
+    "installment:70:7",
+  );
+  assert.deepEqual(
+    expanded.scheduleItems.filter((item) =>
+      [1, 2, 4].includes(item.installmentNumber),
+    ),
+    schedule().filter((item) => [1, 2, 4].includes(item.installmentNumber)),
+  );
+});
+
+test("rejects an impossible non-contiguous reduction atomically", () => {
+  const original = schedule();
+  const facts = {
+    installmentSettlementEvents: [settled(1), settled(2), settled(6)],
+  };
+  assert.throws(
+    () =>
+      applyProspectiveInstallmentEdit({
+        installment: plan(),
+        scheduleItems: original,
+        historyFacts: facts,
+        edit: { futureInstallmentCount: 2 },
+      }),
+    /sem remover uma parcela já consolidada/,
+  );
+  assert.deepEqual(original, schedule());
+  assert.deepEqual(facts.installmentSettlementEvents, [
+    settled(1),
+    settled(2),
+    settled(6),
+  ]);
+});
+
+test("rejects legacy and incomplete schedules instead of guessing", () => {
   assert.throws(() =>
     applyProspectiveInstallmentEdit({
       installment: plan(),
       scheduleItems: [],
       historyFacts: {},
       edit: { futureTotalAmount: 20 },
-    }),
-  );
-  assert.throws(() =>
-    applyProspectiveInstallmentEdit({
-      installment: plan(),
-      scheduleItems: schedule(),
-      historyFacts: { installmentSettlementEvents: [settled(1), settled(3)] },
-      edit: { futureInstallmentCount: 2 },
     }),
   );
 });

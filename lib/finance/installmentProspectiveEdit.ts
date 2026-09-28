@@ -76,18 +76,9 @@ function isFinancialEdit(edit: ProspectiveInstallmentEdit) {
   );
 }
 
-function historicalPrefixLength(items: readonly InstallmentScheduleItem[]) {
-  let count = 0;
-  for (const item of items) {
-    if (item.installmentNumber !== count + 1) break;
-    count += 1;
-  }
-  return count;
-}
-
 /**
  * Applies a prospective edit without mutating inputs. Explicit event facts
- * protect historical schedule items; only the contiguous future tail can be
+ * protect historical schedule items; every remaining X/Y item can be
  * repriced, rescheduled, moved to another card, added, or shortened.
  */
 export function applyProspectiveInstallmentEdit({
@@ -124,14 +115,6 @@ export function applyProspectiveInstallmentEdit({
   if (!future.length)
     throw new Error("Não há parcelas futuras para alterar neste parcelamento.");
 
-  // A future-tail edit can only be represented without renumbering history
-  // when all protected facts form an initial 1..H prefix.
-  const prefixLength = historicalPrefixLength(historical);
-  if (prefixLength !== historical.length)
-    throw new Error(
-      "Não é possível reorganizar parcelas futuras após fatos históricos fora de sequência.",
-    );
-
   const futureCount = edit.futureInstallmentCount ?? future.length;
   if (!Number.isInteger(futureCount) || futureCount < 1)
     throw new Error(
@@ -151,7 +134,24 @@ export function applyProspectiveInstallmentEdit({
   const futureCardId = hasOwn(edit, "futureCreditCardId")
     ? edit.futureCreditCardId
     : firstFuture.creditCardId;
-  const totalInstallments = historical.length + futureCount;
+  let retainedFuture = [...future];
+  let totalInstallments = installment.totalInstallments;
+
+  if (futureCount < future.length) {
+    const removedCount = future.length - futureCount;
+    for (let index = 0; index < removedCount; index += 1) {
+      const candidate = retainedFuture.at(-1);
+      if (!candidate || candidate.installmentNumber !== totalInstallments)
+        throw new Error(
+          "Não é possível reduzir a quantidade futura sem remover uma parcela já consolidada.",
+        );
+      retainedFuture.pop();
+      totalInstallments -= 1;
+    }
+  } else if (futureCount > future.length) {
+    totalInstallments += futureCount - future.length;
+  }
+
   const baseCents = Math.floor(futureTotalCents / futureCount);
   const remainder = futureTotalCents % futureCount;
   const rebuildFuture =
@@ -159,9 +159,8 @@ export function applyProspectiveInstallmentEdit({
     hasOwn(edit, "firstFutureInvoiceReferenceMonth") ||
     hasOwn(edit, "firstFutureDueDate");
   const nextFuture = Array.from({ length: futureCount }, (_, index) => {
-    const installmentNumber = historical.length + index + 1;
     if (!rebuildFuture) {
-      const existing = future[index]!;
+      const existing = retainedFuture[index]!;
       return {
         ...existing,
         amount: (baseCents + (index < remainder ? 1 : 0)) / 100,
@@ -172,14 +171,24 @@ export function applyProspectiveInstallmentEdit({
           : {}),
       } satisfies InstallmentScheduleItem;
     }
-    const item: InstallmentScheduleItem = {
-      id: `installment:${installment.id}:${installmentNumber}`,
-      installmentId: installment.id,
-      installmentNumber,
-      totalInstallments,
-      amount: (baseCents + (index < remainder ? 1 : 0)) / 100,
-      status: "scheduled",
-    };
+    const existing = retainedFuture[index];
+    const installmentNumber =
+      existing?.installmentNumber ??
+      installment.totalInstallments + (index - retainedFuture.length) + 1;
+    const item: InstallmentScheduleItem = existing
+      ? {
+          ...existing,
+          totalInstallments,
+          amount: (baseCents + (index < remainder ? 1 : 0)) / 100,
+        }
+      : {
+          id: `installment:${installment.id}:${installmentNumber}`,
+          installmentId: installment.id,
+          installmentNumber,
+          totalInstallments,
+          amount: (baseCents + (index < remainder ? 1 : 0)) / 100,
+          status: "scheduled",
+        };
     if (firstMonth) item.invoiceReferenceMonth = addMonth(firstMonth, index);
     if (firstDueDate) item.dueDate = addMonthToDate(firstDueDate, index);
     if (futureCardId !== null && futureCardId !== undefined)
@@ -202,6 +211,8 @@ export function applyProspectiveInstallmentEdit({
         : {}),
     },
     // Historical objects are returned untouched, including their original Y.
-    scheduleItems: [...historical, ...nextFuture],
+    scheduleItems: [...historical, ...nextFuture].sort(
+      (left, right) => left.installmentNumber - right.installmentNumber,
+    ),
   };
 }
