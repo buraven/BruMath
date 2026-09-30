@@ -5,6 +5,7 @@ import {
   classifyLegacyInstallmentForMaterialization,
   assertManualScheduleReviewComplete,
   materializeDeterministicLegacySchedules,
+  verifyClassAMaterializationReadOnly,
 } from "./legacyInstallmentScheduleReview";
 
 const plan: Installment = {
@@ -25,7 +26,10 @@ test("materializes only deterministic legacy class A without history", () => {
     firstInvoiceReferenceMonth: "2026-09",
   });
   assert.equal(result.kind, "materializable");
-  if (result.kind === "materializable") assert.equal(result.schedule.length, 3);
+  if (result.kind === "materializable") {
+    assert.equal(result.schedule.length, 3);
+    assert.equal(result.conditional, true);
+  }
 });
 
 test("dry-run never writes and explicit class-A application is idempotent", () => {
@@ -46,12 +50,16 @@ test("dry-run never writes and explicit class-A application is idempotent", () =
   const applied = materializeDeterministicLegacySchedules({
     ...input,
     apply: true,
+    approvedInstallmentIds: [plan.id],
+    includeConditionallyResolved: true,
   });
   assert.equal(applied.applied, 3);
   const rerun = materializeDeterministicLegacySchedules({
     ...input,
     scheduleItems: applied.scheduleItems,
     apply: true,
+    approvedInstallmentIds: [plan.id],
+    includeConditionallyResolved: true,
   });
   assert.deepEqual(
     {
@@ -69,7 +77,152 @@ test("does not promote a paidInstallments counter without explicit X/Y facts", (
       installment: { ...plan, paidInstallments: 1 },
       firstInvoiceReferenceMonth: "2026-09",
     }),
-    { kind: "review_required", reason: "ambiguous_history" },
+    { kind: "review_required", class: "C", reason: "ambiguous_history" },
+  );
+});
+
+test("reports A/B/C operationally and never applies a conditioned card plan by default", () => {
+  const conditional = materializeDeterministicLegacySchedules({
+    installments: [plan],
+    scheduleItems: [],
+    firstInvoiceReferenceMonth: () => "2026-09",
+    apply: true,
+    approvedInstallmentIds: [plan.id],
+  });
+  assert.deepEqual(
+    {
+      unconditionalA: conditional.unconditionalA,
+      conditionalA: conditional.conditionalA,
+      applied: conditional.applied,
+    },
+    { unconditionalA: 0, conditionalA: 1, applied: 0 },
+  );
+
+  const missingResolver = classifyLegacyInstallmentForMaterialization({
+    installment: plan,
+  });
+  assert.deepEqual(missingResolver, {
+    kind: "review_required",
+    class: "A_conditional",
+    reason: "insufficient_structure",
+  });
+
+  const explicitFactsButConflict = classifyLegacyInstallmentForMaterialization({
+    installment: { ...plan, paidInstallments: 1 },
+    invoiceEvents: [
+      {
+        id: 1,
+        installmentId: plan.id,
+        installmentNumber: 2,
+        cardId: plan.creditCardId!,
+        referenceMonth: "2026-09",
+        amount: plan.amount,
+        type: "historical",
+      },
+    ],
+  });
+  assert.deepEqual(explicitFactsButConflict, {
+    kind: "review_required",
+    class: "B",
+    reason: "ambiguous_history",
+  });
+});
+
+test("requires explicit approval and skips a plan whose facts conflict at application time", () => {
+  assert.throws(() =>
+    materializeDeterministicLegacySchedules({
+      installments: [{ ...plan, creditCardId: undefined }],
+      scheduleItems: [],
+      apply: true,
+    }),
+  );
+  const result = materializeDeterministicLegacySchedules({
+    installments: [{ ...plan, creditCardId: undefined }],
+    scheduleItems: [],
+    settlementEvents: [
+      {
+        id: "settlement:51:1",
+        installmentId: plan.id,
+        installmentNumber: 9,
+        amount: plan.amount,
+        settledAt: "2026-09-30",
+        type: "regular",
+      },
+    ],
+    apply: true,
+    approvedInstallmentIds: [plan.id],
+  });
+  assert.deepEqual(
+    {
+      applied: result.applied,
+      classB: result.classB,
+      scheduleItems: result.scheduleItems.length,
+    },
+    { applied: 0, classB: 1, scheduleItems: 0 },
+  );
+});
+
+test("read-only post-check accepts only the approved complete Class-A schedule", () => {
+  const materialized = materializeDeterministicLegacySchedules({
+    installments: [{ ...plan, creditCardId: undefined }],
+    scheduleItems: [],
+    apply: true,
+    approvedInstallmentIds: [plan.id],
+  });
+  assert.deepEqual(
+    verifyClassAMaterializationReadOnly({
+      installments: [{ ...plan, creditCardId: undefined }],
+      scheduleItems: materialized.scheduleItems,
+      approvedInstallmentIds: [plan.id],
+      baselineFactCounts: {
+        invoiceEvents: 0,
+        settlements: 0,
+        reimbursements: 0,
+      },
+    }),
+    {
+      approved: 1,
+      completeAndReconciled: 1,
+      rejected: 0,
+      unexpectedSchedulePlans: 0,
+      invoiceEventsUnchanged: true,
+      settlementsUnchanged: true,
+      reimbursementsUnchanged: true,
+    },
+  );
+});
+
+test("read-only post-check rejects a partial or out-of-scope schedule", () => {
+  const materialized = materializeDeterministicLegacySchedules({
+    installments: [{ ...plan, creditCardId: undefined }],
+    scheduleItems: [],
+    apply: true,
+    approvedInstallmentIds: [plan.id],
+  });
+  const partial = materialized.scheduleItems.slice(0, 2);
+  assert.deepEqual(
+    verifyClassAMaterializationReadOnly({
+      installments: [{ ...plan, creditCardId: undefined }],
+      scheduleItems: [
+        ...partial,
+        { ...partial[0], installmentId: 99, id: "unexpected:99:1" },
+      ],
+      approvedInstallmentIds: [plan.id],
+      baselineFactCounts: {
+        invoiceEvents: 1,
+        settlements: 0,
+        reimbursements: 0,
+      },
+    }),
+    {
+      approved: 1,
+      completeAndReconciled: 0,
+      rejected: 1,
+      unexpectedSchedulePlans: 1,
+      invoiceEventsUnchanged: false,
+      settlementsUnchanged: true,
+      reimbursementsUnchanged: true,
+    },
   );
 });
 
