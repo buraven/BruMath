@@ -258,6 +258,7 @@ export function deriveInvoices({
           return schedule
             .filter(
               (item) =>
+                item.status === "scheduled" &&
                 item.creditCardId === card.id &&
                 item.invoiceReferenceMonth === referenceMonth &&
                 !installmentEvents.some(

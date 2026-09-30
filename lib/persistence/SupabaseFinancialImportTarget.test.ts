@@ -272,6 +272,26 @@ test("round-trips the additive V4 installment schedule in canonical order", () =
   );
 });
 
+test("round-trips a cancelled V4 schedule item without changing its identity", () => {
+  const scheduled = snapshotWithSchedule();
+  const cancelled = {
+    ...scheduled,
+    installmentScheduleItems: scheduled.installmentScheduleItems?.map((item) =>
+      item.installmentNumber === 3
+        ? { ...item, status: "cancelled" as const }
+        : item,
+    ),
+  };
+
+  const remote = toRemoteSnapshot(cancelled);
+  assert.equal(remote.installment_schedule_items?.[2]?.status, "cancelled");
+  assert.deepEqual(fromRemoteSnapshot(remote), cancelled);
+  assert.equal(
+    normalizePersistedFinancialSnapshot(cancelled),
+    normalizePersistedFinancialSnapshot(fromRemoteSnapshot(remote)),
+  );
+});
+
 test("keeps snapshots without a schedule field backward compatible", () => {
   const remote = toRemoteSnapshot(snapshot);
   assert.equal(remote.installment_schedule_items, undefined);
@@ -1379,6 +1399,17 @@ test("keeps the V4 installment schedule outside the legacy projection and inside
     /grant execute on function public\.import_financial_snapshot_v4\(uuid,text,jsonb,jsonb\) to authenticated;/,
   );
   assert.doesNotMatch(migration, /grant .* to anon/i);
+});
+
+test("defines cancelled schedule rows as a V4-only authoritative lifecycle state", () => {
+  const migration = readFileSync(
+    "supabase/migrations/20260929110000_installment_schedule_cancelled_lifecycle.sql",
+    "utf8",
+  );
+  assert.match(migration, /status in \('scheduled', 'cancelled'\)/i);
+  assert.match(migration, /status' not in \('scheduled', 'cancelled'\)/i);
+  assert.match(migration, /replace_financial_snapshot_v4/i);
+  assert.match(migration, /import_financial_snapshot_v4/i);
 });
 
 test("defines immutable household-isolated settlement facts as a V4 extension", () => {
