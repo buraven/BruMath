@@ -12,6 +12,7 @@ import {
   normalizePersistedFinancialSnapshot,
   remotePersistenceDiagnostic,
   type RemoteSnapshot,
+  materializeSupabaseLegacyScheduleClassA,
   replaceSupabaseFinancialSnapshot,
   simulateImportV2RoundTrip,
   SupabaseImportRpcError,
@@ -999,6 +1000,34 @@ test("writes a runtime snapshot only through the atomic replacement RPC", async 
   assert.deepEqual(persisted, snapshot);
 });
 
+test("materializes a Class-A schedule through its narrow RPC, never snapshot replace", async () => {
+  const scheduled = snapshotWithSchedule();
+  let rpcName = "";
+  let rpcArguments: Record<string, unknown> | undefined;
+  const client = {
+    rpc: async (name: string, arguments_: Record<string, unknown>) => {
+      rpcName = name;
+      rpcArguments = arguments_;
+      return { data: { status: "applied", schedule_items: 3 }, error: null };
+    },
+  } as unknown as SupabaseClient;
+
+  const result = await materializeSupabaseLegacyScheduleClassA({
+    client,
+    householdId: "household",
+    installmentId: scheduled.installmentScheduleItems![0].installmentId,
+    schedule: scheduled.installmentScheduleItems!,
+  });
+
+  assert.equal(rpcName, "materialize_legacy_installment_schedule_class_a");
+  assert.equal(rpcArguments?.p_snapshot, undefined);
+  assert.equal(
+    rpcArguments?.p_installment_legacy_id,
+    scheduled.installmentScheduleItems![0].installmentId,
+  );
+  assert.deepEqual(result, { status: "applied", scheduleItems: 3 });
+});
+
 test("transports an explicit schedule through replace V4", async () => {
   const scheduled = snapshotWithSchedule();
   let rpcSnapshot: unknown;
@@ -1531,6 +1560,31 @@ test("hardens schedule and immutable settlement table grants explicitly", () => 
   assert.doesNotMatch(
     migration,
     /grant .*\b(?:update|delete|truncate|references|trigger)\b.*installment_settlement_events.*authenticated/i,
+  );
+});
+
+test("defines a locked, narrow Class-A schedule materialization RPC", () => {
+  const migration = readFileSync(
+    "supabase/migrations/20260930120000_legacy_schedule_materialization_rpc.sql",
+    "utf8",
+  );
+  assert.match(
+    migration,
+    /materialize_legacy_installment_schedule_class_a\([\s\S]*p_household_id uuid,[\s\S]*p_installment_legacy_id bigint,[\s\S]*p_schedule jsonb/,
+  );
+  assert.match(migration, /security invoker/);
+  assert.match(migration, /for update/);
+  assert.match(migration, /schedule_exists/);
+  assert.match(migration, /schedule conflicts with an invoice event/);
+  assert.match(migration, /schedule conflicts with a settlement event/);
+  assert.match(migration, /schedule conflicts with a protected reimbursement/);
+  assert.match(
+    migration,
+    /revoke all on function public\.materialize_legacy_installment_schedule_class_a[\s\S]*from public/,
+  );
+  assert.match(
+    migration,
+    /grant execute on function public\.materialize_legacy_installment_schedule_class_a[\s\S]*to authenticated/,
   );
 });
 

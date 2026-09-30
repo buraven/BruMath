@@ -3,6 +3,7 @@ import test from "node:test";
 import type { Installment } from "../app/AppTypes";
 import {
   classifyLegacyInstallmentForMaterialization,
+  applyApprovedClassAMaterializations,
   assertManualScheduleReviewComplete,
   materializeDeterministicLegacySchedules,
   verifyClassAMaterializationReadOnly,
@@ -224,6 +225,27 @@ test("read-only post-check rejects a partial or out-of-scope schedule", () => {
       reimbursementsUnchanged: true,
     },
   );
+});
+
+test("apply executor sends only unconditional approved plans to its narrow boundary", async () => {
+  const calls: number[] = [];
+  const outcomes = await applyApprovedClassAMaterializations({
+    installments: [
+      { ...plan, creditCardId: undefined },
+      { ...plan, id: 52 },
+    ],
+    scheduleItems: [],
+    approvedInstallmentIds: [51, 52],
+    materialize: async (installmentId) => {
+      calls.push(installmentId);
+      return "applied";
+    },
+  });
+  assert.deepEqual(calls, [51]);
+  assert.deepEqual(outcomes, [
+    { installmentId: 51, status: "applied" },
+    { installmentId: 52, status: "skipped" },
+  ]);
 });
 
 test("manual review rejects any schedule that contradicts canonical settlement or reimbursement X/Y", () => {

@@ -426,3 +426,71 @@ export function materializeDeterministicLegacySchedules({
       : [...scheduleItems],
   };
 }
+
+export type ApprovedClassAMaterializationOutcome = {
+  installmentId: number;
+  status: "applied" | "skipped" | "conflict" | "failed";
+};
+
+/**
+ * Sequentially applies only explicitly-approved, unconditional Class-A plans.
+ * The supplied boundary must call the narrow per-plan RPC; this domain layer
+ * has no dependency on, and never invokes, snapshot replacement.
+ */
+export async function applyApprovedClassAMaterializations({
+  installments,
+  scheduleItems,
+  invoiceEvents = [],
+  settlementEvents = [],
+  reimbursements = [],
+  approvedInstallmentIds,
+  materialize,
+}: {
+  installments: readonly Installment[];
+  scheduleItems: readonly InstallmentScheduleItem[];
+  invoiceEvents?: readonly InstallmentInvoiceEvent[];
+  settlementEvents?: readonly InstallmentSettlementEvent[];
+  reimbursements?: readonly InstallmentReimbursementAllocation[];
+  approvedInstallmentIds: readonly number[];
+  materialize: (
+    installmentId: number,
+    schedule: readonly InstallmentScheduleItem[],
+  ) => Promise<"applied" | "conflict">;
+}): Promise<ApprovedClassAMaterializationOutcome[]> {
+  const outcomes: ApprovedClassAMaterializationOutcome[] = [];
+  for (const installmentId of approvedInstallmentIds) {
+    const installment = installments.find((item) => item.id === installmentId);
+    if (
+      !installment ||
+      scheduleItems.some((item) => item.installmentId === installmentId)
+    ) {
+      outcomes.push({ installmentId, status: "skipped" });
+      continue;
+    }
+    const classification = classifyLegacyInstallmentForMaterialization({
+      installment,
+      invoiceEvents,
+    });
+    if (
+      classification.kind !== "materializable" ||
+      classification.conditional
+    ) {
+      outcomes.push({ installmentId, status: "skipped" });
+      continue;
+    }
+    try {
+      assertManualScheduleReviewComplete(
+        installment,
+        classification.schedule,
+        invoiceEvents,
+        settlementEvents,
+        reimbursements,
+      );
+      const status = await materialize(installmentId, classification.schedule);
+      outcomes.push({ installmentId, status });
+    } catch {
+      outcomes.push({ installmentId, status: "failed" });
+    }
+  }
+  return outcomes;
+}
