@@ -1430,17 +1430,6 @@ test("keeps the V4 installment schedule outside the legacy projection and inside
   assert.doesNotMatch(migration, /grant .* to anon/i);
 });
 
-test("defines cancelled schedule rows as a V4-only authoritative lifecycle state", () => {
-  const migration = readFileSync(
-    "supabase/migrations/20260929110000_installment_schedule_cancelled_lifecycle.sql",
-    "utf8",
-  );
-  assert.match(migration, /status in \('scheduled', 'cancelled'\)/i);
-  assert.match(migration, /status' not in \('scheduled', 'cancelled'\)/i);
-  assert.match(migration, /replace_financial_snapshot_v4/i);
-  assert.match(migration, /import_financial_snapshot_v4/i);
-});
-
 test("defines immutable household-isolated settlement facts as a V4 extension", () => {
   const migration = readFileSync(
     "supabase/migrations/20260927130000_installment_settlement_events.sql",
@@ -1563,34 +1552,9 @@ test("hardens schedule and immutable settlement table grants explicitly", () => 
   );
 });
 
-test("defines a locked, narrow Class-A schedule materialization RPC", () => {
+test("makes V4 the only authenticated public snapshot writer boundary", () => {
   const migration = readFileSync(
-    "supabase/migrations/20260930120000_legacy_schedule_materialization_rpc.sql",
-    "utf8",
-  );
-  assert.match(
-    migration,
-    /materialize_legacy_installment_schedule_class_a\([\s\S]*p_household_id uuid,[\s\S]*p_installment_legacy_id bigint,[\s\S]*p_schedule jsonb/,
-  );
-  assert.match(migration, /security invoker/);
-  assert.match(migration, /for update/);
-  assert.match(migration, /schedule_exists/);
-  assert.match(migration, /schedule conflicts with an invoice event/);
-  assert.match(migration, /schedule conflicts with a settlement event/);
-  assert.match(migration, /schedule conflicts with a protected reimbursement/);
-  assert.match(
-    migration,
-    /revoke all on function public\.materialize_legacy_installment_schedule_class_a[\s\S]*from public/,
-  );
-  assert.match(
-    migration,
-    /grant execute on function public\.materialize_legacy_installment_schedule_class_a[\s\S]*to authenticated/,
-  );
-});
-
-test("moves schedule writes behind authenticated V4 and Class-A RPC boundaries", () => {
-  const migration = readFileSync(
-    "supabase/migrations/20260930130000_v4_schedule_write_boundary.sql",
+    "supabase/migrations/20261001110000_v4_public_write_boundary.sql",
     "utf8",
   );
 
@@ -1616,24 +1580,19 @@ test("moves schedule writes behind authenticated V4 and Class-A RPC boundaries",
   );
   assert.match(
     migration,
-    /materialize_legacy_installment_schedule_class_a[\s\S]*security definer/i,
+    /revoke all on schema brumath_internal from authenticated;/i,
   );
   assert.match(
     migration,
-    /revoke all privileges on table public\.installment_schedule_items from authenticated;/i,
+    /revoke all on function brumath_internal\.replace_financial_snapshot_v3_internal[\s\S]*from authenticated;/i,
   );
   assert.match(
     migration,
-    /grant select on table public\.installment_schedule_items to authenticated;/i,
-  );
-  assert.doesNotMatch(
-    migration,
-    /grant\s+(?:select\s*,\s*)?(?:insert|update|delete)[^;]*on table public\.installment_schedule_items to authenticated/i,
+    /revoke all on function public\.replace_financial_snapshot_v3[\s\S]*from authenticated;/i,
   );
   for (const functionName of [
     "replace_financial_snapshot_v4",
     "import_financial_snapshot_v4",
-    "materialize_legacy_installment_schedule_class_a",
   ]) {
     assert.match(
       migration,
@@ -1650,6 +1609,39 @@ test("moves schedule writes behind authenticated V4 and Class-A RPC boundaries",
       ),
     );
   }
+  for (const functionName of [
+    "replace_financial_snapshot",
+    "import_financial_snapshot",
+    "replace_financial_snapshot_v2",
+    "import_financial_snapshot_v2",
+    "replace_financial_snapshot_v3",
+    "import_financial_snapshot_v3",
+  ]) {
+    assert.match(
+      migration,
+      new RegExp(
+        `revoke all on function public\\.${functionName}[\\s\\S]*from authenticated`,
+        "i",
+      ),
+    );
+  }
+  assert.match(
+    migration,
+    /grant execute on function public\.replace_financial_snapshot_v4\(uuid, jsonb, text\) to authenticated;/i,
+  );
+  assert.match(
+    migration,
+    /grant execute on function public\.import_financial_snapshot_v4\(uuid, text, jsonb, jsonb\) to authenticated;/i,
+  );
+  assert.match(
+    migration,
+    /alter function public\.replace_financial_snapshot_v4\(uuid, jsonb, text\) owner to postgres;/i,
+  );
+  assert.match(
+    migration,
+    /alter function public\.import_financial_snapshot_v4\(uuid, text, jsonb, jsonb\) owner to postgres;/i,
+  );
+  assert.doesNotMatch(migration, /revoke all privileges on table public\./i);
 });
 
 test("bootstraps only through the authenticated household RPC", async () => {

@@ -444,24 +444,14 @@ export default function Page() {
               installment,
               installmentScheduleItems,
             );
-            return schedule?.some(
-              (item) =>
-                classifyInstallmentScheduleItem(item, {
-                  installmentInvoiceEvents,
-                  installmentSettlementEvents,
-                  openInvoiceReferenceMonth: viewMonth,
-                }) === "future",
-            );
+            // A complete schedule always supports safe plan metadata corrections.
+            // The dialog itself keeps financial fields disabled when no item is
+            // future/editable, preserving every historical X/Y fact.
+            return Boolean(schedule);
           })
           .map((installment) => installment.id),
       ),
-    [
-      installments,
-      installmentScheduleItems,
-      installmentInvoiceEvents,
-      installmentSettlementEvents,
-      viewMonth,
-    ],
+    [installments, installmentScheduleItems],
   );
   const deletableInvoiceInstallmentIds = useMemo(
     () =>
