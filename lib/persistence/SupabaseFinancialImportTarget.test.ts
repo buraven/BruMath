@@ -1588,6 +1588,70 @@ test("defines a locked, narrow Class-A schedule materialization RPC", () => {
   );
 });
 
+test("moves schedule writes behind authenticated V4 and Class-A RPC boundaries", () => {
+  const migration = readFileSync(
+    "supabase/migrations/20260930130000_v4_schedule_write_boundary.sql",
+    "utf8",
+  );
+
+  assert.match(
+    migration,
+    /replace_financial_snapshot_v4_internal[\s\S]*set schema brumath_internal/i,
+  );
+  assert.match(
+    migration,
+    /import_financial_snapshot_v4_internal[\s\S]*set schema brumath_internal/i,
+  );
+  assert.match(
+    migration,
+    /create function public\.replace_financial_snapshot_v4[\s\S]*security definer[\s\S]*set search_path = ''/i,
+  );
+  assert.match(
+    migration,
+    /create function public\.import_financial_snapshot_v4[\s\S]*security definer[\s\S]*set search_path = ''/i,
+  );
+  assert.match(
+    migration,
+    /auth\.uid\(\) is null[\s\S]*household membership is required/i,
+  );
+  assert.match(
+    migration,
+    /materialize_legacy_installment_schedule_class_a[\s\S]*security definer/i,
+  );
+  assert.match(
+    migration,
+    /revoke all privileges on table public\.installment_schedule_items from authenticated;/i,
+  );
+  assert.match(
+    migration,
+    /grant select on table public\.installment_schedule_items to authenticated;/i,
+  );
+  assert.doesNotMatch(
+    migration,
+    /grant\s+(?:select\s*,\s*)?(?:insert|update|delete)[^;]*on table public\.installment_schedule_items to authenticated/i,
+  );
+  for (const functionName of [
+    "replace_financial_snapshot_v4",
+    "import_financial_snapshot_v4",
+    "materialize_legacy_installment_schedule_class_a",
+  ]) {
+    assert.match(
+      migration,
+      new RegExp(
+        `revoke all on function public\\.${functionName}[\\s\\S]*from public`,
+        "i",
+      ),
+    );
+    assert.match(
+      migration,
+      new RegExp(
+        `revoke all on function public\\.${functionName}[\\s\\S]*from anon`,
+        "i",
+      ),
+    );
+  }
+});
+
 test("bootstraps only through the authenticated household RPC", async () => {
   let rpcName = "";
   const client = {
