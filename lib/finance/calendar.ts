@@ -180,6 +180,7 @@ export function deriveCalendarProjection({
   );
   const scheduledStandaloneItems = completeStandaloneSchedules.filter(
     ({ item }) =>
+      item.status === "scheduled" &&
       !isInstallmentScheduleItemHistorical(item, {
         installmentInvoiceEvents: installmentEvents,
         installmentSettlementEvents,

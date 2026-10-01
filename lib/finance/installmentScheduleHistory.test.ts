@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import type { Installment, InstallmentScheduleItem } from "../app/AppTypes";
 import {
+  completeInstallmentSchedule,
   futureInstallmentScheduleItems,
   isInstallmentScheduleItemHistorical,
 } from "./installmentScheduleHistory";
@@ -27,6 +28,21 @@ const item = (
   amount: 50,
   dueDate,
   status: "scheduled",
+});
+
+test("a cancelled X/Y keeps the schedule complete without becoming a future item", () => {
+  const items = [
+    item(1),
+    { ...item(2), status: "cancelled" as const },
+    item(3),
+  ];
+  assert.equal(completeInstallmentSchedule(plan, items)?.length, 3);
+  assert.deepEqual(
+    futureInstallmentScheduleItems(plan, items, {}).map(
+      (candidate) => candidate.installmentNumber,
+    ),
+    [1, 3],
+  );
 });
 
 test("only explicit X/Y events protect a schedule item", () => {

@@ -38,7 +38,13 @@ type Props = {
   onEditExpense: (expense: Expense) => void;
   onDeleteExpense: (id: number) => void;
   editableInstallmentIds: ReadonlySet<number>;
+  deletableInstallmentIds: ReadonlySet<number>;
+  endableInstallmentIds: ReadonlySet<number>;
+  reviewRequiredInstallmentIds: ReadonlySet<number>;
   onEditInstallment: (installmentId: number, installmentNumber: number) => void;
+  onDeleteInstallment: (installmentId: number) => void;
+  onEndInstallment: (installmentId: number, referenceMonth: string) => void;
+  onReviewInstallment: (installmentId: number) => void;
 };
 
 export function InvoicesScreen(props: Props) {
@@ -289,7 +295,13 @@ function InvoiceDetail({
   onEditExpense,
   onDeleteExpense,
   editableInstallmentIds,
+  deletableInstallmentIds,
+  endableInstallmentIds,
+  reviewRequiredInstallmentIds,
   onEditInstallment,
+  onDeleteInstallment,
+  onEndInstallment,
+  onReviewInstallment,
 }: Props & { invoice: DerivedInvoice; onBack: () => void }) {
   return (
     <section className={styles.screen} aria-labelledby="invoice-detail-title">
@@ -380,6 +392,18 @@ function InvoiceDetail({
                   <span className={styles.installmentActions}>
                     <strong>{formatMoney(installment.amount)}</strong>
                     {installment.installmentId !== undefined &&
+                    deletableInstallmentIds.has(installment.installmentId) ? (
+                      <button
+                        type="button"
+                        className={styles.editInstallment}
+                        onClick={() =>
+                          onDeleteInstallment(installment.installmentId!)
+                        }
+                      >
+                        Excluir compra parcelada
+                      </button>
+                    ) : null}
+                    {installment.installmentId !== undefined &&
                     editableInstallmentIds.has(installment.installmentId) ? (
                       <button
                         type="button"
@@ -393,6 +417,35 @@ function InvoiceDetail({
                         aria-label={`Editar parcelamento ${installment.title}, parcela ${installment.currentInstallment} de ${installment.totalInstallments}`}
                       >
                         Editar
+                      </button>
+                    ) : null}
+                    {installment.installmentId !== undefined &&
+                    endableInstallmentIds.has(installment.installmentId) ? (
+                      <button
+                        type="button"
+                        className={styles.editInstallment}
+                        onClick={() =>
+                          onEndInstallment(
+                            installment.installmentId!,
+                            invoice.referenceMonth,
+                          )
+                        }
+                      >
+                        Encerrar parcelamento
+                      </button>
+                    ) : null}
+                    {installment.installmentId !== undefined &&
+                    reviewRequiredInstallmentIds.has(
+                      installment.installmentId,
+                    ) ? (
+                      <button
+                        type="button"
+                        className={styles.editInstallment}
+                        onClick={() =>
+                          onReviewInstallment(installment.installmentId!)
+                        }
+                      >
+                        Revisar para editar
                       </button>
                     ) : null}
                   </span>

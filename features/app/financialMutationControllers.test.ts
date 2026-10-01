@@ -13,6 +13,7 @@ import type {
   IncomeEntry,
   Installment,
   InstallmentInvoiceEvent,
+  InstallmentReimbursementAllocation,
   InstallmentScheduleItem,
   InstallmentSettlementEvent,
 } from "../../lib/app/AppTypes";
@@ -517,4 +518,189 @@ test("installment, receivable and limit mutations preserve their existing determ
   assert.equal(limits.value.Bruna, 400);
   assert.equal(personalLimits.value.bruna_personal, 400);
   assert.equal(budgets.value.Alimentação, 150);
+});
+
+test("deletes a modern installment without protected facts only after confirmation", () => {
+  const installments = setter<Installment[]>([
+    {
+      id: 71,
+      title: "Plano removível",
+      category: "Casa",
+      who: "Bruna",
+      amount: 50,
+      totalInstallments: 2,
+      paidInstallments: 0,
+      nextDue: "2026-10-10",
+    },
+  ]);
+  const schedule = setter<InstallmentScheduleItem[] | undefined>([
+    {
+      id: "installment:71:1",
+      installmentId: 71,
+      installmentNumber: 1,
+      totalInstallments: 2,
+      amount: 50,
+      dueDate: "2026-10-10",
+      status: "scheduled",
+    },
+    {
+      id: "installment:71:2",
+      installmentId: 71,
+      installmentNumber: 2,
+      totalInstallments: 2,
+      amount: 50,
+      dueDate: "2026-11-10",
+      status: "scheduled",
+    },
+  ]);
+  const confirmation = setter<Confirmation | null>(null);
+  const toast = setter("");
+  const controller = createInstallmentMutations({
+    installments: installments.value,
+    installmentScheduleItems: schedule.value,
+    setInstallments: installments.set,
+    setInstallmentScheduleItems: schedule.set,
+    setConfirmation: confirmation.set,
+    setToast: toast.set,
+  });
+
+  controller.delete(71);
+  assert.equal(installments.value.length, 1);
+  assert.equal(confirmation.value?.title, "Excluir compra parcelada");
+  confirmation.value?.onConfirm();
+  assert.deepEqual(installments.value, []);
+  assert.deepEqual(schedule.value, []);
+});
+
+test("ends only future schedule items and preserves non-contiguous history plus the open invoice", () => {
+  const installments = setter<Installment[]>([
+    {
+      id: 72,
+      title: "Plano com histórico",
+      category: "Casa",
+      who: "Bruna",
+      amount: 50,
+      totalInstallments: 4,
+      paidInstallments: 0,
+      nextDue: "2026-09-10",
+      creditCardId: 9,
+    },
+  ]);
+  const schedule = setter<InstallmentScheduleItem[] | undefined>(
+    ["2026-09", "2026-10", "2026-11", "2026-12"].map(
+      (invoiceReferenceMonth, index) => ({
+        installmentNumber: index + 1,
+        id: `installment:72:${index + 1}`,
+        installmentId: 72,
+        totalInstallments: 4,
+        amount: 50,
+        invoiceReferenceMonth,
+        dueDate: `${invoiceReferenceMonth}-10`,
+        creditCardId: 9,
+        status: "scheduled" as const,
+      }),
+    ),
+  );
+  const confirmation = setter<Confirmation | null>(null);
+  const toast = setter("");
+  const controller = createInstallmentMutations({
+    installments: installments.value,
+    installmentScheduleItems: schedule.value,
+    installmentSettlementEvents: [
+      {
+        id: "settlement:72:1",
+        installmentId: 72,
+        installmentNumber: 1,
+        amount: 50,
+        settledAt: "2026-09-10",
+        type: "regular",
+      },
+      {
+        id: "settlement:72:3",
+        installmentId: 72,
+        installmentNumber: 3,
+        amount: 50,
+        settledAt: "2026-11-10",
+        type: "anticipated",
+      },
+    ],
+    setInstallments: installments.set,
+    setInstallmentScheduleItems: schedule.set,
+    setConfirmation: confirmation.set,
+    setToast: toast.set,
+  });
+
+  controller.endScheduled(72, "2026-10");
+  assert.equal(confirmation.value?.title, "Encerrar parcelamento");
+  confirmation.value?.onConfirm();
+  assert.deepEqual(
+    schedule.value?.map((item) => [item.installmentNumber, item.status]),
+    [
+      [1, "scheduled"],
+      [2, "scheduled"],
+      [3, "scheduled"],
+      [4, "cancelled"],
+    ],
+  );
+});
+
+test("blocks deletion and ending when a reimbursement is protected", () => {
+  const installments = setter<Installment[]>([
+    {
+      id: 73,
+      title: "Plano reembolsado",
+      category: "Casa",
+      who: "Bruna",
+      amount: 50,
+      totalInstallments: 2,
+      paidInstallments: 0,
+      nextDue: "2026-09-10",
+    },
+  ]);
+  const schedule = setter<InstallmentScheduleItem[] | undefined>([
+    {
+      id: "installment:73:1",
+      installmentId: 73,
+      installmentNumber: 1,
+      totalInstallments: 2,
+      amount: 50,
+      dueDate: "2026-09-10",
+      status: "scheduled",
+    },
+    {
+      id: "installment:73:2",
+      installmentId: 73,
+      installmentNumber: 2,
+      totalInstallments: 2,
+      amount: 50,
+      dueDate: "2026-10-10",
+      status: "scheduled",
+    },
+  ]);
+  const allocations: InstallmentReimbursementAllocation[] = [
+    {
+      id: 1,
+      installmentId: 73,
+      installmentNumber: 2,
+      person: "Outra pessoa",
+      amount: 50,
+      expectedMonth: "2026-10",
+      status: "due",
+    },
+  ];
+  const confirmation = setter<Confirmation | null>(null);
+  const toast = setter("");
+  const controller = createInstallmentMutations({
+    installments: installments.value,
+    installmentScheduleItems: schedule.value,
+    installmentReimbursementAllocations: allocations,
+    setInstallments: installments.set,
+    setInstallmentScheduleItems: schedule.set,
+    setConfirmation: confirmation.set,
+    setToast: toast.set,
+  });
+
+  controller.delete(73);
+  assert.equal(confirmation.value, null);
+  assert.match(toast.value, /fatos protegidos/);
 });
