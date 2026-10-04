@@ -1350,7 +1350,7 @@ test("guards the public V1 and V2 writers while preserving the V4 internal chain
 
 test("defines an additive household-isolated installment schedule foundation", () => {
   const migration = readFileSync(
-    "supabase/migrations/20260927110000_installment_schedule_foundation.sql",
+    "supabase/migrations/20260928212256_installment_schedule_foundation.sql",
     "utf8",
   );
   assert.match(migration, /create table public\.installment_schedule_items/i);
@@ -1373,7 +1373,7 @@ test("defines an additive household-isolated installment schedule foundation", (
 
 test("keeps the V4 installment schedule outside the legacy projection and inside reconciliation", () => {
   const migration = readFileSync(
-    "supabase/migrations/20260927120000_v4_installment_schedule_snapshot.sql",
+    "supabase/migrations/20260928212300_v4_installment_schedule_snapshot.sql",
     "utf8",
   );
 
@@ -1432,7 +1432,7 @@ test("keeps the V4 installment schedule outside the legacy projection and inside
 
 test("defines immutable household-isolated settlement facts as a V4 extension", () => {
   const migration = readFileSync(
-    "supabase/migrations/20260927130000_installment_settlement_events.sql",
+    "supabase/migrations/20260928212305_installment_settlement_events.sql",
     "utf8",
   );
 
@@ -1507,7 +1507,7 @@ test("defines immutable household-isolated settlement facts as a V4 extension", 
 
 test("hardens schedule and immutable settlement table grants explicitly", () => {
   const migration = readFileSync(
-    "supabase/migrations/20260928190000_installment_schedule_settlement_grants_hardening.sql",
+    "supabase/migrations/20260928214653_installment_schedule_settlement_grants_hardening.sql",
     "utf8",
   );
 
