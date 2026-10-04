@@ -15,10 +15,8 @@ import type {
   Person,
 } from "../../lib/app/AppTypes";
 import type { ProspectiveInstallmentEdit } from "../../lib/finance/installmentProspectiveEdit";
-import {
-  completeInstallmentSchedule,
-  isInstallmentScheduleItemHistorical,
-} from "../../lib/finance/installmentScheduleHistory";
+import { completeInstallmentSchedule } from "../../lib/finance/installmentScheduleHistory";
+import { classifyInstallmentScheduleItem } from "../../lib/finance/installmentScheduleLifecycle";
 import { CategorySelect } from "../categories/CategorySelect";
 
 type Props = {
@@ -28,6 +26,7 @@ type Props = {
   installmentSettlementEvents: readonly InstallmentSettlementEvent[];
   categories: readonly Category[];
   creditCards: readonly CreditCard[];
+  openInvoiceReferenceMonth?: string;
   onSave: (edit: ProspectiveInstallmentEdit) => void;
   onClose: () => void;
 };
@@ -52,22 +51,25 @@ export function ProspectiveInstallmentEditDialog({
   installmentSettlementEvents,
   categories,
   creditCards,
+  openInvoiceReferenceMonth,
   onSave,
   onClose,
 }: Props) {
   const schedule = completeInstallmentSchedule(installment, scheduleItems);
-  const historical = (schedule ?? []).filter((item) =>
-    isInstallmentScheduleItemHistorical(item, {
+  const lifecycle = (item: InstallmentScheduleItem) =>
+    classifyInstallmentScheduleItem(item, {
       installmentInvoiceEvents,
       installmentSettlementEvents,
-    }),
+      openInvoiceReferenceMonth,
+    });
+  const historical = (schedule ?? []).filter(
+    (item) => lifecycle(item) === "historical",
+  );
+  const currentOpenInvoice = (schedule ?? []).filter(
+    (item) => lifecycle(item) === "current_open_invoice",
   );
   const future = (schedule ?? []).filter(
-    (item) =>
-      !isInstallmentScheduleItemHistorical(item, {
-        installmentInvoiceEvents,
-        installmentSettlementEvents,
-      }),
+    (item) => lifecycle(item) === "future",
   );
   const canEditFinancial = Boolean(schedule && future.length);
   const firstFuture = future[0];
@@ -103,6 +105,7 @@ export function ProspectiveInstallmentEditDialog({
             category: form.category,
             categoryId: form.categoryId,
             who: form.who,
+            currentOpenInvoiceReferenceMonth: openInvoiceReferenceMonth,
           };
           if (canEditFinancial) {
             const futureTotalAmount = Number(
@@ -141,7 +144,13 @@ export function ProspectiveInstallmentEditDialog({
         <p className="form-help" aria-live="polite">
           {historical.length} de{" "}
           {schedule?.length ?? installment.totalInstallments} parcelas
-          consolidadas · {future.length} parcelas futuras
+          consolidadas
+          {currentOpenInvoice.length
+            ? ` · ${currentOpenInvoice.length} na fatura atual`
+            : ""}
+          {future.length
+            ? ` · ${future.length} futura${future.length === 1 ? "" : "s"}`
+            : ""}
         </p>
         {!schedule ? (
           <p className="form-help" role="status">

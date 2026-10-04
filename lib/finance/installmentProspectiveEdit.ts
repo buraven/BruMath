@@ -8,6 +8,7 @@ import {
   isInstallmentScheduleItemHistorical,
   type InstallmentScheduleHistoryFacts,
 } from "./installmentScheduleHistory";
+import { classifyInstallmentScheduleItem } from "./installmentScheduleLifecycle";
 
 export type ProspectiveInstallmentEdit = {
   title?: string;
@@ -21,6 +22,8 @@ export type ProspectiveInstallmentEdit = {
   firstFutureInvoiceReferenceMonth?: string | null;
   firstFutureDueDate?: string | null;
   futureCreditCardId?: number | null;
+  /** Presentation context supplied by the currently open invoice; never persisted. */
+  currentOpenInvoiceReferenceMonth?: string;
 };
 
 export type ProspectiveInstallmentEditResult = {
@@ -99,8 +102,19 @@ export function applyProspectiveInstallmentEdit({
   const historical = schedule.filter((item) =>
     isInstallmentScheduleItemHistorical(item, historyFacts),
   );
+  const currentOpenInvoice = schedule.filter(
+    (item) =>
+      classifyInstallmentScheduleItem(item, {
+        ...historyFacts,
+        openInvoiceReferenceMonth: edit.currentOpenInvoiceReferenceMonth,
+      }) === "current_open_invoice",
+  );
   const future = schedule.filter(
-    (item) => !isInstallmentScheduleItemHistorical(item, historyFacts),
+    (item) =>
+      classifyInstallmentScheduleItem(item, {
+        ...historyFacts,
+        openInvoiceReferenceMonth: edit.currentOpenInvoiceReferenceMonth,
+      }) === "future",
   );
   const metadata: Installment = {
     ...installment,
@@ -210,8 +224,8 @@ export function applyProspectiveInstallmentEdit({
           : { creditCardId: futureCardId }
         : {}),
     },
-    // Historical objects are returned untouched, including their original Y.
-    scheduleItems: [...historical, ...nextFuture].sort(
+    // Historical and open-invoice objects are returned untouched, including Y.
+    scheduleItems: [...historical, ...currentOpenInvoice, ...nextFuture].sort(
       (left, right) => left.installmentNumber - right.installmentNumber,
     ),
   };

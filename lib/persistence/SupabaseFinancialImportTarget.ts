@@ -850,3 +850,67 @@ export async function replaceSupabaseFinancialSnapshot({
     );
   return fromRemoteSnapshot(result.data as RemoteSnapshot);
 }
+
+export type LegacyScheduleMaterializationRpcResult =
+  | { status: "applied"; scheduleItems: number }
+  | { status: "conflict" };
+
+/**
+ * Narrow, per-plan materialization path. It deliberately never delegates to
+ * the V4 full-snapshot replacement RPC, whose semantics are broader than the
+ * append-only legacy schedule rollout.
+ */
+export async function materializeSupabaseLegacyScheduleClassA({
+  client,
+  householdId,
+  installmentId,
+  schedule,
+}: {
+  client: SupabaseClient;
+  householdId: string;
+  installmentId: number;
+  schedule: readonly InstallmentScheduleItem[];
+}): Promise<LegacyScheduleMaterializationRpcResult> {
+  const result = await client.rpc(
+    "materialize_legacy_installment_schedule_class_a",
+    {
+      p_household_id: householdId,
+      p_installment_legacy_id: installmentId,
+      p_schedule: schedule.map((item) => ({
+        legacy_id: item.id,
+        installment_legacy_id: item.installmentId,
+        installment_number: item.installmentNumber,
+        total_installments: item.totalInstallments,
+        amount: item.amount,
+        invoice_reference_month: item.invoiceReferenceMonth
+          ? monthDate(item.invoiceReferenceMonth)
+          : null,
+        due_date: item.dueDate
+          ? civilDate(item.dueDate, `Cronograma ${item.id}.dueDate`)
+          : null,
+        credit_card_legacy_id: item.creditCardId ?? null,
+        status: item.status,
+      })),
+    },
+  );
+  if (result.error)
+    throw new SupabaseSnapshotWriteError(result.error, {
+      rpcStarted: true,
+      rpcResponded: true,
+    });
+  const data = result.data as {
+    status?: unknown;
+    schedule_items?: unknown;
+  } | null;
+  if (data?.status === "conflict") return { status: "conflict" };
+  if (
+    data?.status === "applied" &&
+    typeof data.schedule_items === "number" &&
+    Number.isInteger(data.schedule_items)
+  )
+    return { status: "applied", scheduleItems: data.schedule_items };
+  throw new SupabaseSnapshotWriteError(undefined, {
+    rpcStarted: true,
+    rpcResponded: true,
+  });
+}

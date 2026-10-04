@@ -362,3 +362,28 @@ test("rejects legacy and incomplete schedules instead of guessing", () => {
     }),
   );
 });
+
+test("preserves the current open invoice item while editing only later future X/Y", () => {
+  const currentAndFuture = schedule(2);
+  const result = applyProspectiveInstallmentEdit({
+    installment: plan({ totalInstallments: 2 }),
+    scheduleItems: currentAndFuture,
+    historyFacts: {},
+    edit: {
+      currentOpenInvoiceReferenceMonth: "2026-09",
+      futureTotalAmount: 75,
+      firstFutureInvoiceReferenceMonth: "2026-10",
+      firstFutureDueDate: "2026-10-28",
+      futureCreditCardId: 9,
+    },
+  });
+
+  assert.deepEqual(result.scheduleItems[0], currentAndFuture[0]);
+  assert.deepEqual(result.scheduleItems[1], {
+    ...currentAndFuture[1],
+    amount: 75,
+    invoiceReferenceMonth: "2026-10",
+    dueDate: "2026-10-28",
+    creditCardId: 9,
+  });
+});

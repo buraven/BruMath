@@ -51,7 +51,7 @@ export function completeInstallmentSchedule(
   const numbers = new Set<number>();
   for (const item of items) {
     if (
-      item.status !== "scheduled" ||
+      (item.status !== "scheduled" && item.status !== "cancelled") ||
       item.installmentNumber < 1 ||
       item.installmentNumber > installment.totalInstallments ||
       item.totalInstallments < item.installmentNumber ||
@@ -74,7 +74,9 @@ export function futureInstallmentScheduleItems(
 ) {
   return (
     completeInstallmentSchedule(installment, scheduleItems)?.filter(
-      (item) => !isInstallmentScheduleItemHistorical(item, facts),
+      (item) =>
+        item.status === "scheduled" &&
+        !isInstallmentScheduleItemHistorical(item, facts),
     ) ?? []
   );
 }

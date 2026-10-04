@@ -295,19 +295,21 @@ test("edita somente o futuro de uma compra parcelada pela identidade da fatura @
 
   const dialog = page.getByRole("dialog");
   await expect(
-    dialog.getByText("0 de 3 parcelas consolidadas · 3 parcelas futuras"),
+    dialog.getByText(
+      "0 de 3 parcelas consolidadas · 1 na fatura atual · 2 futuras",
+    ),
   ).toBeVisible();
   await expect(dialog.getByLabel("Categoria")).toHaveCount(1);
-  await dialog.getByLabel("Total futuro restante").fill("24000");
+  await dialog.getByLabel("Total futuro restante").fill("16000");
   await dialog.getByLabel("Quantidade de parcelas futuras").fill("0");
   await dialog.getByRole("button", { name: "Salvar alterações" }).click();
   await expect(dialog).toContainText(
     "Informe um valor e uma quantidade válidos para as parcelas futuras.",
   );
   await expect(dialog).toBeVisible();
-  await dialog.getByLabel("Quantidade de parcelas futuras").fill("3");
-  await dialog.getByLabel("Primeira competência futura").fill("2026-08");
-  await dialog.getByLabel("Primeiro vencimento futuro").fill("28/08/2026");
+  await dialog.getByLabel("Quantidade de parcelas futuras").fill("2");
+  await dialog.getByLabel("Primeira competência futura").fill("2026-09");
+  await dialog.getByLabel("Primeiro vencimento futuro").fill("28/09/2026");
   await dialog
     .getByLabel("Cartão das parcelas futuras")
     .selectOption(String(mercadoPagoCard.id));
@@ -319,31 +321,25 @@ test("edita somente o futuro de uma compra parcelada pela identidade da fatura @
       state.installments.some(
         (item) => item.id === plan.id && item.amount === 80,
       ) &&
-      state.installmentScheduleItems?.every(
+      state.installmentScheduleItems?.some(
         (item) =>
-          item.installmentId !== plan.id ||
-          (item.amount === 80 &&
-            item.creditCardId === mercadoPagoCard.id &&
-            item.invoiceReferenceMonth ===
-              `2026-${String(7 + item.installmentNumber).padStart(2, "0")}` &&
-            item.dueDate ===
-              ["2026-08-28", "2026-09-28", "2026-10-28"][
-                item.installmentNumber - 1
-              ]),
-      ) === true,
+          item.id === "installment:810:1" &&
+          item.amount === 100 &&
+          item.creditCardId === nubankCard.id &&
+          item.invoiceReferenceMonth === "2026-08" &&
+          item.dueDate === "2026-08-27",
+      ) === true &&
+      state.installmentScheduleItems
+        ?.filter(
+          (item) =>
+            item.installmentId === plan.id && item.installmentNumber > 1,
+        )
+        .every(
+          (item) =>
+            item.amount === 80 && item.creditCardId === mercadoPagoCard.id,
+        ) === true,
     "edição prospectiva do parcelamento Notebook",
   );
-  await page.getByRole("button", { name: "Voltar para faturas" }).click();
-  await page
-    .getByRole("article")
-    .filter({ hasText: "Mercado Pago" })
-    .getByRole("button", { name: /Ver fatura e lançamentos/ })
-    .click();
-  await expect(
-    page
-      .getByRole("list", { name: "Parcelas da fatura" })
-      .getByText("R$ 80,00", { exact: true }),
-  ).toBeVisible();
 });
 
 test("parcelamento legado não oferece a nova edição financeira na fatura @desktop", async ({
@@ -362,7 +358,7 @@ test("parcelamento legado não oferece a nova edição financeira na fatura @des
           amount: 100,
           totalInstallments: 3,
           paidInstallments: 0,
-          nextDue: "2026-08-27",
+          nextDue: "2026-08-10",
           creditCardId: nubankCard.id,
         },
       ],
@@ -373,6 +369,143 @@ test("parcelamento legado não oferece a nova edição financeira na fatura @des
   await expect(
     page.getByRole("button", { name: /Editar parcelamento Plano legado/ }),
   ).toHaveCount(0);
+  await expect(
+    page.getByRole("button", { name: "Revisar para editar" }),
+  ).toBeVisible();
+});
+
+test("exclui um parcelamento novo sem fatos protegidos somente após confirmação @desktop", async ({
+  page,
+}) => {
+  const plan = {
+    id: 813,
+    title: "Compra removível",
+    category: "Trabalho",
+    who: "Bruna" as const,
+    amount: 50,
+    totalInstallments: 2,
+    paidInstallments: 0,
+    nextDue: "2026-08-27",
+    creditCardId: nubankCard.id,
+  };
+  const schedule = ["2026-08", "2026-09"].map((referenceMonth, index) => ({
+    id: `installment:${plan.id}:${index + 1}`,
+    installmentId: plan.id,
+    installmentNumber: index + 1,
+    totalInstallments: 2,
+    amount: 50,
+    invoiceReferenceMonth: referenceMonth,
+    dueDate: `${referenceMonth}-27`,
+    creditCardId: nubankCard.id,
+    status: "scheduled" as const,
+  }));
+  await openWithFinancialState(
+    page,
+    createFinancialState({
+      creditCards: [nubankCard],
+      installments: [plan],
+      installmentScheduleItems: schedule,
+    }),
+  );
+  await openInvoices(page);
+  await page.getByRole("button", { name: /Ver fatura e lançamentos/ }).click();
+  await page.getByRole("button", { name: "Excluir compra parcelada" }).click();
+  const confirmation = page.getByRole("dialog");
+  await expect(
+    confirmation.getByRole("heading", { name: "Excluir compra parcelada" }),
+  ).toBeVisible();
+  await confirmation
+    .getByRole("button", { name: "Excluir compra parcelada" })
+    .click();
+  await expect(page.getByText("Compra removível", { exact: true })).toHaveCount(
+    0,
+  );
+  await waitForPersistedFinancialState(
+    page,
+    (state) =>
+      !state.installments.some((item) => item.id === plan.id) &&
+      !state.installmentScheduleItems?.some(
+        (item) => item.installmentId === plan.id,
+      ),
+    "remoção atômica do plano e do cronograma",
+  );
+});
+
+test("encerra somente futuras e preserva a parcela da fatura atual @desktop", async ({
+  page,
+}) => {
+  const plan = {
+    id: 814,
+    title: "Plano encerrável",
+    category: "Trabalho",
+    who: "Bruna" as const,
+    amount: 50,
+    totalInstallments: 3,
+    paidInstallments: 0,
+    nextDue: "2026-08-27",
+    creditCardId: nubankCard.id,
+  };
+  const schedule = ["2026-07", "2026-08", "2026-09"].map(
+    (referenceMonth, index) => ({
+      id: `installment:${plan.id}:${index + 1}`,
+      installmentId: plan.id,
+      installmentNumber: index + 1,
+      totalInstallments: 3,
+      amount: 50,
+      invoiceReferenceMonth: referenceMonth,
+      dueDate: `${referenceMonth}-27`,
+      creditCardId: nubankCard.id,
+      status: "scheduled" as const,
+    }),
+  );
+  await openWithFinancialState(
+    page,
+    createFinancialState({
+      creditCards: [nubankCard],
+      installments: [plan],
+      installmentScheduleItems: schedule,
+      installmentInvoiceEvents: [
+        {
+          id: 1,
+          installmentId: plan.id,
+          cardId: nubankCard.id,
+          referenceMonth: "2026-07",
+          installmentNumber: 1,
+          amount: 50,
+          type: "regular" as const,
+          date: "2026-07-27",
+        },
+      ],
+    }),
+  );
+  await openInvoices(page);
+  await page.getByRole("button", { name: /Ver fatura e lançamentos/ }).click();
+  await page.getByRole("button", { name: "Encerrar parcelamento" }).click();
+  const confirmation = page.getByRole("dialog");
+  await expect(
+    confirmation.getByRole("heading", { name: "Encerrar parcelamento" }),
+  ).toBeVisible();
+  await expect(confirmation).toContainText("1 na fatura atual");
+  await confirmation
+    .getByRole("button", { name: "Encerrar parcelamento" })
+    .click();
+  await waitForPersistedFinancialState(
+    page,
+    (state) =>
+      state.installmentScheduleItems?.some(
+        (item) =>
+          item.id === "installment:814:1" && item.status === "scheduled",
+      ) === true &&
+      state.installmentScheduleItems?.some(
+        (item) =>
+          item.id === "installment:814:2" && item.status === "scheduled",
+      ) === true &&
+      state.installmentScheduleItems?.some(
+        (item) =>
+          item.id === "installment:814:3" && item.status === "cancelled",
+      ) === true,
+    "histórico e fatura aberta preservados, somente futuro cancelado",
+  );
 });
 
 test("plano integralmente consolidado mantém somente metadados editáveis @desktop", async ({

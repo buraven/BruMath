@@ -96,7 +96,8 @@ export type InstallmentScheduleItem = {
   invoiceReferenceMonth?: string;
   dueDate?: string;
   creditCardId?: number;
-  status: "scheduled";
+  /** `cancelled` retains X/Y identity but produces no future obligation. */
+  status: "scheduled" | "cancelled";
 };
 
 /** An immutable, full settlement of one scheduled installment. */

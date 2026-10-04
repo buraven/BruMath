@@ -107,7 +107,12 @@ import {
   type DerivedInvoice,
 } from "../lib/finance/invoices";
 import { deriveCalendarProjection } from "../lib/finance/calendar";
-import { completeInstallmentSchedule } from "../lib/finance/installmentScheduleHistory";
+import {
+  completeInstallmentSchedule,
+  isInstallmentScheduleItemHistorical,
+} from "../lib/finance/installmentScheduleHistory";
+import { classifyInstallmentScheduleItem } from "../lib/finance/installmentScheduleLifecycle";
+import { classifyLegacyInstallmentForMaterialization } from "../lib/finance/legacyInstallmentScheduleReview";
 
 const money = (value: number) =>
   value.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
@@ -173,10 +178,12 @@ export default function Page() {
     invoicePayments,
     invoiceAdjustments,
     installmentInvoiceEvents,
+    installmentReimbursementAllocations,
     installmentScheduleItems = [],
     installmentSettlementEvents = [],
     setInvoicePayments,
     setInstallmentInvoiceEvents,
+    setInstallmentReimbursementAllocations,
     setInstallmentScheduleItems,
     setInstallmentSettlementEvents,
     activeProfile,
@@ -432,12 +439,100 @@ export default function Page() {
     () =>
       new Set(
         installments
-          .filter((installment) =>
-            completeInstallmentSchedule(installment, installmentScheduleItems),
-          )
+          .filter((installment) => {
+            const schedule = completeInstallmentSchedule(
+              installment,
+              installmentScheduleItems,
+            );
+            // A complete schedule always supports safe plan metadata corrections.
+            // The dialog itself keeps financial fields disabled when no item is
+            // future/editable, preserving every historical X/Y fact.
+            return Boolean(schedule);
+          })
           .map((installment) => installment.id),
       ),
     [installments, installmentScheduleItems],
+  );
+  const deletableInvoiceInstallmentIds = useMemo(
+    () =>
+      new Set(
+        installments
+          .filter((installment) => {
+            const schedule = completeInstallmentSchedule(
+              installment,
+              installmentScheduleItems,
+            );
+            return schedule?.every(
+              (item) =>
+                !isInstallmentScheduleItemHistorical(item, {
+                  installmentInvoiceEvents,
+                  installmentSettlementEvents,
+                }),
+            );
+          })
+          .map((installment) => installment.id),
+      ),
+    [
+      installments,
+      installmentScheduleItems,
+      installmentInvoiceEvents,
+      installmentSettlementEvents,
+    ],
+  );
+  const endableInvoiceInstallmentIds = useMemo(
+    () =>
+      new Set(
+        installments
+          .filter((installment) => {
+            const schedule = completeInstallmentSchedule(
+              installment,
+              installmentScheduleItems,
+            );
+            return (
+              schedule?.some((item) =>
+                isInstallmentScheduleItemHistorical(item, {
+                  installmentInvoiceEvents,
+                  installmentSettlementEvents,
+                }),
+              ) &&
+              schedule.some(
+                (item) =>
+                  classifyInstallmentScheduleItem(item, {
+                    installmentInvoiceEvents,
+                    installmentSettlementEvents,
+                    openInvoiceReferenceMonth: viewMonth,
+                  }) === "future",
+              )
+            );
+          })
+          .map((installment) => installment.id),
+      ),
+    [
+      installments,
+      installmentScheduleItems,
+      installmentInvoiceEvents,
+      installmentSettlementEvents,
+      viewMonth,
+    ],
+  );
+  const reviewRequiredInvoiceInstallmentIds = useMemo(
+    () =>
+      new Set(
+        installments
+          .filter(
+            (installment) =>
+              !completeInstallmentSchedule(
+                installment,
+                installmentScheduleItems,
+              ) &&
+              classifyLegacyInstallmentForMaterialization({
+                installment,
+                invoiceEvents: installmentInvoiceEvents,
+              }).kind === "review_required",
+          )
+          .map((installment) => installment.id),
+      ),
+    [installments, installmentScheduleItems, installmentInvoiceEvents],
   );
   const calendarProjection = useMemo(
     () =>
@@ -926,7 +1021,21 @@ export default function Page() {
                 onEditExpense={openEditExpense}
                 onDeleteExpense={deleteExpense}
                 editableInstallmentIds={editableInvoiceInstallmentIds}
+                deletableInstallmentIds={deletableInvoiceInstallmentIds}
+                endableInstallmentIds={endableInvoiceInstallmentIds}
+                reviewRequiredInstallmentIds={
+                  reviewRequiredInvoiceInstallmentIds
+                }
                 onEditInstallment={openEditInvoiceInstallment}
+                onDeleteInstallment={deleteInstallment}
+                onEndInstallment={(id, referenceMonth) =>
+                  installmentMutations.endScheduled(id, referenceMonth)
+                }
+                onReviewInstallment={() =>
+                  setToast(
+                    "Este parcelamento do formato anterior precisa de revisão antes de alterar as parcelas futuras.",
+                  )
+                }
               />
             )}
 
@@ -1185,6 +1294,7 @@ export default function Page() {
             installmentSettlementEvents={installmentSettlementEvents}
             categories={categories}
             creditCards={creditCards}
+            openInvoiceReferenceMonth={viewMonth}
             onSave={(edit) => {
               installmentMutations.editProspectively(
                 editingInvoiceInstallment.installmentId,

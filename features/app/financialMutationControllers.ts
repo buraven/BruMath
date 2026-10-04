@@ -6,6 +6,7 @@ import type {
   IncomeEntry,
   Installment,
   InstallmentInvoiceEvent,
+  InstallmentReimbursementAllocation,
   InstallmentScheduleItem,
   InstallmentSettlementEvent,
   Person,
@@ -15,6 +16,10 @@ import {
   futureInstallmentScheduleItems,
   isInstallmentScheduleItemHistorical,
 } from "../../lib/finance/installmentScheduleHistory";
+import {
+  classifyInstallmentScheduleItem,
+  isProtectedInstallmentReimbursement,
+} from "../../lib/finance/installmentScheduleLifecycle";
 import { generateInstallmentSchedule } from "../../lib/finance/installmentSchedule";
 import {
   applyProspectiveInstallmentEdit,
@@ -98,10 +103,12 @@ export function createInstallmentMutations({
   installmentScheduleItems = [],
   installmentSettlementEvents = [],
   installmentInvoiceEvents = [],
+  installmentReimbursementAllocations = [],
   setInstallments,
   setInstallmentScheduleItems,
   setInstallmentSettlementEvents,
   setInstallmentInvoiceEvents,
+  setInstallmentReimbursementAllocations,
   setConfirmation,
   setToast,
 }: CommonDependencies & {
@@ -109,6 +116,7 @@ export function createInstallmentMutations({
   installmentScheduleItems?: readonly InstallmentScheduleItem[];
   installmentSettlementEvents?: readonly InstallmentSettlementEvent[];
   installmentInvoiceEvents?: readonly InstallmentInvoiceEvent[];
+  installmentReimbursementAllocations?: readonly InstallmentReimbursementAllocation[];
   setInstallments: Dispatch<SetStateAction<Installment[]>>;
   setInstallmentScheduleItems?: Dispatch<
     SetStateAction<InstallmentScheduleItem[] | undefined>
@@ -118,6 +126,9 @@ export function createInstallmentMutations({
   >;
   setInstallmentInvoiceEvents?: Dispatch<
     SetStateAction<InstallmentInvoiceEvent[]>
+  >;
+  setInstallmentReimbursementAllocations?: Dispatch<
+    SetStateAction<InstallmentReimbursementAllocation[]>
   >;
 }) {
   const payLegacy = (id: number, count: number) => {
@@ -336,6 +347,61 @@ export function createInstallmentMutations({
     delete(id: number) {
       const item = installments.find((installment) => installment.id === id);
       if (!item) return;
+      const schedule = completeInstallmentSchedule(
+        item,
+        installmentScheduleItems,
+      );
+      if (schedule) {
+        const protectedFacts = schedule.some((scheduleItem) =>
+          isInstallmentScheduleItemHistorical(scheduleItem, {
+            installmentInvoiceEvents,
+            installmentSettlementEvents,
+          }),
+        );
+        const allocations = installmentReimbursementAllocations.filter(
+          (allocation) => allocation.installmentId === id,
+        );
+        const protectedAllocations = allocations.some(
+          isProtectedInstallmentReimbursement,
+        );
+        if (protectedFacts || protectedAllocations) {
+          setToast(
+            "Este parcelamento possui fatos protegidos e não pode ser excluído.",
+          );
+          return;
+        }
+        if (allocations.length && !setInstallmentReimbursementAllocations) {
+          setToast(
+            "Não foi possível validar os reembolsos deste parcelamento.",
+          );
+          return;
+        }
+        if (!setInstallmentScheduleItems) {
+          setToast("O cronograma não está disponível para exclusão.");
+          return;
+        }
+        setConfirmation({
+          title: "Excluir compra parcelada",
+          description: `“${item.title}” e todas as parcelas ainda não consolidadas serão removidos permanentemente.`,
+          confirmLabel: "Excluir compra parcelada",
+          destructive: true,
+          onConfirm: () => {
+            setInstallments((current) =>
+              current.filter((installment) => installment.id !== id),
+            );
+            setInstallmentScheduleItems((current) =>
+              (current ?? []).filter(
+                (scheduleItem) => scheduleItem.installmentId !== id,
+              ),
+            );
+            setInstallmentReimbursementAllocations?.((current) =>
+              current.filter((allocation) => allocation.installmentId !== id),
+            );
+            setToast("Compra parcelada excluída");
+          },
+        });
+        return;
+      }
       setConfirmation({
         title: "Excluir parcelamento",
         description: `“${item.title}” será removido permanentemente.`,
@@ -346,6 +412,87 @@ export function createInstallmentMutations({
             current.filter((installment) => installment.id !== id),
           );
           setToast("Parcela excluída");
+        },
+      });
+    },
+    endScheduled(id: number, openInvoiceReferenceMonth?: string) {
+      const item = installments.find((installment) => installment.id === id);
+      if (!item || !setInstallmentScheduleItems) return;
+      const schedule = completeInstallmentSchedule(
+        item,
+        installmentScheduleItems,
+      );
+      if (!schedule) {
+        setToast(
+          "Este parcelamento precisa de revisão antes de ser encerrado.",
+        );
+        return;
+      }
+      const cancellable = schedule.filter(
+        (scheduleItem) =>
+          classifyInstallmentScheduleItem(scheduleItem, {
+            installmentInvoiceEvents,
+            installmentSettlementEvents,
+            openInvoiceReferenceMonth,
+          }) === "future",
+      );
+      const historical = schedule.filter((scheduleItem) =>
+        isInstallmentScheduleItemHistorical(scheduleItem, {
+          installmentInvoiceEvents,
+          installmentSettlementEvents,
+        }),
+      );
+      const current = schedule.filter(
+        (scheduleItem) =>
+          classifyInstallmentScheduleItem(scheduleItem, {
+            installmentInvoiceEvents,
+            installmentSettlementEvents,
+            openInvoiceReferenceMonth,
+          }) === "current_open_invoice",
+      );
+      if (!historical.length) {
+        setToast(
+          "Use Excluir compra parcelada enquanto não houver parcelas consolidadas.",
+        );
+        return;
+      }
+      if (!cancellable.length) {
+        setToast("Não há parcelas futuras elegíveis para encerrar.");
+        return;
+      }
+      const protectedFutureReimbursement =
+        installmentReimbursementAllocations.some(
+          (allocation) =>
+            allocation.installmentId === id &&
+            cancellable.some(
+              (scheduleItem) =>
+                scheduleItem.installmentNumber === allocation.installmentNumber,
+            ) &&
+            isProtectedInstallmentReimbursement(allocation),
+        );
+      if (protectedFutureReimbursement) {
+        setToast(
+          "Este parcelamento possui reembolsos protegidos e não pode ser encerrado.",
+        );
+        return;
+      }
+      setConfirmation({
+        title: "Encerrar parcelamento",
+        description: `${historical.length} parcela${historical.length === 1 ? "" : "s"} consolidada${historical.length === 1 ? "" : "s"}${current.length ? ` e ${current.length} na fatura atual` : ""} serão preservadas. ${cancellable.length} futura${cancellable.length === 1 ? "" : "s"} será${cancellable.length === 1 ? "" : "ão"} encerrada${cancellable.length === 1 ? "" : "s"}.`,
+        confirmLabel: "Encerrar parcelamento",
+        destructive: true,
+        onConfirm: () => {
+          const ids = new Set(
+            cancellable.map((scheduleItem) => scheduleItem.id),
+          );
+          setInstallmentScheduleItems((currentItems) =>
+            (currentItems ?? []).map((scheduleItem) =>
+              ids.has(scheduleItem.id)
+                ? { ...scheduleItem, status: "cancelled" as const }
+                : scheduleItem,
+            ),
+          );
+          setToast("Parcelamento encerrado; o histórico foi preservado.");
         },
       });
     },
